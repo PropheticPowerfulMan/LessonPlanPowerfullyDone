@@ -1,48 +1,66 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Sora:wght@300;400;500;600;700;800&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --background: 210 40% 98%;
-  --foreground: 222 47% 11%;
-  --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
-  --primary: 211 82% 36%;
-  --primary-foreground: 0 0% 100%;
-  --secondary: 175 46% 40%;
-  --secondary-foreground: 0 0% 100%;
-  --muted: 214 32% 92%;
-  --muted-foreground: 215 16% 42%;
-  --accent: 42 91% 55%;
-  --accent-foreground: 222 47% 11%;
-  --destructive: 0 72% 51%;
+  --background: 203 79% 5%;
+  --foreground: 192 55% 92%;
+  --glass-bg: linear-gradient(135deg, rgba(7, 24, 36, 0.84), rgba(3, 13, 20, 0.72));
+  --glass-border: rgba(125, 232, 255, 0.18);
+  --card: 199 46% 10%;
+  --card-foreground: 192 55% 92%;
+  --primary: 191 78% 48%;
+  --primary-foreground: 198 76% 6%;
+  --secondary: 160 84% 39%;
+  --secondary-foreground: 164 75% 95%;
+  --muted: 199 43% 15%;
+  --muted-foreground: 196 19% 69%;
+  --accent: 43 96% 56%;
+  --accent-foreground: 203 79% 5%;
+  --destructive: 0 75% 57%;
   --destructive-foreground: 0 0% 100%;
-  --border: 214 32% 88%;
-  --input: 214 32% 88%;
+  --border: 190 53% 22%;
+  --input: 198 48% 12%;
   --ring: var(--primary);
+  --ink: #e7faff;
+  --ink-dim: #9fb7c2;
+  --brand-light: #7de8ff;
+  --brand: #14b8de;
+  --brand-deep: #0786ad;
+  --success: #10b981;
 }
 
 .dark {
-  --background: 222 47% 8%;
-  --foreground: 210 40% 96%;
-  --card: 222 35% 12%;
-  --card-foreground: 210 40% 96%;
-  --primary: 205 90% 58%;
-  --primary-foreground: 222 47% 8%;
-  --secondary: 172 50% 42%;
-  --secondary-foreground: 222 47% 8%;
-  --muted: 222 28% 18%;
-  --muted-foreground: 215 20% 70%;
-  --accent: 42 91% 58%;
-  --accent-foreground: 222 47% 8%;
-  --destructive: 0 72% 55%;
+  --background: 203 79% 5%;
+  --foreground: 192 55% 92%;
+  --glass-bg-dark: var(--glass-bg);
+  --glass-border: rgba(125, 232, 255, 0.18);
+  --card: 199 46% 10%;
+  --card-foreground: 192 55% 92%;
+  --primary: 191 78% 48%;
+  --primary-foreground: 198 76% 6%;
+  --secondary: 160 84% 39%;
+  --secondary-foreground: 164 75% 95%;
+  --muted: 199 43% 15%;
+  --muted-foreground: 196 19% 69%;
+  --accent: 43 96% 56%;
+  --accent-foreground: 203 79% 5%;
+  --destructive: 0 72% 56%;
   --destructive-foreground: 0 0% 100%;
-  --border: 222 28% 20%;
-  --input: 222 28% 20%;
+  --border: 190 53% 22%;
+  --input: 198 48% 12%;
 }
 
 * {
   border-color: hsl(var(--border));
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
 }
 
 body {
@@ -50,10 +68,12 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background:
-    radial-gradient(circle at top left, color-mix(in srgb, hsl(var(--primary)) 13%, transparent), transparent 32rem),
-    linear-gradient(180deg, hsl(var(--background)), hsl(var(--muted)));
+    linear-gradient(rgba(125, 232, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(125, 232, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(180deg, #031b34 0%, #04141f 38%, #030d14 100%);
+  background-size: 28px 28px, 28px 28px, auto;
   color: hsl(var(--foreground));
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: Manrope, Sora, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 button,
@@ -64,19 +84,65 @@ select {
 }
 
 .glass {
-  background: color-mix(in srgb, hsl(var(--card)) 88%, transparent);
-  backdrop-filter: blur(18px);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 24px 70px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(18px) saturate(145%);
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+  transition: background-color 200ms ease, border-color 200ms ease;
+}
+
+:root {
+  --app-accent-1: 192 97% 75%;
+  --app-accent-2: 191 78% 48%;
+}
+
+.text-gradient {
+  background: linear-gradient(135deg, #fff, var(--brand-light) 36%, var(--brand) 74%, var(--brand-deep));
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  border: 1px solid rgba(125, 232, 255, 0.34);
+  background: rgba(20, 184, 222, 0.12);
+  color: var(--brand-light);
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.dark .glass {
+  background: var(--glass-bg-dark);
+  border-color: var(--glass-border);
+}
+
+.dark input,
+.dark textarea,
+.dark select {
+  color-scheme: dark;
 }
 
 .print-page {
-  width: 210mm;
-  min-height: 297mm;
+  width: 297mm;
+  height: 210mm;
   background: white;
   color: #111827;
   position: relative;
+  break-after: page;
 }
 
 @media print {
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+
   body {
     background: white;
   }
@@ -88,5 +154,16 @@ select {
   .print-page {
     box-shadow: none !important;
     page-break-after: always;
+    background: white !important;
+    color: #111827 !important;
+  }
+
+  /* Disable glass effects for printing */
+  .glass, .print-page.glass {
+    background: white !important;
+    border: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
   }
 }

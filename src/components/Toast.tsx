@@ -27,12 +27,12 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
       <AnimatePresence>
         {message && (
           <motion.div
-            className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-xl border bg-card px-4 py-3 text-sm font-semibold shadow-fluent"
+            className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-md border border-cyan-300/25 bg-[#071824]/95 px-4 py-3 text-sm font-semibold text-white shadow-fluent"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16 }}
           >
-            <CheckCircle2 className="text-secondary" size={18} />
+            <CheckCircle2 className="text-emerald-300" size={18} />
             {message}
           </motion.div>
         )}

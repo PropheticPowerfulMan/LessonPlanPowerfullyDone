@@ -1,7 +1,10 @@
-import { LessonPlan, LessonStage, LessonStageName, RepeatableItem } from "../types/lesson";
+import { LessonPlan, LessonStage, LessonStageName, RepeatableItem, WeeklyDayName, WeeklyPlanDay } from "../types/lesson";
 import { uid } from "../utils/id";
 
-export const schoolImage = "/kcs.jpg";
+export const schoolName = "KINSHASA CHRISTIAN SCHOOL";
+export const schoolShortName = "KCS";
+export const schoolDisplayName = `${schoolShortName} - ${schoolName}`;
+export const schoolImage = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/kcs.jpg`;
 
 export const stageNames: LessonStageName[] = [
   "Starter",
@@ -15,6 +18,8 @@ export const stageNames: LessonStageName[] = [
   "Homework",
   "Reflection"
 ];
+
+export const weeklyDayNames: WeeklyDayName[] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
 export const emptyItem = (value = ""): RepeatableItem => ({ id: uid("item"), value });
 
@@ -30,21 +35,97 @@ export const createStage = (name: LessonStageName): LessonStage => ({
   images: []
 });
 
+export const createFlexibleWeeklyPlan = (subject = "", gradeClass = "", chapter = ""): WeeklyPlanDay[] => {
+  const subjectLabel = subject || "the subject";
+  const gradeLabel = gradeClass || "the class";
+  const chapterLabel = chapter || "the selected unit";
+  const focus = ["Introduction", "Guided practice", "Skill development", "Application", "Review and assessment"];
+
+  return weeklyDayNames.map((day, index) => ({
+    day,
+    lesson: `${chapterLabel} - ${focus[index]}`,
+    objectives: `By the end of the lesson, learners in ${gradeLabel} should be able to understand and apply the key ideas from ${chapterLabel}.`,
+    presentation: `Introduce the ${subjectLabel} focus with clear examples, guided questioning, and short teacher modelling.`,
+    guidedPractice: "Learners practise with teacher support, compare answers, and correct misconceptions.",
+    exitTicket: "Learners complete one short task that proves understanding of the day's objective.",
+    assessment: "Teacher checks oral responses, written work, participation, and accuracy during practice.",
+    homework: `Complete a short exercise connected to ${chapterLabel} and prepare one example for the next lesson.`
+  }));
+};
+
+export const createPdfExampleWeeklyPlan = (): WeeklyPlanDay[] => [
+  {
+    day: "Monday",
+    lesson: "Types of Sentences / Subjects and Predicates",
+    objectives: "Write, identify, and punctuate declarative, imperative, interrogative, and exclamatory sentences.",
+    presentation: "Explain the four types of sentences, then introduce subject and predicate using examples.",
+    guidedPractice: "Learners identify sentence types, subjects, and predicates in model sentences.",
+    exitTicket: "Learners write one example for each sentence type.",
+    assessment: "Observe participation and mark written exercises.",
+    homework: "Write eight sentences: 2 declarative, 2 interrogative, 2 imperative and 2 exclamatory. Underline the subject and circle the predicate."
+  },
+  {
+    day: "Tuesday",
+    lesson: "Compound Subjects and Predicates / Compound Sentences",
+    objectives: "Identify compound subjects and predicates. Distinguish simple and compound sentences. Write compound sentences using coordinating conjunctions.",
+    presentation: "Teach compound subjects, compound predicates, and compound sentences with examples.",
+    guidedPractice: "Learners identify and create compound sentences.",
+    exitTicket: "Learners combine two simple sentences with a coordinating conjunction.",
+    assessment: "Check correct use of coordinating conjunctions and sentence punctuation.",
+    homework: "Write 10 compound sentences using different coordinating conjunctions."
+  },
+  {
+    day: "Wednesday",
+    lesson: "Subordinating Conjunctions / Complex Sentences",
+    objectives: "Identify subordinating conjunctions such as because, although, if, and when. Use subordinating conjunctions in sentences.",
+    presentation: "Explain that subordinating conjunctions introduce a subordinate clause and connect it to a main clause.",
+    guidedPractice: "Learners join clauses using subordinating conjunctions.",
+    exitTicket: "What is a subordinating conjunction? What is a complex sentence? Give one example of each.",
+    assessment: "Evaluate ability to form complex sentences and participate in class activities.",
+    homework: "Write 10 complex sentences using different subordinating conjunctions."
+  },
+  {
+    day: "Thursday",
+    lesson: "Simple, Compound, and Complex Sentences / Prepositions",
+    objectives: "Identify, differentiate, and construct simple, compound, and complex sentences.",
+    presentation: "Explain the three sentence types and introduce common prepositions such as in, on, under, behind, between, and at.",
+    guidedPractice: "Learners write 3 simple, 3 compound, and 3 complex sentences.",
+    exitTicket: "What are the three types of sentences? Give examples.",
+    assessment: "Teacher checks written exercises.",
+    homework: "Write 10 mixed sentences and identify their types."
+  },
+  {
+    day: "Friday",
+    lesson: "Prepositional Phrases / Chapter 1 Review",
+    objectives: "Identify and use prepositions and prepositional phrases.",
+    presentation: "Explain that a prepositional phrase is made of a preposition and its object.",
+    guidedPractice: "Learners identify prepositional phrases in sentences and write original examples.",
+    exitTicket: "What is a preposition? Give examples.",
+    assessment: "First test / chapter review.",
+    homework: "Write 10 sentences using different prepositions and prepositional phrases."
+  }
+];
+
 export const createBlankLesson = (lessonNumber: string): LessonPlan => {
   const now = new Date().toISOString();
+  const currentYear = new Date().getFullYear();
 
   return {
     id: uid("lesson"),
     lessonNumber,
     status: "active",
     tags: [],
-    schoolName: "International American School",
+    schoolName: schoolDisplayName,
+    schoolYear: `${currentYear} - ${currentYear + 1}`,
+    semester: "1st",
+    quarter: "1st",
+    chapter: "",
     teachers: "",
     subject: "",
     gradeClass: "",
     date: new Date().toISOString().slice(0, 10),
-    week: "",
-    term: "",
+    week: "1",
+    term: "1st Quarter",
     duration: "45 min",
     classroom: "",
     numberOfStudents: "",
@@ -54,12 +135,12 @@ export const createBlankLesson = (lessonNumber: string): LessonPlan => {
     learningArea: "",
     biblicalIntegration: "",
     crossCurricularConnections: "",
-    learningObjectives: [emptyItem("Students will be able to...")],
-    learningOutcomes: [emptyItem("By the end of the lesson, learners can...")],
-    successCriteria: [emptyItem("I can...")],
-    materialsResources: [emptyItem("Teacher device, projector, notebooks")],
+    learningObjectives: [emptyItem()],
+    learningOutcomes: [emptyItem()],
+    successCriteria: [emptyItem()],
+    materialsResources: [emptyItem()],
     vocabulary: [emptyItem()],
-    safetyConsiderations: [emptyItem("Classroom movement and digital safety expectations reviewed.")],
+    safetyConsiderations: [emptyItem()],
     stages: stageNames.map(createStage),
     blooms: {
       remember: [""],
@@ -92,6 +173,7 @@ export const createBlankLesson = (lessonNumber: string): LessonPlan => {
       followUpActivities: "",
       teacherNotes: ""
     },
+    weeklyPlan: createFlexibleWeeklyPlan(),
     createdAt: now,
     updatedAt: now,
     versions: []

@@ -1,4 +1,5 @@
 import { createContext, ReactNode, useContext, useEffect, useMemo, useState } from "react";
+import { schoolImage } from "../data/defaults";
 import { Language } from "../types/lesson";
 
 interface AppContextValue {
@@ -12,9 +13,9 @@ interface AppContextValue {
 const AppContext = createContext<AppContextValue | null>(null);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
-  const [dark, setDark] = useState(() => localStorage.getItem("plp:theme") === "dark");
+  const [dark, setDark] = useState(() => localStorage.getItem("plp:theme") ? localStorage.getItem("plp:theme") === "dark" : true);
   const [language, setLanguageState] = useState<Language>(() => (localStorage.getItem("plp:language") as Language) || "en");
-  const imageUrl = "/kcs.jpg";
+  const imageUrl = schoolImage;
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", dark);
@@ -27,7 +28,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const img = new Image();
-    img.crossOrigin = "anonymous";
     img.src = imageUrl;
     img.onload = () => {
       const canvas = document.createElement("canvas");
@@ -47,9 +47,11 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         b += data[i + 2];
         count += 1;
       }
-      document.documentElement.style.setProperty("--primary", rgbToHsl(r / count, g / count, b / count));
+      const derived = rgbToHsl(r / count, g / count, b / count, dark);
+      document.documentElement.style.setProperty("--primary", derived.primary);
+      document.documentElement.style.setProperty("--secondary", derived.secondary);
     };
-  }, []);
+  }, [dark, imageUrl]);
 
   const value = useMemo<AppContextValue>(
     () => ({
@@ -71,7 +73,7 @@ export const useApp = () => {
   return value;
 };
 
-const rgbToHsl = (r: number, g: number, b: number) => {
+const rgbToHsl = (r: number, g: number, b: number, dark: boolean) => {
   r /= 255;
   g /= 255;
   b /= 255;
@@ -87,5 +89,10 @@ const rgbToHsl = (r: number, g: number, b: number) => {
     if (max === b) h = (r - g) / d + 4;
     h *= 60;
   }
-  return `${Math.round((h + 360) % 360)} ${Math.round(s * 100)}% ${Math.max(28, Math.round(l * 100))}%`;
+  const hue = Math.round((h + 360) % 360);
+  const saturation = Math.max(36, Math.round(s * 100));
+  return {
+    primary: `${hue} ${saturation}% ${dark ? 58 : Math.max(28, Math.round(l * 100))}%`,
+    secondary: `${(hue + 135) % 360} ${Math.max(42, saturation - 8)}% ${dark ? 48 : 38}%`
+  };
 };

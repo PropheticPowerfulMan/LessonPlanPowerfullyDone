@@ -49,7 +49,7 @@ export const Plans = () => {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "powerful-lesson-planner-backup.json";
+    a.download = "kcs-lesson-planner-backup.json";
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -68,14 +68,14 @@ export const Plans = () => {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-black">Lesson Plans</h1>
+          <h1 className="text-3xl font-black text-white">Lesson Plans</h1>
           <p className="text-sm text-muted-foreground">Search, filter, archive, duplicate, and back up your local library.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={downloadBackup}>
             <Download size={17} /> Export JSON
           </Button>
-          <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border bg-card px-4 text-sm font-semibold hover:bg-muted">
+          <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-md border border-cyan-300/25 bg-white/[0.06] px-4 text-sm font-bold text-foreground hover:bg-cyan-500/15">
             <Upload size={17} /> Import JSON
             <input type="file" accept="application/json" className="hidden" onChange={importBackup} />
           </label>
@@ -109,10 +109,10 @@ export const Plans = () => {
         {filtered.map((lesson) => (
           <Card key={lesson.id} className="grid gap-4 p-4 md:grid-cols-[1fr_auto]">
             <div>
-              <p className="font-bold">{lesson.topic || "Untitled Lesson"}</p>
+              <p className="font-bold text-white">{lesson.topic || "Untitled Lesson"}</p>
               <p className="text-sm text-muted-foreground">{lesson.lessonNumber} · {lesson.subject || "Subject"} · {lesson.gradeClass || "Grade"} · {lesson.date}</p>
               <div className="mt-2 flex flex-wrap gap-2">
-                {lesson.tags.map((tag) => <span key={tag} className="rounded-full bg-muted px-2 py-1 text-xs font-semibold">{tag}</span>)}
+                {lesson.tags.map((tag) => <span key={tag} className="rounded-full border border-cyan-300/20 bg-cyan-500/10 px-2 py-1 text-xs font-semibold text-cyan-100">{tag}</span>)}
               </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">

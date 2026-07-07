@@ -1,10 +1,12 @@
-import { LessonFilters, LessonPlan } from "../types/lesson";
+import { createBlankLesson, createFlexibleWeeklyPlan, schoolDisplayName, schoolName } from "../data/defaults";
+import { LessonFilters, LessonPlan, WeeklyPlanDay } from "../types/lesson";
 
 const key = "powerful-lesson-planner:lessons";
 
 const read = (): LessonPlan[] => {
   try {
-    return JSON.parse(localStorage.getItem(key) || "[]") as LessonPlan[];
+    const lessons = JSON.parse(localStorage.getItem(key) || "[]") as LessonPlan[];
+    return lessons.map(normalizeLesson);
   } catch {
     return [];
   }
@@ -12,6 +14,56 @@ const read = (): LessonPlan[] => {
 
 const write = (lessons: LessonPlan[]) => {
   localStorage.setItem(key, JSON.stringify(lessons));
+};
+
+const normalizeLesson = (lesson: Partial<LessonPlan>): LessonPlan => {
+  const base = createBlankLesson(lesson.lessonNumber || `LP-${new Date().getFullYear()}-0001`);
+  const weeklyPlan = normalizeWeeklyPlan(lesson.weeklyPlan);
+
+  return {
+    ...base,
+    ...lesson,
+    schoolName: !lesson.schoolName || lesson.schoolName === schoolName || lesson.schoolName.includes("KINSHASA CHRISTIAN SCHOOL") ? schoolDisplayName : lesson.schoolName,
+    schoolYear: lesson.schoolYear || base.schoolYear,
+    semester: lesson.semester || base.semester,
+    quarter: lesson.quarter || lesson.term || base.quarter,
+    chapter: lesson.chapter || lesson.topic || base.chapter,
+    teachers: lesson.teachers || base.teachers,
+    subject: lesson.subject || base.subject,
+    gradeClass: lesson.gradeClass || base.gradeClass,
+    duration: lesson.duration || base.duration,
+    week: lesson.week || base.week,
+    tags: lesson.tags || base.tags,
+    learningObjectives: lesson.learningObjectives?.length ? lesson.learningObjectives : base.learningObjectives,
+    learningOutcomes: lesson.learningOutcomes?.length ? lesson.learningOutcomes : base.learningOutcomes,
+    successCriteria: lesson.successCriteria?.length ? lesson.successCriteria : base.successCriteria,
+    materialsResources: lesson.materialsResources?.length ? lesson.materialsResources : base.materialsResources,
+    vocabulary: lesson.vocabulary?.length ? lesson.vocabulary : base.vocabulary,
+    safetyConsiderations: lesson.safetyConsiderations?.length ? lesson.safetyConsiderations : base.safetyConsiderations,
+    stages: lesson.stages?.length ? lesson.stages : base.stages,
+    blooms: { ...base.blooms, ...(lesson.blooms || {}) },
+    differentiation: { ...base.differentiation, ...(lesson.differentiation || {}) },
+    assessment: { ...base.assessment, ...(lesson.assessment || {}) },
+    reflection: { ...base.reflection, ...(lesson.reflection || {}) },
+    weeklyPlan,
+    versions: lesson.versions || []
+  };
+};
+
+const normalizeWeeklyPlan = (weeklyPlan?: Partial<WeeklyPlanDay>[]): WeeklyPlanDay[] => {
+  const base = createFlexibleWeeklyPlan();
+  return base.map((day, index) => ({
+    ...day,
+    ...(weeklyPlan?.[index] || {}),
+    day: weeklyPlan?.[index]?.day || day.day,
+    lesson: weeklyPlan?.[index]?.lesson || day.lesson,
+    objectives: weeklyPlan?.[index]?.objectives || day.objectives,
+    presentation: weeklyPlan?.[index]?.presentation || day.presentation,
+    guidedPractice: weeklyPlan?.[index]?.guidedPractice || day.guidedPractice,
+    exitTicket: weeklyPlan?.[index]?.exitTicket || day.exitTicket,
+    assessment: weeklyPlan?.[index]?.assessment || day.assessment,
+    homework: weeklyPlan?.[index]?.homework || day.homework
+  }));
 };
 
 export const lessonRepository = {
@@ -50,10 +102,15 @@ export const filterLessons = (lessons: LessonPlan[], filters: LessonFilters) => 
       lesson.gradeClass,
       lesson.topic,
       lesson.subtopic,
+      lesson.chapter,
+      lesson.schoolYear,
+      lesson.semester,
+      lesson.quarter,
       lesson.week,
       lesson.term,
       lesson.tags.join(" "),
-      lesson.learningObjectives.map((item) => item.value).join(" ")
+      lesson.learningObjectives.map((item) => item.value).join(" "),
+      lesson.weeklyPlan?.map((day) => Object.values(day).join(" ")).join(" ")
     ].join(" ").toLowerCase();
     const month = lesson.date ? String(new Date(lesson.date).getMonth() + 1).padStart(2, "0") : "";
     const year = lesson.date ? String(new Date(lesson.date).getFullYear()) : "";

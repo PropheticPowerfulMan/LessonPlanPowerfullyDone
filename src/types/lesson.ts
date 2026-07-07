@@ -14,6 +14,8 @@ export type LessonStageName =
 
 export type LessonStatus = "active" | "archived";
 
+export type WeeklyDayName = "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday";
+
 export interface RepeatableItem {
   id: string;
   value: string;
@@ -29,6 +31,17 @@ export interface LessonStage {
   notes: string;
   attachments: string[];
   images: string[];
+}
+
+export interface WeeklyPlanDay {
+  day: WeeklyDayName;
+  lesson: string;
+  objectives: string;
+  presentation: string;
+  guidedPractice: string;
+  exitTicket: string;
+  assessment: string;
+  homework: string;
 }
 
 export interface BloomQuestions {
@@ -79,6 +92,10 @@ export interface LessonPlan {
   status: LessonStatus;
   tags: string[];
   schoolName: string;
+  schoolYear: string;
+  semester: string;
+  quarter: string;
+  chapter: string;
   teachers: string;
   subject: string;
   gradeClass: string;
@@ -105,6 +122,7 @@ export interface LessonPlan {
   differentiation: Differentiation;
   assessment: AssessmentPlan;
   reflection: ReflectionPlan;
+  weeklyPlan: WeeklyPlanDay[];
   createdAt: string;
   updatedAt: string;
   versions: LessonVersion[];
