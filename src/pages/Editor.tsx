@@ -41,6 +41,7 @@ export const Editor = () => {
   });
   const values = form.watch();
   const weeklyPlan = values.weeklyPlan?.length ? values.weeklyPlan : createFlexibleWeeklyPlan(values.subject, values.gradeClass, values.chapter);
+  const printableLesson = useMemo(() => toPrintableLesson(values), [values]);
 
   const completion = useMemo(() => {
     const required = [
@@ -57,24 +58,24 @@ export const Editor = () => {
     const current = form.getValues();
     const now = new Date().toISOString();
     const next: LessonPlan = {
-      ...current,
-      schoolName: schoolDisplayName,
-      topic: current.topic || current.chapter,
+      ...toPrintableLesson(current),
       updatedAt: now,
       versions: withVersion
         ? [{ id: crypto.randomUUID(), savedAt: now, summary: `Manual save: ${current.chapter || current.topic}`, snapshot: { ...current, versions: [] } }, ...(current.versions || [])].slice(0, 20)
         : current.versions || []
     };
     lessonRepository.save(next);
-    form.reset(next);
-    notify(withVersion ? "Saved" : "Auto-saved");
+    if (withVersion) {
+      form.reset(next);
+      notify("Saved");
+    }
   };
 
   useDebouncedEffect(() => {
     if (form.formState.isDirty) save(false);
   }, [values], 900);
 
-  const print = useReactToPrint({ contentRef: printRef, documentTitle: values.chapter || "Weekly Lesson Plan" });
+  const print = useReactToPrint({ contentRef: printRef, documentTitle: printableLesson.chapter || "Weekly Lesson Plan" });
 
   const duplicate = () => {
     const now = new Date().toISOString();
@@ -127,15 +128,15 @@ export const Editor = () => {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-black uppercase text-cyan-200">KCS weekly lesson plan</p>
-          <h1 className="truncate text-2xl font-black text-white md:text-3xl">{values.chapter || values.subject || "New Lesson Plan"}</h1>
+          <h1 className="truncate text-2xl font-black text-white md:text-3xl">{printableLesson.chapter || printableLesson.subject || "New Lesson Plan"}</h1>
           <p className="text-sm text-muted-foreground">The KCS identity and print layout are fixed; the teaching content adapts to each course.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={() => save(true)}><Save size={17} /> Save</Button>
           <Button variant="outline" onClick={duplicate}><Copy size={17} /> Duplicate</Button>
           <Button variant="outline" onClick={() => setPreview(true)}><Printer size={17} /> Preview</Button>
-          <Button variant="outline" onClick={() => printRef.current && exportElementToPdf(printRef.current, `${values.chapter || "lesson-plan"}.pdf`)}><FileDown size={17} /> PDF</Button>
-          <Button variant="outline" onClick={() => printRef.current && exportElementToDocx(printRef.current, `${values.chapter || "lesson-plan"}.docx`)}><Download size={17} /> DOCX</Button>
+          <Button variant="outline" onClick={() => printRef.current && exportElementToPdf(printRef.current, `${printableLesson.chapter || "lesson-plan"}.pdf`)}><FileDown size={17} /> PDF</Button>
+          <Button variant="outline" onClick={() => printRef.current && exportElementToDocx(printRef.current, `${printableLesson.chapter || "lesson-plan"}.docx`)}><Download size={17} /> DOCX</Button>
           <Button variant="danger" onClick={() => { if (confirm("Delete this lesson plan permanently?")) { lessonRepository.remove(values.id); navigate("/plans"); } }}><Trash2 size={17} /></Button>
         </div>
       </div>
@@ -225,24 +226,65 @@ export const Editor = () => {
               </div>
               <Button type="button" onClick={print}><Printer size={16} /> Print</Button>
             </div>
-            <PrintPreview lesson={values} zoom={0.34} />
+            <PrintPreview lesson={printableLesson} zoom={0.34} />
           </Card>
         </aside>
       </div>
 
       <div aria-hidden className="fixed left-[-12000px] top-0">
-        <LessonPrint lesson={values} ref={printRef} />
+        <LessonPrint lesson={printableLesson} ref={printRef} />
       </div>
 
       <Dialog open={preview} title="Weekly Lesson Plan Preview" onClose={() => setPreview(false)}>
         <div className="mb-4 flex justify-end gap-2">
           <Button onClick={print}><Printer size={17} /> Print</Button>
-          <Button variant="outline" onClick={() => printRef.current && exportElementToPdf(printRef.current, `${values.chapter || "lesson-plan"}.pdf`)}><FileDown size={17} /> PDF</Button>
+          <Button variant="outline" onClick={() => printRef.current && exportElementToPdf(printRef.current, `${printableLesson.chapter || "lesson-plan"}.pdf`)}><FileDown size={17} /> PDF</Button>
         </div>
-        <PrintPreview lesson={values} zoom={0.68} />
+        <PrintPreview lesson={printableLesson} zoom={0.68} />
       </Dialog>
     </div>
   );
+};
+
+const toPrintableLesson = (lesson: LessonPlan): LessonPlan => {
+  const subject = lesson.subject || "";
+  const gradeClass = lesson.gradeClass || "";
+  const chapter = lesson.chapter || lesson.topic || "";
+
+  return {
+    ...lesson,
+    schoolName: schoolDisplayName,
+    subject,
+    gradeClass,
+    chapter,
+    topic: lesson.topic || chapter || "Weekly Lesson Plan",
+    weeklyPlan: lesson.weeklyPlan?.length ? lesson.weeklyPlan : createFlexibleWeeklyPlan(subject, gradeClass, chapter),
+    vocabulary: lesson.vocabulary?.length ? lesson.vocabulary : [{ id: "vocabulary", value: "" }],
+    materialsResources: lesson.materialsResources?.length ? lesson.materialsResources : [{ id: "materials", value: "" }],
+    differentiation: Object.assign({
+      strugglingLearners: "",
+      eslSupport: "",
+      giftedLearners: "",
+      specialNeeds: "",
+      inclusiveStrategies: ""
+    }, lesson.differentiation || {}),
+    assessment: Object.assign({
+      diagnostic: "",
+      formative: "",
+      summative: "",
+      observationChecklist: "",
+      rubric: "",
+      exitTicket: "",
+      teacherComments: ""
+    }, lesson.assessment || {}),
+    reflection: Object.assign({
+      whatWentWell: "",
+      challenges: "",
+      improvements: "",
+      followUpActivities: "",
+      teacherNotes: ""
+    }, lesson.reflection || {})
+  };
 };
 
 const LockedSchool = () => (
