@@ -20,7 +20,7 @@ const normalizeLesson = (lesson: Partial<LessonPlan>): LessonPlan => {
   const base = createBlankLesson(lesson.lessonNumber || `LP-${new Date().getFullYear()}-0001`);
   const subject = lesson.subject || base.subject;
   const gradeClass = lesson.gradeClass || base.gradeClass;
-  const chapter = lesson.chapter || lesson.topic || base.chapter;
+  const chapter = isGeneratedLessonTitle(lesson.chapter) ? base.chapter : lesson.chapter || base.chapter;
   const weeklyPlan = normalizeWeeklyPlan(lesson.weeklyPlan, subject, gradeClass, chapter);
 
   return {
@@ -52,6 +52,8 @@ const normalizeLesson = (lesson: Partial<LessonPlan>): LessonPlan => {
     versions: lesson.versions || []
   };
 };
+
+const isGeneratedLessonTitle = (value?: string) => Boolean(value?.trim().toLowerCase().startsWith("weekly lesson plan"));
 
 const normalizeWeeklyPlan = (weeklyPlan: Partial<WeeklyPlanDay>[] | undefined, subject: string, gradeClass: string, chapter: string): WeeklyPlanDay[] => {
   const base = createFlexibleWeeklyPlan(subject, gradeClass, chapter);
