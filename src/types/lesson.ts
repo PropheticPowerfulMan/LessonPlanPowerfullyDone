@@ -141,6 +141,8 @@ export interface LessonPlan {
   gradeClass: string;
   date: string;
   week: string;
+  weekStartDate: string;
+  weekEndDate: string;
   term: string;
   duration: string;
   classroom: string;

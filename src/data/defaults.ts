@@ -170,6 +170,9 @@ export const createPdfExampleWeeklyPlan = (): WeeklyPlanDay[] => [
 export const createBlankLesson = (lessonNumber: string): LessonPlan => {
   const now = new Date().toISOString();
   const currentYear = new Date().getFullYear();
+  const today = new Date();
+  const weekStartDate = toIsoDate(addDays(today, -((today.getDay() + 6) % 7)));
+  const weekEndDate = toIsoDate(addDays(new Date(`${weekStartDate}T00:00:00`), 4));
 
   return {
     id: uid("lesson"),
@@ -190,6 +193,8 @@ export const createBlankLesson = (lessonNumber: string): LessonPlan => {
     gradeClass: "",
     date: new Date().toISOString().slice(0, 10),
     week: "1",
+    weekStartDate,
+    weekEndDate,
     term: "1st Quarter",
     duration: "45 min",
     classroom: "",
@@ -245,4 +250,17 @@ export const createBlankLesson = (lessonNumber: string): LessonPlan => {
     revisionNotes: [],
     versions: []
   };
+};
+
+const addDays = (date: Date, days: number) => {
+  const next = new Date(date);
+  next.setDate(date.getDate() + days);
+  return next;
+};
+
+const toIsoDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };

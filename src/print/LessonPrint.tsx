@@ -77,6 +77,7 @@ const PrintPage = ({
         <div className="rounded-sm border border-slate-300 bg-white p-1 text-right text-[7.6px] font-black leading-tight text-slate-900">
           <p>Page {pageNumber}/{totalPages}</p>
           <p>{lesson.planType === "daily" ? safeText(lesson.date, "Daily") : formatWeek(lesson.week)}</p>
+          {lesson.planType === "weekly" && <p className="text-[6.7px]">{formatWeekRange(lesson)}</p>}
           <p>{safeText(lesson.schoolYear, "2026-2027")}</p>
           <p className="mt-0.5 text-[6.8px] text-slate-700">Printed: {generatedAt}</p>
         </div>
@@ -134,8 +135,11 @@ const HeaderDetails = ({ lesson }: { lesson: LessonPlan }) => (
         <Detail label={lesson.planType === "daily" ? "Plan" : "Week"} value={lesson.planType === "daily" ? "Daily" : formatWeek(lesson.week)} />
       </tr>
       <tr>
+        {lesson.planType === "weekly" && <Detail label="Week Range" value={formatWeekRange(lesson)} colSpan={2} />}
         <Detail label="Duration" value={lesson.duration} />
         <Detail label="Classroom" value={lesson.classroom} />
+      </tr>
+      <tr>
         <Detail label="School Year" value={lesson.schoolYear} />
         <Detail label="Lesson No." value={lesson.lessonNumber} />
       </tr>
@@ -219,6 +223,16 @@ const safeText = (value?: unknown, fallback = " ") => {
 const formatWeek = (week?: string) => {
   const value = safeText(week, "");
   return value.toLowerCase().startsWith("week") ? value : `Week ${safeText(week, "1")}`;
+};
+
+const formatWeekRange = (lesson: LessonPlan) =>
+  `${formatWeek(lesson.week)} from ${formatDateLabel(lesson.weekStartDate)} to ${formatDateLabel(lesson.weekEndDate)}`;
+
+const formatDateLabel = (value?: string) => {
+  if (!value) return "...";
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "...";
+  return new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" }).format(date);
 };
 
 const formatGeneratedAt = (date: Date) =>

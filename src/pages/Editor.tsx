@@ -52,6 +52,8 @@ type SetupField =
   | "chapter"
   | "date"
   | "week"
+  | "weekStartDate"
+  | "weekEndDate"
   | "duration"
   | "schoolYear"
   | "semester"
@@ -330,6 +332,12 @@ export const Editor = () => {
 
   const updateSetupField = (field: SetupField, value: string) => {
     if (!canEditCurrent) return;
+    if (field === "weekStartDate") {
+      form.setValue("weekEndDate", addBusinessWeekEnd(value), {
+        shouldDirty: true,
+        shouldValidate: false
+      });
+    }
     form.setValue(field, value, {
       shouldDirty: true,
       shouldValidate: false
@@ -422,6 +430,11 @@ export const Editor = () => {
                   {weekOptions.map((week) => <option key={week} value={week}>Week {week}</option>)}
                 </Select>
               </Field>}
+              {planType === "weekly" && <Field label="Week Start Date"><Input type="date" value={values.weekStartDate || ""} onChange={(event) => updateSetupField("weekStartDate", event.target.value)} /></Field>}
+              {planType === "weekly" && <Field label="Week End Date"><Input type="date" value={values.weekEndDate || ""} onChange={(event) => updateSetupField("weekEndDate", event.target.value)} /></Field>}
+              {planType === "weekly" && <div className="rounded-md border border-cyan-300/20 bg-cyan-500/10 px-3 py-2 text-sm font-bold text-cyan-100 md:col-span-2 xl:col-span-3">
+                {formatWeekRangeLabel(values.week, values.weekStartDate, values.weekEndDate)}
+              </div>}
               <Field label="Duration">
                 <Select value={values.duration || "45 min"} onChange={(event) => updateSetupField("duration", event.target.value)}>
                   {durationOptions.map((duration) => <option key={duration} value={duration}>{duration}</option>)}
@@ -655,6 +668,8 @@ const toPrintableLesson = (lesson: LessonPlan): LessonPlan => {
     subject,
     gradeClass,
     chapter,
+    weekStartDate: lesson.weekStartDate || getWeekStartFromDate(lesson.date),
+    weekEndDate: lesson.weekEndDate || addBusinessWeekEnd(lesson.weekStartDate || getWeekStartFromDate(lesson.date)),
     topic: buildAutomaticTitle({ ...lesson, subject, gradeClass, chapter, planType: lesson.planType || "weekly" }),
     weeklyPlan: (lesson.planType || "weekly") === "daily" ? weeklyPlan.map((day, index) => (index === 0 ? day : weeklyPlan[index])) : weeklyPlan,
     learningObjectives,
@@ -733,6 +748,40 @@ const sanitizeTitlePart = (value?: string) => {
 };
 
 const normalizeSchoolYear = (value?: string) => value?.replace(/\s+/g, "") || "";
+
+const formatWeekRangeLabel = (week?: string, start?: string, end?: string) => {
+  const weekLabel = week?.toLowerCase().startsWith("week") ? week : `Week ${week || "1"}`;
+  return `${weekLabel} from ${formatDateLabel(start)} to ${formatDateLabel(end)}`;
+};
+
+const formatDateLabel = (value?: string) => {
+  if (!value) return "...";
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "...";
+  return new Intl.DateTimeFormat("en-US", { month: "long", day: "numeric", year: "numeric" }).format(date);
+};
+
+const getWeekStartFromDate = (value?: string) => {
+  const date = value ? new Date(`${value}T00:00:00`) : new Date();
+  if (Number.isNaN(date.getTime())) return "";
+  date.setDate(date.getDate() - ((date.getDay() + 6) % 7));
+  return toIsoDate(date);
+};
+
+const addBusinessWeekEnd = (value?: string) => {
+  if (!value) return "";
+  const date = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "";
+  date.setDate(date.getDate() + 4);
+  return toIsoDate(date);
+};
+
+const toIsoDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 const createDailyObjective = (lessonTitle = "", subject = "", gradeClass = "") => {
   const lesson = lessonTitle.trim() || "the lesson";

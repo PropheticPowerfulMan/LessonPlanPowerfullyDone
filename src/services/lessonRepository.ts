@@ -29,6 +29,7 @@ const normalizeLesson = (lesson: Partial<LessonPlan>): LessonPlan => {
   const ownerId = lesson.ownerId || base.ownerId;
   const ownerName = lesson.ownerName || lesson.teachers || base.ownerName;
   const department = lesson.department || base.department;
+  const weekStartDate = lesson.weekStartDate || getWeekStartDate(lesson.date || base.date);
 
   return {
     ...base,
@@ -48,6 +49,8 @@ const normalizeLesson = (lesson: Partial<LessonPlan>): LessonPlan => {
     gradeClass,
     duration: lesson.duration || base.duration,
     week: lesson.week || base.week,
+    weekStartDate,
+    weekEndDate: lesson.weekEndDate || getWeekEndDate(weekStartDate),
     tags: lesson.tags || base.tags,
     learningObjectives: lesson.learningObjectives?.length ? lesson.learningObjectives : base.learningObjectives,
     learningOutcomes: lesson.learningOutcomes?.length ? lesson.learningOutcomes : base.learningOutcomes,
@@ -65,6 +68,28 @@ const normalizeLesson = (lesson: Partial<LessonPlan>): LessonPlan => {
     revisionNotes: lesson.revisionNotes || [],
     versions: lesson.versions || []
   };
+};
+
+const getWeekStartDate = (dateValue?: string) => {
+  const date = dateValue ? new Date(`${dateValue}T00:00:00`) : new Date();
+  if (Number.isNaN(date.getTime())) return "";
+  date.setDate(date.getDate() - ((date.getDay() + 6) % 7));
+  return toIsoDate(date);
+};
+
+const getWeekEndDate = (startValue?: string) => {
+  if (!startValue) return "";
+  const date = new Date(`${startValue}T00:00:00`);
+  if (Number.isNaN(date.getTime())) return "";
+  date.setDate(date.getDate() + 4);
+  return toIsoDate(date);
+};
+
+const toIsoDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 
 const normalizeStatus = (status?: string): LessonStatus => {
