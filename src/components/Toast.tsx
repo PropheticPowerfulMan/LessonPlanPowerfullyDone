@@ -27,7 +27,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
       <AnimatePresence>
         {message && (
           <motion.div
-            className="fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-md border border-cyan-300/25 bg-[#071824]/95 px-4 py-3 text-sm font-semibold text-white shadow-fluent"
+            className="theme-dark-panel fixed bottom-5 right-5 z-50 flex items-center gap-2 rounded-md border border-cyan-300/25 bg-[#071824]/95 px-4 py-3 text-sm font-semibold text-[#e7faff] shadow-fluent"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16 }}

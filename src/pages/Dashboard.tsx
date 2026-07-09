@@ -64,9 +64,9 @@ export const Dashboard = () => {
           <div className="divide-y divide-cyan-300/10">
             {recent.length === 0 && <p className="py-8 text-sm text-muted-foreground">No lesson plans yet. Start with the prominent button above.</p>}
             {recent.map((lesson) => (
-              <button key={lesson.id} className="grid w-full gap-1 py-4 text-left hover:text-cyan-200" onClick={() => navigate(`/editor/${lesson.id}`)}>
-                <span className="font-semibold">{lesson.topic || "Untitled Lesson"}</span>
-                <span className="text-sm text-muted-foreground">
+              <button key={lesson.id} className="group -mx-2 grid w-[calc(100%+1rem)] gap-1 rounded-md px-2 py-4 text-left transition hover:bg-cyan-500/10" onClick={() => navigate(`/editor/${lesson.id}`)}>
+                <span className="font-semibold transition group-hover:text-[#062f3d] dark:group-hover:text-cyan-200">{lesson.topic || "Untitled Lesson"}</span>
+                <span className="text-sm text-muted-foreground transition group-hover:text-[#0f4c5c] dark:group-hover:text-cyan-100/90">
                   {lesson.subject || "Subject"} · {lesson.gradeClass || "Grade"} · Modified {new Date(lesson.updatedAt).toLocaleDateString()}
                 </span>
               </button>

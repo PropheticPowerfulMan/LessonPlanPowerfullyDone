@@ -38,6 +38,10 @@ export const Plans = () => {
   const navigate = useNavigate();
   const { notify } = useToast();
   const filtered = useMemo(() => filterLessons(lessons, filters), [lessons, filters]);
+  const teacherOptions = useMemo(() => unique(lessons.map((lesson) => lesson.teachers).filter(Boolean)), [lessons]);
+  const subjectOptions = useMemo(() => unique(lessons.map((lesson) => lesson.subject).filter(Boolean)), [lessons]);
+  const gradeOptions = useMemo(() => unique(lessons.map((lesson) => lesson.gradeClass).filter(Boolean)), [lessons]);
+  const yearOptions = useMemo(() => unique(lessons.map((lesson) => lesson.date?.slice(0, 4)).filter(Boolean)), [lessons]);
 
   const patch = (key: keyof LessonFilters, value: string) => setFilters((current) => ({ ...current, [key]: value }));
   const refresh = () => {
@@ -118,14 +122,29 @@ export const Plans = () => {
       <Card className="p-4">
         <div className="grid gap-3 md:grid-cols-4 lg:grid-cols-6">
           <Field label="Keywords"><Input value={filters.query} onChange={(e) => patch("query", e.target.value)} placeholder="topic, objective..." /></Field>
-          <Field label="Teacher"><Input value={filters.teacher} onChange={(e) => patch("teacher", e.target.value)} /></Field>
-          <Field label="Subject"><Input value={filters.subject} onChange={(e) => patch("subject", e.target.value)} /></Field>
-          <Field label="Grade"><Input value={filters.grade} onChange={(e) => patch("grade", e.target.value)} /></Field>
+          <Field label="Teacher"><Input list="teacher-filter-options" value={filters.teacher} onChange={(e) => patch("teacher", e.target.value)} placeholder="Optional teacher" /></Field>
+          <Field label="Subject"><Input list="subject-filter-options" value={filters.subject} onChange={(e) => patch("subject", e.target.value)} placeholder="Optional subject" /></Field>
+          <Field label="Grade"><Input list="grade-filter-options" value={filters.grade} onChange={(e) => patch("grade", e.target.value)} placeholder="Optional grade" /></Field>
           <Field label="Date"><Input type="date" value={filters.date} onChange={(e) => patch("date", e.target.value)} /></Field>
           <Field label="Term"><Input value={filters.term} onChange={(e) => patch("term", e.target.value)} /></Field>
-          <Field label="Week"><Input value={filters.week} onChange={(e) => patch("week", e.target.value)} /></Field>
-          <Field label="Month"><Input value={filters.month} onChange={(e) => patch("month", e.target.value)} placeholder="1-12" /></Field>
-          <Field label="Year"><Input value={filters.year} onChange={(e) => patch("year", e.target.value)} /></Field>
+          <Field label="Week">
+            <Select value={filters.week} onChange={(e) => patch("week", e.target.value)}>
+              <option value="">Any week</option>
+              {Array.from({ length: 40 }, (_, index) => String(index + 1)).map((week) => <option key={week} value={week}>Week {week}</option>)}
+            </Select>
+          </Field>
+          <Field label="Month">
+            <Select value={filters.month} onChange={(e) => patch("month", e.target.value)}>
+              <option value="">Any month</option>
+              {Array.from({ length: 12 }, (_, index) => String(index + 1)).map((month) => <option key={month} value={month}>{month.padStart(2, "0")}</option>)}
+            </Select>
+          </Field>
+          <Field label="Year">
+            <Select value={filters.year} onChange={(e) => patch("year", e.target.value)}>
+              <option value="">Any year</option>
+              {yearOptions.map((year) => <option key={year} value={year}>{year}</option>)}
+            </Select>
+          </Field>
           <Field label="Topic"><Input value={filters.topic} onChange={(e) => patch("topic", e.target.value)} /></Field>
           <Field label="Tags"><Input value={filters.tags} onChange={(e) => patch("tags", e.target.value)} placeholder="comma tags" /></Field>
           <Field label="Status">
@@ -139,6 +158,15 @@ export const Plans = () => {
             Show deleted
           </label>
         </div>
+        <datalist id="teacher-filter-options">
+          {teacherOptions.map((teacher) => <option key={teacher} value={teacher} />)}
+        </datalist>
+        <datalist id="subject-filter-options">
+          {subjectOptions.map((subject) => <option key={subject} value={subject} />)}
+        </datalist>
+        <datalist id="grade-filter-options">
+          {gradeOptions.map((grade) => <option key={grade} value={grade} />)}
+        </datalist>
       </Card>
 
       <div className="grid gap-3">
@@ -193,14 +221,16 @@ const statusLabel = (status: LessonStatus) => ({
 
 const StatusBadge = ({ status }: { status: LessonStatus }) => {
   const styles: Record<LessonStatus, string> = {
-    draft: "border-slate-400/30 bg-slate-500/15 text-slate-100",
-    submitted: "border-sky-300/35 bg-sky-500/15 text-sky-100",
-    "under-review": "border-amber-300/35 bg-amber-500/15 text-amber-100",
-    approved: "border-emerald-300/35 bg-emerald-500/15 text-emerald-100",
-    rejected: "border-red-300/35 bg-red-500/15 text-red-100",
-    archived: "border-zinc-300/35 bg-zinc-500/15 text-zinc-100",
-    published: "border-cyan-300/35 bg-cyan-500/15 text-cyan-100"
+    draft: "border-slate-950/45 bg-slate-950 !text-white dark:border-slate-400/30 dark:bg-slate-500/15 dark:!text-slate-100",
+    submitted: "border-sky-800/45 bg-sky-700 !text-white dark:border-sky-300/35 dark:bg-sky-500/15 dark:!text-sky-100",
+    "under-review": "border-amber-800/45 bg-amber-600 !text-white dark:border-amber-300/35 dark:bg-amber-500/15 dark:!text-amber-100",
+    approved: "border-emerald-800/45 bg-emerald-700 !text-white dark:border-emerald-300/35 dark:bg-emerald-500/15 dark:!text-emerald-100",
+    rejected: "border-red-800/45 bg-red-700 !text-white dark:border-red-300/35 dark:bg-red-500/15 dark:!text-red-100",
+    archived: "border-zinc-800/45 bg-zinc-700 !text-white dark:border-zinc-300/35 dark:bg-zinc-500/15 dark:!text-zinc-100",
+    published: "border-cyan-800/45 bg-cyan-700 !text-white dark:border-cyan-300/35 dark:bg-cyan-500/15 dark:!text-cyan-100"
   };
 
   return <span className={`rounded-full border px-2 py-1 text-xs font-bold ${styles[status]}`}>{statusLabel(status)}</span>;
 };
+
+const unique = (values: string[]) => Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
