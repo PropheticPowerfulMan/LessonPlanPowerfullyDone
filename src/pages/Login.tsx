@@ -58,8 +58,10 @@ export const Login = () => {
           <div className="space-y-1">
             <Label className="text-cyan-50">User account</Label>
             <div className="relative">
-              <Mail className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-cyan-200" size={17} />
-              <Select className="border-cyan-300/20 bg-[#030d14]/85 pl-9 text-cyan-50" value={email} onChange={(event) => setEmail(event.target.value)}>
+              <span className="pointer-events-none absolute left-2.5 top-1/2 z-10 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-sm bg-cyan-300/10 text-[#9cecff] shadow-[0_0_12px_rgba(156,236,255,0.22)]">
+                <Mail size={16} strokeWidth={2.5} />
+              </span>
+              <Select className="border-cyan-300/20 bg-[#030d14]/85 pl-10 text-cyan-50" value={email} onChange={(event) => setEmail(event.target.value)}>
                 {activeUsers.map((user) => (
                   <option key={user.id} value={user.email}>
                     {user.name} - {roleLabels[user.role]}
@@ -72,8 +74,10 @@ export const Login = () => {
           <div className="space-y-1">
             <Label className="text-cyan-50">Password</Label>
             <div className="relative">
-              <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-cyan-200" size={17} />
-              <Input className="border-cyan-300/20 bg-[#030d14]/85 pl-9 pr-11 text-cyan-50" type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} />
+              <span className="pointer-events-none absolute left-2.5 top-1/2 z-10 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-sm bg-cyan-300/10 text-[#9cecff] shadow-[0_0_12px_rgba(156,236,255,0.22)]">
+                <LockKeyhole size={16} strokeWidth={2.5} />
+              </span>
+              <Input className="border-cyan-300/20 bg-[#030d14]/85 pl-10 pr-11 text-cyan-50" type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} />
               <button
                 type="button"
                 className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-cyan-200 hover:bg-cyan-500/15 hover:text-white"
