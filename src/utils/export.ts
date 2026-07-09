@@ -7,6 +7,7 @@ export const exportElementToPdf = (element: HTMLElement, filename: string) =>
       filename,
       image: { type: "jpeg", quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+      pagebreak: { mode: ["css", "legacy"], avoid: [".print-header", "tr", ".signature-block"] },
       jsPDF: { unit: "mm", format: "a4", orientation: "landscape" }
     })
     .from(element)
