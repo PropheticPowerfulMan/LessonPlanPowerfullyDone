@@ -1,12 +1,19 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createBlankLesson } from "../data/defaults";
+import { useAuth } from "../contexts/AuthContext";
+import { applyLessonVisibility, prepareNewLessonForUser } from "../services/permissions";
 import { lessonRepository } from "../services/lessonRepository";
 import { LessonPlan } from "../types/lesson";
 
 export const useLessons = () => {
-  const [lessons, setLessons] = useState<LessonPlan[]>(() => lessonRepository.list());
+  const { currentUser } = useAuth();
+  const [lessons, setLessons] = useState<LessonPlan[]>(() => applyLessonVisibility(currentUser, lessonRepository.list()));
 
-  const refresh = useCallback(() => setLessons(lessonRepository.list()), []);
+  const refresh = useCallback(() => setLessons(applyLessonVisibility(currentUser, lessonRepository.list())), [currentUser]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
 
   const nextLessonNumber = useMemo(() => {
     const year = new Date().getFullYear();
@@ -14,11 +21,12 @@ export const useLessons = () => {
   }, [lessons.length]);
 
   const createLesson = useCallback(() => {
-    const lesson = createBlankLesson(nextLessonNumber);
+    if (!currentUser) throw new Error("A signed-in user is required to create a lesson plan");
+    const lesson = prepareNewLessonForUser(createBlankLesson(nextLessonNumber), currentUser);
     lessonRepository.save(lesson);
     refresh();
     return lesson;
-  }, [nextLessonNumber, refresh]);
+  }, [currentUser, nextLessonNumber, refresh]);
 
   const saveLesson = useCallback(
     (lesson: LessonPlan) => {

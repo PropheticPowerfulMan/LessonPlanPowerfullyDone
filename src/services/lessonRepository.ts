@@ -6,7 +6,7 @@ const key = "powerful-lesson-planner:lessons";
 const read = (): LessonPlan[] => {
   try {
     const lessons = JSON.parse(localStorage.getItem(key) || "[]") as LessonPlan[];
-    return lessons.map(normalizeLesson);
+    return lessons.map((lesson) => normalizeLesson(lesson));
   } catch {
     return [];
   }
@@ -22,10 +22,16 @@ const normalizeLesson = (lesson: Partial<LessonPlan>): LessonPlan => {
   const gradeClass = lesson.gradeClass || base.gradeClass;
   const chapter = isGeneratedLessonTitle(lesson.chapter) ? base.chapter : lesson.chapter || base.chapter;
   const weeklyPlan = normalizeWeeklyPlan(lesson.weeklyPlan, subject, gradeClass, chapter);
+  const ownerId = lesson.ownerId || base.ownerId;
+  const ownerName = lesson.ownerName || lesson.teachers || base.ownerName;
+  const department = lesson.department || base.department;
 
   return {
     ...base,
     ...lesson,
+    ownerId,
+    ownerName,
+    department,
     schoolName: !lesson.schoolName || lesson.schoolName === schoolName || lesson.schoolName.includes("KINSHASA CHRISTIAN SCHOOL") ? schoolDisplayName : lesson.schoolName,
     schoolYear: lesson.schoolYear || base.schoolYear,
     semester: lesson.semester || base.semester,

@@ -26,7 +26,7 @@ export const Dashboard = () => {
         <div className="relative grid gap-6 p-5 text-white md:grid-cols-[1.3fr_0.7fr] md:p-8">
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
             <span className="badge">{schoolDisplayName}</span>
-            <h1 className="mt-4 max-w-2xl text-3xl font-black leading-tight text-gradient md:text-5xl">KCS Lesson Planner</h1>
+            <h1 className="mt-4 max-w-2xl text-3xl font-black leading-tight text-[#f8fdff] drop-shadow-[0_2px_14px_rgba(0,0,0,0.55)] md:text-4xl xl:text-5xl">KCS Lesson Planner</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-cyan-50/80">Create polished, printable lesson plans for KCS and Kinshasa Christian School with ready-made templates, exports, and version history.</p>
             <div className="mt-5 flex flex-wrap gap-2 text-xs font-bold text-cyan-100">
               <span className="inline-flex items-center gap-2 rounded-md border border-cyan-300/20 bg-white/[0.06] px-3 py-2"><CheckCircle2 size={15} /> Autosave</span>
@@ -48,14 +48,14 @@ export const Dashboard = () => {
         </div>
       </section>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Metric icon={FileText} label="Total Lesson Plans" value={lessons.length} />
         <Metric icon={BookOpen} label="Active Plans" value={active.length} />
         <Metric icon={TrendingUp} label="Subjects" value={subjects} />
         <Metric icon={Clock3} label="Active Ratio" value={`${completion}%`} />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
+      <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,1fr)]">
         <Card className="p-5">
           <div className="mb-4 flex items-center justify-between gap-3">
             <h2 className="text-xl font-bold text-white">Recent Lesson Plans</h2>
@@ -84,20 +84,20 @@ export const Dashboard = () => {
               {calendar.plannedCount} plan{calendar.plannedCount > 1 ? "s" : ""}
             </span>
           </div>
-          <div className="grid grid-cols-7 gap-2 text-center text-xs">
+          <div className="grid grid-cols-7 gap-1 text-center text-[10px] sm:gap-2 sm:text-xs">
             {calendar.weekdays.map((day) => (
               <span key={day} className="rounded-md border border-cyan-300/10 bg-white/[0.04] py-2 font-bold uppercase text-muted-foreground">{day}</span>
             ))}
             {calendar.cells.map((cell, index) => (
               <div
                 key={`${cell.iso || "blank"}-${index}`}
-                className={`min-h-16 rounded-md border p-2 text-left transition ${cell.inMonth ? "border-cyan-300/12 bg-white/[0.055]" : "border-transparent bg-transparent"} ${cell.isToday ? "ring-2 ring-cyan-300" : ""} ${cell.plans.length ? "bg-cyan-300 text-slate-950" : ""}`}
+                className={`min-h-14 rounded-md border p-1 text-left transition sm:min-h-16 sm:p-2 ${cell.inMonth ? "border-cyan-300/12 bg-white/[0.055]" : "border-transparent bg-transparent"} ${cell.isToday ? "border-red-600 bg-red-600 text-white shadow-[0_0_0_2px_rgba(255,255,255,0.45)]" : ""} ${cell.plans.length && !cell.isToday ? "bg-cyan-300 text-slate-950" : ""}`}
               >
                 {cell.inMonth && (
                   <>
-                    <p className="text-sm font-black">{cell.dayNumber}</p>
-                    <p className={`mt-1 text-[10px] capitalize ${cell.plans.length ? "text-slate-800" : "text-muted-foreground"}`}>{cell.weekdayLong}</p>
-                    {cell.plans.length > 0 && <p className="mt-1 truncate text-[10px] font-bold">{cell.plans.length} lesson plan</p>}
+                    <p className={`text-sm font-black ${cell.isToday ? "text-[#fff]" : ""}`}>{cell.dayNumber}</p>
+                    <p className={`mt-1 text-[10px] capitalize ${cell.isToday ? "text-[#fff]/90" : cell.plans.length ? "text-slate-800" : "text-muted-foreground"}`}>{cell.weekdayLong}</p>
+                    {cell.plans.length > 0 && <p className={`mt-1 truncate text-[10px] font-bold ${cell.isToday ? "text-[#fff]" : ""}`}>{cell.plans.length} lesson plan</p>}
                   </>
                 )}
               </div>

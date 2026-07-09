@@ -1,7 +1,10 @@
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { ReactNode } from "react";
+import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
 import { AppLayout } from "./layouts/AppLayout";
+import { useAuth } from "./contexts/AuthContext";
 import { Dashboard } from "./pages/Dashboard";
 import { Editor } from "./pages/Editor";
+import { Login } from "./pages/Login";
 import { Plans } from "./pages/Plans";
 
 const ErrorPage = () => (
@@ -15,11 +18,17 @@ const ErrorPage = () => (
   </div>
 );
 
+const ProtectedRoute = ({ children }: { children: ReactNode }) => {
+  const { currentUser } = useAuth();
+  return currentUser?.status === "active" ? children : <Navigate to="/login" replace />;
+};
+
 const router = createBrowserRouter(
   [
+    { path: "/login", element: <Login />, errorElement: <ErrorPage /> },
     {
       path: "/",
-      element: <AppLayout />,
+      element: <ProtectedRoute><AppLayout /></ProtectedRoute>,
       errorElement: <ErrorPage />,
       children: [
         { index: true, element: <Dashboard /> },

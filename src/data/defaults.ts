@@ -173,11 +173,14 @@ export const createBlankLesson = (lessonNumber: string): LessonPlan => {
 
   return {
     id: uid("lesson"),
+    ownerId: "",
+    ownerName: "",
+    department: "",
     lessonNumber,
     status: "active",
     tags: [],
     schoolName: schoolDisplayName,
-    schoolYear: `${currentYear} - ${currentYear + 1}`,
+    schoolYear: `${currentYear}-${currentYear + 1}`,
     semester: "1st",
     quarter: "1st",
     chapter: "",

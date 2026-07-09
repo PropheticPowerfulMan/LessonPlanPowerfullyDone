@@ -88,6 +88,9 @@ export interface LessonVersion {
 
 export interface LessonPlan {
   id: string;
+  ownerId: string;
+  ownerName: string;
+  department: string;
   lessonNumber: string;
   status: LessonStatus;
   tags: string[];

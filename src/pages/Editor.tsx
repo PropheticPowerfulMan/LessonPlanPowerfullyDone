@@ -11,6 +11,7 @@ import { Card } from "../components/ui/card";
 import { Dialog } from "../components/ui/dialog";
 import { Input, Select, Textarea } from "../components/ui/input";
 import { Label } from "../components/ui/label";
+import { useAuth } from "../contexts/AuthContext";
 import {
   createAutomaticLessonSupport,
   createBlankLesson,
@@ -22,6 +23,7 @@ import {
 import { useDebouncedEffect } from "../hooks/useDebouncedEffect";
 import { LessonPrint } from "../print/LessonPrint";
 import { lessonRepository } from "../services/lessonRepository";
+import { canDeleteLesson, canEditLesson, canReviewLesson, canViewLesson, prepareNewLessonForUser } from "../services/permissions";
 import { LessonPlan, WeeklyPlanDay } from "../types/lesson";
 import { exportElementToDocx, exportElementToPdf } from "../utils/export";
 
@@ -36,6 +38,11 @@ const weekOptions = Array.from({ length: 40 }, (_, index) => String(index + 1));
 const durationOptions = ["30 min", "45 min", "50 min", "60 min", "1h", "1h15", "1h30", "2h"];
 const semesterOptions = ["1st", "2nd"];
 const quarterOptions = ["1st", "2nd", "3rd", "4th"];
+const currentSchoolYear = new Date().getFullYear() - 1;
+const schoolYearOptions = Array.from({ length: 8 }, (_, index) => {
+  const start = currentSchoolYear + index;
+  return `${start}-${start + 1}`;
+});
 type SetupField =
   | "teachers"
   | "subject"
@@ -55,10 +62,15 @@ export const Editor = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { notify } = useToast();
+  const { currentUser, can } = useAuth();
   const [preview, setPreview] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   const lesson = useMemo(() => (id ? lessonRepository.get(id) : undefined), [id]);
   const fallback = useMemo(() => createBlankLesson(`LP-${new Date().getFullYear()}-0001`), []);
+  const canViewCurrent = lesson ? canViewLesson(currentUser, lesson) : true;
+  const canEditCurrent = lesson ? canEditLesson(currentUser, lesson) : can("lesson:create");
+  const canDeleteCurrent = lesson ? canDeleteLesson(currentUser, lesson) : false;
+  const canReviewCurrent = lesson ? canReviewLesson(currentUser, lesson) : false;
 
   const form = useForm<LessonPlan>({
     defaultValues: lesson || fallback,
@@ -218,6 +230,7 @@ export const Editor = () => {
   }, [values, weeklyPlan]);
 
   const save = (withVersion = false) => {
+    if (!canEditCurrent) return;
     const current = form.getValues();
     const now = new Date().toISOString();
     const next: LessonPlan = {
@@ -235,28 +248,33 @@ export const Editor = () => {
   };
 
   useDebouncedEffect(() => {
-    if (form.formState.isDirty) save(false);
-  }, [values], 900);
+    if (canEditCurrent && form.formState.isDirty) save(false);
+  }, [values, canEditCurrent], 900);
 
   const printTitle = printableLesson.topic || printableLesson.chapter || "lesson-plan";
   const print = useReactToPrint({ contentRef: printRef, documentTitle: printTitle });
 
   const duplicate = () => {
+    if (!currentUser) return;
     const now = new Date().toISOString();
-    const copy = {
+    const copy = prepareNewLessonForUser({
       ...form.getValues(),
       id: crypto.randomUUID(),
+      ownerId: "",
+      ownerName: "",
+      department: "",
       lessonNumber: `LP-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}`,
       createdAt: now,
       updatedAt: now,
       versions: []
-    };
+    }, currentUser);
     lessonRepository.save(copy);
     notify("Duplicated lesson plan");
     navigate(`/editor/${copy.id}`);
   };
 
   const generateWeek = () => {
+    if (!canEditCurrent) return;
     const current = form.getValues();
     const subject = current.subject || "";
     const chapter = sanitizeChapter(current.chapter);
@@ -269,6 +287,7 @@ export const Editor = () => {
   };
 
   const updateWeeklyDay = (index: number, key: keyof Omit<WeeklyPlanDay, "day">, value: string) => {
+    if (!canEditCurrent) return;
     const next = normalizeEditableWeeklyPlan(form.getValues().weeklyPlan, form.getValues().subject, form.getValues().gradeClass, sanitizeChapter(form.getValues().chapter));
     next[index] = {
       ...next[index],
@@ -281,11 +300,23 @@ export const Editor = () => {
   };
 
   const updateSetupField = (field: SetupField, value: string) => {
+    if (!canEditCurrent) return;
     form.setValue(field, value, {
       shouldDirty: true,
       shouldValidate: false
     });
   };
+
+  if (!canViewCurrent) {
+    return (
+      <Card className="mx-auto mt-10 max-w-xl p-8 text-center">
+        <p className="text-xs font-black uppercase text-cyan-200">Access restricted</p>
+        <h1 className="mt-2 text-2xl font-black text-white">You do not have permission to view this lesson plan.</h1>
+        <p className="mt-2 text-sm text-muted-foreground">Switch to an authorized role or return to the visible lesson plan library.</p>
+        <Button className="mt-5" onClick={() => navigate("/plans")}>Back to plans</Button>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -293,22 +324,30 @@ export const Editor = () => {
         <div className="min-w-0">
           <p className="text-xs font-black uppercase text-cyan-200">KCS weekly lesson plan</p>
           <h1 className="truncate text-2xl font-black text-white md:text-3xl">{printableLesson.topic || printableLesson.chapter || printableLesson.subject || "New Lesson Plan"}</h1>
-          <p className="text-sm text-muted-foreground">KCS stays fixed; the title, lesson details, and teaching content come from your fields.</p>
+          <p className="text-sm text-muted-foreground">
+            KCS stays fixed; the title, lesson details, and teaching content come from your fields.
+            {!canEditCurrent && " This plan is read-only for your current role."}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Owner: {printableLesson.ownerName || printableLesson.teachers || "Unassigned"} · Department: {printableLesson.department || "Unassigned"}
+            {canReviewCurrent ? " · Department review enabled" : ""}
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => save(true)}><Save size={17} /> Save</Button>
-          <Button variant="outline" onClick={duplicate}><Copy size={17} /> Duplicate</Button>
+          {canEditCurrent && <Button variant="outline" onClick={() => save(true)}><Save size={17} /> Save</Button>}
+          {can("lesson:create") && <Button variant="outline" onClick={duplicate}><Copy size={17} /> Duplicate</Button>}
           <Button variant="outline" onClick={() => setPreview(true)}><Printer size={17} /> Preview</Button>
           <Button variant="outline" onClick={() => printRef.current && exportElementToPdf(printRef.current, `${printTitle}.pdf`)}><FileDown size={17} /> PDF</Button>
           <Button variant="outline" onClick={() => printRef.current && exportElementToDocx(printRef.current, `${printTitle}.docx`)}><Download size={17} /> DOCX</Button>
-          <Button variant="danger" onClick={() => { if (confirm("Delete this lesson plan permanently?")) { lessonRepository.remove(values.id); navigate("/plans"); } }}><Trash2 size={17} /></Button>
+          {canDeleteCurrent && <Button variant="danger" onClick={() => { if (confirm("Delete this lesson plan permanently?")) { lessonRepository.remove(values.id); navigate("/plans"); } }}><Trash2 size={17} /></Button>}
         </div>
       </div>
 
       <div className="h-2 overflow-hidden rounded-full bg-white/[0.07]"><div className="h-full rounded-full bg-cyan-300 transition-all" style={{ width: `${completion}%` }} /></div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
+      <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
         <form className="space-y-4" onSubmit={form.handleSubmit(() => save(true))}>
+          <fieldset disabled={!canEditCurrent} className="space-y-4 disabled:opacity-75">
           <Card className="p-4">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -337,7 +376,14 @@ export const Editor = () => {
                   {durationOptions.map((duration) => <option key={duration} value={duration}>{duration}</option>)}
                 </Select>
               </Field>
-              <Field label="School Year"><Input value={values.schoolYear || ""} onChange={(event) => updateSetupField("schoolYear", event.target.value)} /></Field>
+              <Field label="School Year">
+                <Select value={normalizeSchoolYear(values.schoolYear) || schoolYearOptions[0]} onChange={(event) => updateSetupField("schoolYear", event.target.value)}>
+                  {normalizeSchoolYear(values.schoolYear) && !schoolYearOptions.includes(normalizeSchoolYear(values.schoolYear)) && (
+                    <option value={normalizeSchoolYear(values.schoolYear)}>{normalizeSchoolYear(values.schoolYear)}</option>
+                  )}
+                  {schoolYearOptions.map((schoolYear) => <option key={schoolYear} value={schoolYear}>{schoolYear}</option>)}
+                </Select>
+              </Field>
               <Field label="Semester">
                 <Select value={values.semester || "1st"} onChange={(event) => updateSetupField("semester", event.target.value)}>
                   {semesterOptions.map((semester) => <option key={semester} value={semester}>{semester} Semester</option>)}
@@ -356,7 +402,7 @@ export const Editor = () => {
               {["Mathematics", "English", "English (Writing and Grammar)", "Science", "French", "Computer Science", "History", "Geography", "Physics", "Chemistry", "Biology", "Art", "Music", "Physical Education"].map((item) => <option key={item} value={item} />)}
             </datalist>
             <datalist id="grade-suggestions">
-              {Array.from({ length: 12 }, (_, i) => `Grade ${i + 1}`).map((item) => <option key={item} value={item} />)}
+              {["K3", "K4", "K5", ...Array.from({ length: 12 }, (_, i) => `Grade ${i + 1}`)].map((item) => <option key={item} value={item} />)}
             </datalist>
           </Card>
 
@@ -399,7 +445,7 @@ export const Editor = () => {
               <h2 className="text-lg font-black text-white">3. Weekly grid</h2>
               <p className="text-sm text-muted-foreground">Use Generate week first, then edit only the parts that need teacher judgement.</p>
             </div>
-            <div className="grid gap-3 lg:grid-cols-5">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
               {weeklyPlan.map((day, index) => (
                 <div key={day.day} className="rounded-lg border border-cyan-300/15 bg-[#030d14]/70 p-3">
                   <h3 className="mb-3 rounded-md border border-cyan-300/20 bg-cyan-500/10 px-3 py-2 text-center text-sm font-black text-cyan-100">{day.day}</h3>
@@ -421,7 +467,7 @@ export const Editor = () => {
               ))}
             </div>
           </Card>
-
+          </fieldset>
         </form>
 
         <aside className="space-y-4">
@@ -552,6 +598,8 @@ const sanitizeTitlePart = (value?: string) => {
   return text.toLowerCase().startsWith("weekly lesson plan") ? "" : text;
 };
 
+const normalizeSchoolYear = (value?: string) => value?.replace(/\s+/g, "") || "";
+
 const createDailyObjective = (lessonTitle = "", subject = "", gradeClass = "") => {
   const lesson = lessonTitle.trim() || "the lesson";
   const subjectLabel = subject.trim() || "the subject";
@@ -593,7 +641,7 @@ const textToItems = (text: string, prefix: string) => {
 const LockedSchool = () => (
   <div className="space-y-1">
     <Label>School</Label>
-    <div className="flex h-10 items-center gap-2 rounded-md border border-cyan-300/20 bg-[#030d14]/80 px-3 text-sm font-bold text-white">
+    <div className="flex h-10 items-center gap-2 rounded-md border border-border bg-input px-3 text-sm font-bold text-foreground shadow-sm dark:border-cyan-300/20 dark:bg-[#030d14]/85 dark:text-[#f8fdff]">
       <img src={schoolImage} alt="KCS logo" className="h-6 w-6 rounded-sm object-contain bg-white" />
       <span className="truncate">{schoolDisplayName}</span>
     </div>
@@ -614,7 +662,7 @@ const PrintPreview = ({ lesson, zoom }: { lesson: LessonPlan; zoom: number }) =>
   const style = { "--preview-zoom": zoom } as CSSProperties;
 
   return (
-    <div className="max-h-[72vh] overflow-auto rounded-lg border border-cyan-300/15 bg-slate-950/70 p-3">
+    <div className="max-h-[72vh] max-w-full overflow-auto rounded-lg border border-cyan-300/15 bg-slate-950/70 p-2 sm:p-3">
       <div style={{ height }} className="mx-auto w-fit">
         <div className="origin-top-left [zoom:var(--preview-zoom)]" style={style}>
           <LessonPrint lesson={lesson} />

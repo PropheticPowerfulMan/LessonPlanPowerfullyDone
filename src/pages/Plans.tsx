@@ -1,13 +1,15 @@
 import { Archive, Copy, Download, Edit3, FileJson, Trash2, Upload } from "lucide-react";
-import { ChangeEvent, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Input, Select } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { useToast } from "../components/Toast";
+import { useAuth } from "../contexts/AuthContext";
 import { createBlankLesson } from "../data/defaults";
 import { filterLessons, lessonRepository } from "../services/lessonRepository";
+import { applyLessonVisibility, canDeleteLesson, canEditLesson, prepareNewLessonForUser } from "../services/permissions";
 import { LessonFilters, LessonPlan } from "../types/lesson";
 
 const initialFilters: LessonFilters = {
@@ -26,7 +28,8 @@ const initialFilters: LessonFilters = {
 };
 
 export const Plans = () => {
-  const [lessons, setLessons] = useState(() => lessonRepository.list());
+  const { currentUser, can } = useAuth();
+  const [lessons, setLessons] = useState(() => applyLessonVisibility(currentUser, lessonRepository.list()));
   const [searchParams] = useSearchParams();
   const [filters, setFilters] = useState<LessonFilters>({ ...initialFilters, query: searchParams.get("q") || "" });
   const navigate = useNavigate();
@@ -34,11 +37,19 @@ export const Plans = () => {
   const filtered = useMemo(() => filterLessons(lessons, filters), [lessons, filters]);
 
   const patch = (key: keyof LessonFilters, value: string) => setFilters((current) => ({ ...current, [key]: value }));
-  const refresh = () => setLessons(lessonRepository.list());
+  const refresh = () => setLessons(applyLessonVisibility(currentUser, lessonRepository.list()));
+
+  useEffect(() => {
+    refresh();
+  }, [currentUser]);
 
   const duplicate = (lesson: LessonPlan) => {
+    if (!currentUser) return;
     const now = new Date().toISOString();
-    const copy = { ...lesson, id: crypto.randomUUID(), lessonNumber: createBlankLesson(`LP-${new Date().getFullYear()}-${lessons.length + 1}`).lessonNumber, topic: `${lesson.topic} (Copy)`, createdAt: now, updatedAt: now, versions: [] };
+    const copy = prepareNewLessonForUser(
+      { ...lesson, id: crypto.randomUUID(), ownerId: "", ownerName: "", department: "", lessonNumber: createBlankLesson(`LP-${new Date().getFullYear()}-${lessons.length + 1}`).lessonNumber, topic: `${lesson.topic} (Copy)`, createdAt: now, updatedAt: now, versions: [] },
+      currentUser
+    );
     lessonRepository.save(copy);
     refresh();
     notify("Lesson plan duplicated");
@@ -71,15 +82,17 @@ export const Plans = () => {
           <h1 className="text-3xl font-black text-white">Lesson Plans</h1>
           <p className="text-sm text-muted-foreground">Search, filter, archive, duplicate, and back up your local library.</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={downloadBackup}>
-            <Download size={17} /> Export JSON
-          </Button>
-          <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-md border border-cyan-300/25 bg-white/[0.06] px-4 text-sm font-bold text-foreground hover:bg-cyan-500/15">
-            <Upload size={17} /> Import JSON
-            <input type="file" accept="application/json" className="hidden" onChange={importBackup} />
-          </label>
-        </div>
+        {can("backup:manage") && (
+        <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={downloadBackup}>
+              <Download size={17} /> Export JSON
+            </Button>
+            <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-md border border-cyan-300/25 bg-white/[0.06] px-4 text-sm font-bold text-foreground hover:bg-cyan-500/15">
+              <Upload size={17} /> Import JSON
+              <input type="file" accept="application/json" className="hidden" onChange={importBackup} />
+            </label>
+          </div>
+        )}
       </div>
 
       <Card className="p-4">
@@ -107,19 +120,19 @@ export const Plans = () => {
 
       <div className="grid gap-3">
         {filtered.map((lesson) => (
-          <Card key={lesson.id} className="grid gap-4 p-4 md:grid-cols-[1fr_auto]">
-            <div>
+          <Card key={lesson.id} className="grid min-w-0 gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_auto]">
+            <div className="min-w-0">
               <p className="font-bold text-white">{lesson.topic || "Untitled Lesson"}</p>
               <p className="text-sm text-muted-foreground">{lesson.lessonNumber} · {lesson.subject || "Subject"} · {lesson.gradeClass || "Grade"} · {lesson.date}</p>
               <div className="mt-2 flex flex-wrap gap-2">
                 {lesson.tags.map((tag) => <span key={tag} className="rounded-full border border-cyan-300/20 bg-cyan-500/10 px-2 py-1 text-xs font-semibold text-cyan-100">{tag}</span>)}
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" onClick={() => navigate(`/editor/${lesson.id}`)}><Edit3 size={16} /> Edit</Button>
-              <Button variant="outline" onClick={() => duplicate(lesson)}><Copy size={16} /> Duplicate</Button>
-              <Button variant="outline" onClick={() => { lessonRepository.save({ ...lesson, status: lesson.status === "archived" ? "active" : "archived", updatedAt: new Date().toISOString() }); refresh(); }}><Archive size={16} /> {lesson.status === "archived" ? "Restore" : "Archive"}</Button>
-              <Button variant="danger" onClick={() => { if (confirm("Delete this lesson plan permanently?")) { lessonRepository.remove(lesson.id); refresh(); notify("Lesson plan deleted"); } }}><Trash2 size={16} /></Button>
+            <div className="flex min-w-0 flex-wrap items-center gap-2 lg:justify-end">
+              <Button variant="outline" onClick={() => navigate(`/editor/${lesson.id}`)}><Edit3 size={16} /> {canEditLesson(currentUser, lesson) ? "Edit" : "Open"}</Button>
+              {can("lesson:create") && <Button variant="outline" onClick={() => duplicate(lesson)}><Copy size={16} /> Duplicate</Button>}
+              {canEditLesson(currentUser, lesson) && <Button variant="outline" onClick={() => { lessonRepository.save({ ...lesson, status: lesson.status === "archived" ? "active" : "archived", updatedAt: new Date().toISOString() }); refresh(); }}><Archive size={16} /> {lesson.status === "archived" ? "Restore" : "Archive"}</Button>}
+              {canDeleteLesson(currentUser, lesson) && <Button variant="danger" onClick={() => { if (confirm("Delete this lesson plan permanently?")) { lessonRepository.remove(lesson.id); refresh(); notify("Lesson plan deleted"); } }}><Trash2 size={16} /></Button>}
             </div>
           </Card>
         ))}
