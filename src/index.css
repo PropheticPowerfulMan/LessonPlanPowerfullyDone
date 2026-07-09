@@ -148,6 +148,13 @@ select {
   color: #e7faff;
 }
 
+.theme-dark-panel .badge {
+  border-color: rgba(156, 236, 255, 0.42);
+  background: rgba(231, 250, 255, 0.12);
+  color: #e7faff;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.45);
+}
+
 :root:not(.dark) .theme-dark-panel .text-white,
 :root:not(.dark) .theme-dark-panel .text-cyan-50,
 :root:not(.dark) .theme-dark-panel .text-cyan-50\/80,
