@@ -13,6 +13,8 @@ import { applyLessonVisibility, canDeleteLesson, canEditLesson, canReviewLesson 
 import { LessonFilters, LessonPlan, LessonStatus } from "../types/lesson";
 
 const lessonStatuses: LessonStatus[] = ["draft", "submitted", "under-review", "approved", "rejected", "archived", "published"];
+const defaultSubjectOptions = ["Mathematics", "English", "English (Writing and Grammar)", "Science", "French", "Computer Science", "History", "Geography", "Physics", "Chemistry", "Biology", "Art", "Music", "Physical Education"];
+const defaultGradeOptions = ["K3", "K4", "K5", ...Array.from({ length: 12 }, (_, i) => `Grade ${i + 1}`)];
 
 const initialFilters: LessonFilters = {
   query: "",
@@ -39,8 +41,8 @@ export const Plans = () => {
   const { notify } = useToast();
   const filtered = useMemo(() => filterLessons(lessons, filters), [lessons, filters]);
   const teacherOptions = useMemo(() => unique(lessons.map((lesson) => lesson.teachers).filter(Boolean)), [lessons]);
-  const subjectOptions = useMemo(() => unique(lessons.map((lesson) => lesson.subject).filter(Boolean)), [lessons]);
-  const gradeOptions = useMemo(() => unique(lessons.map((lesson) => lesson.gradeClass).filter(Boolean)), [lessons]);
+  const subjectOptions = useMemo(() => unique([...defaultSubjectOptions, ...lessons.map((lesson) => lesson.subject).filter(Boolean)]), [lessons]);
+  const gradeOptions = useMemo(() => unique([...defaultGradeOptions, ...lessons.map((lesson) => lesson.gradeClass).filter(Boolean)]), [lessons]);
   const yearOptions = useMemo(() => unique(lessons.map((lesson) => lesson.date?.slice(0, 4)).filter(Boolean)), [lessons]);
 
   const patch = (key: keyof LessonFilters, value: string) => setFilters((current) => ({ ...current, [key]: value }));

@@ -25,6 +25,8 @@ export type Permission =
   | "lesson:delete:any"
   | "lesson:delete:own"
   | "lesson:review:department"
+  | "curriculum:read"
+  | "curriculum:manage"
   | "dashboard:view"
   | "reports:view"
   | "users:manage"

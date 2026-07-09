@@ -22,6 +22,7 @@ import {
 } from "../data/defaults";
 import { useDebouncedEffect } from "../hooks/useDebouncedEffect";
 import { LessonPrint } from "../print/LessonPrint";
+import { curriculumRepository, findCurriculumSuggestions } from "../services/curriculumRepository";
 import { lessonRepository } from "../services/lessonRepository";
 import { canDeleteLesson, canEditLesson, canReviewLesson, canViewLesson, prepareNewLessonForUser } from "../services/permissions";
 import { LessonPlan, WeeklyPlanDay } from "../types/lesson";
@@ -93,6 +94,11 @@ export const Editor = () => {
   const displayedPlan = planType === "daily" ? weeklyPlan.slice(0, 1) : weeklyPlan;
   const lessonSignature = weeklyPlan.map((day) => day.lesson).join("|");
   const printableLesson = toPrintableLesson(values);
+  const curriculumItems = useMemo(() => curriculumRepository.list(), []);
+  const curriculumSuggestions = useMemo(() => findCurriculumSuggestions(curriculumItems, values.gradeClass, values.subject), [curriculumItems, values.gradeClass, values.subject]);
+  const unitOptions = useMemo(() => unique([...curriculumSuggestions.map((item) => item.unit), currentChapter].filter(Boolean)), [curriculumSuggestions, currentChapter]);
+  const topicOptions = useMemo(() => unique(curriculumSuggestions.map((item) => item.topic).filter(Boolean)), [curriculumSuggestions]);
+  const subtopicOptions = useMemo(() => unique(curriculumSuggestions.map((item) => item.subtopic).filter(Boolean)), [curriculumSuggestions]);
 
   useEffect(() => {
     const current = form.getValues();
@@ -330,6 +336,22 @@ export const Editor = () => {
     });
   };
 
+  const applyCurriculumItem = (item = curriculumSuggestions[0]) => {
+    if (!item || !canEditCurrent) return;
+    form.setValue("chapter", item.unit, { shouldDirty: true });
+    form.setValue("topic", item.topic, { shouldDirty: true });
+    form.setValue("subtopic", item.subtopic, { shouldDirty: true });
+    form.setValue("learningObjectives", item.learningObjectives.map((value, index) => ({ id: `curriculum-objective-${index + 1}`, value })), { shouldDirty: true });
+    form.setValue("learningOutcomes", item.learningOutcomes.map((value, index) => ({ id: `curriculum-outcome-${index + 1}`, value })), { shouldDirty: true });
+    form.setValue("referenceBook", item.references.join("; "), { shouldDirty: true });
+    form.setValue("vocabulary", item.skills.map((value, index) => ({ id: `curriculum-skill-${index + 1}`, value })), { shouldDirty: true });
+    form.setValue("crossCurricularConnections", [
+      item.competencies.length ? `Competencies: ${item.competencies.join("; ")}` : "",
+      item.curriculumStandards.length ? `Standards: ${item.curriculumStandards.join("; ")}` : ""
+    ].filter(Boolean).join("\n"), { shouldDirty: true });
+    notify("Curriculum suggestions applied");
+  };
+
   if (!canViewCurrent) {
     return (
       <Card className="mx-auto mt-10 max-w-xl p-8 text-center">
@@ -393,7 +415,7 @@ export const Editor = () => {
               <Field label="Teacher"><Input value={values.teachers || ""} onChange={(event) => updateSetupField("teachers", event.target.value)} /></Field>
               <Field label="Subject"><Input list="subject-suggestions" value={values.subject || ""} onChange={(event) => updateSetupField("subject", event.target.value)} /></Field>
               <Field label="Grade"><Input list="grade-suggestions" value={values.gradeClass || ""} onChange={(event) => updateSetupField("gradeClass", event.target.value)} /></Field>
-              <Field label="Chapter / Unit"><Input value={values.chapter || ""} onChange={(event) => updateSetupField("chapter", event.target.value)} /></Field>
+              <Field label="Chapter / Unit"><Input list="unit-suggestions" value={values.chapter || ""} onChange={(event) => updateSetupField("chapter", event.target.value)} /></Field>
               <Field label="Date"><Input type="date" value={values.date || ""} onChange={(event) => updateSetupField("date", event.target.value)} /></Field>
               {planType === "weekly" && <Field label="Week">
                 <Select value={values.week || "1"} onChange={(event) => updateSetupField("week", event.target.value)}>
@@ -433,7 +455,44 @@ export const Editor = () => {
             <datalist id="grade-suggestions">
               {["K3", "K4", "K5", ...Array.from({ length: 12 }, (_, i) => `Grade ${i + 1}`)].map((item) => <option key={item} value={item} />)}
             </datalist>
+            <datalist id="unit-suggestions">
+              {unitOptions.map((item) => <option key={item} value={item} />)}
+            </datalist>
           </Card>
+
+          {curriculumSuggestions.length > 0 && (
+            <Card className="w-full max-w-full overflow-hidden p-3 sm:p-4">
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-lg font-black text-white">Curriculum suggestions</h2>
+                  <p className="text-sm text-muted-foreground">Suggestions for {values.gradeClass || "grade"} and {values.subject || "subject"}.</p>
+                </div>
+                {canEditCurrent && <Button type="button" variant="outline" onClick={() => applyCurriculumItem()}><Sparkles size={17} /> Apply first match</Button>}
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <Field label="Topic suggestion"><Input list="topic-suggestions" value={values.topic || ""} onChange={(event) => form.setValue("topic", event.target.value, { shouldDirty: true })} /></Field>
+                <Field label="Subtopic suggestion"><Input list="subtopic-suggestions" value={values.subtopic || ""} onChange={(event) => form.setValue("subtopic", event.target.value, { shouldDirty: true })} /></Field>
+              </div>
+              <div className="mt-3 grid gap-3">
+                {curriculumSuggestions.slice(0, 4).map((item) => (
+                  <div key={item.id} className="rounded-md border border-cyan-300/15 bg-cyan-500/10 p-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="text-xs font-black uppercase text-cyan-200">{item.academicYear} - {item.term}</p>
+                        <p className="font-black text-white">{item.unit}: {item.topic}</p>
+                        <p className="text-sm text-muted-foreground">{item.subtopic}</p>
+                      </div>
+                      {canEditCurrent && <Button type="button" variant="outline" onClick={() => applyCurriculumItem(item)}>Apply</Button>}
+                    </div>
+                    <p className="mt-2 text-sm text-muted-foreground">Objectives: {item.learningObjectives.slice(0, 2).join("; ")}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Competencies: {item.competencies.join("; ") || "None"} - Standards: {item.curriculumStandards.join("; ") || "None"}</p>
+                  </div>
+                ))}
+              </div>
+              <datalist id="topic-suggestions">{topicOptions.map((item) => <option key={item} value={item} />)}</datalist>
+              <datalist id="subtopic-suggestions">{subtopicOptions.map((item) => <option key={item} value={item} />)}</datalist>
+            </Card>
+          )}
 
           <Card className="w-full max-w-full overflow-hidden p-3 sm:p-4">
             <div className="mb-4">
@@ -695,6 +754,7 @@ const isGenericObjective = (objective: string, gradeClass = "", chapter = "") =>
 };
 
 const hasFilledItems = (items?: { value?: string }[]) => Boolean(items?.some((item) => item.value?.trim()));
+const unique = (values: string[]) => Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
 
 const mergeFilled = <T extends Record<string, string>>(base: T, overrides: Partial<T>): T => {
   const next = { ...base };

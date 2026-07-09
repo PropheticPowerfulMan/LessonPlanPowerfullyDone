@@ -42,6 +42,11 @@ export const AppLayout = () => {
             <NavLink to="/plans" className={({ isActive }) => `rounded-md px-3 py-2 text-sm font-bold ${isActive ? "border border-primary/30 bg-primary/15 text-foreground dark:border-cyan-300/25 dark:bg-cyan-500/15 dark:text-cyan-100" : "text-muted-foreground hover:bg-primary/10 hover:text-foreground dark:hover:bg-white/10 dark:hover:text-white"}`}>
               Plans
             </NavLink>
+            {can("curriculum:read") && (
+              <NavLink to="/curriculum" className={({ isActive }) => `rounded-md px-3 py-2 text-sm font-bold ${isActive ? "border border-primary/30 bg-primary/15 text-foreground dark:border-cyan-300/25 dark:bg-cyan-500/15 dark:text-cyan-100" : "text-muted-foreground hover:bg-primary/10 hover:text-foreground dark:hover:bg-white/10 dark:hover:text-white"}`}>
+                Curriculum
+              </NavLink>
+            )}
           </nav>
           <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
             <div className="order-4 flex w-full min-w-0 items-center gap-2 rounded-md border border-border bg-card/90 px-3 py-2 shadow-sm dark:bg-[#061520]/90 sm:w-auto sm:min-w-[240px] lg:order-none">

@@ -6,6 +6,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { Editor } from "./pages/Editor";
 import { Login } from "./pages/Login";
 import { Plans } from "./pages/Plans";
+import { Curriculum } from "./pages/Curriculum";
 
 const ErrorPage = () => (
   <div className="min-h-screen bg-background px-4 py-20 text-center text-foreground">
@@ -33,6 +34,7 @@ const router = createBrowserRouter(
       children: [
         { index: true, element: <Dashboard /> },
         { path: "plans", element: <Plans /> },
+        { path: "curriculum", element: <Curriculum /> },
         { path: "editor/:id", element: <Editor /> }
       ]
     }

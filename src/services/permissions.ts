@@ -8,16 +8,18 @@ const permissionsByRole: Record<UserRole, Permission[]> = {
     "lesson:update:any",
     "lesson:delete:any",
     "lesson:review:department",
+    "curriculum:read",
+    "curriculum:manage",
     "dashboard:view",
     "reports:view",
     "users:manage",
     "system:manage",
     "backup:manage"
   ],
-  principal: ["lesson:create", "lesson:read:any", "lesson:update:any", "lesson:delete:any", "dashboard:view", "reports:view", "backup:manage"],
-  "vice-principal": ["lesson:create", "lesson:read:any", "lesson:update:any", "lesson:delete:any", "dashboard:view", "reports:view", "backup:manage"],
-  "head-of-department": ["lesson:create", "lesson:read:department", "lesson:update:own", "lesson:delete:own", "lesson:review:department", "dashboard:view"],
-  teacher: ["lesson:create", "lesson:read:own", "lesson:update:own", "lesson:delete:own", "dashboard:view"]
+  principal: ["lesson:create", "lesson:read:any", "lesson:update:any", "lesson:delete:any", "curriculum:read", "curriculum:manage", "dashboard:view", "reports:view", "backup:manage"],
+  "vice-principal": ["lesson:create", "lesson:read:any", "lesson:update:any", "lesson:delete:any", "curriculum:read", "curriculum:manage", "dashboard:view", "reports:view", "backup:manage"],
+  "head-of-department": ["lesson:create", "lesson:read:department", "lesson:update:own", "lesson:delete:own", "lesson:review:department", "curriculum:read", "curriculum:manage", "dashboard:view"],
+  teacher: ["lesson:create", "lesson:read:own", "lesson:update:own", "lesson:delete:own", "curriculum:read", "dashboard:view"]
 };
 
 export const hasPermission = (user: UserProfile | null | undefined, permission: Permission) => {
