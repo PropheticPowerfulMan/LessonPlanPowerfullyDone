@@ -96,6 +96,7 @@ export const Editor = () => {
   const displayedPlan = planType === "daily" ? weeklyPlan.slice(0, 1) : weeklyPlan;
   const lessonSignature = weeklyPlan.map((day) => day.lesson).join("|");
   const printableLesson = toPrintableLesson(values);
+  const teacherFeedback = useMemo(() => getTeacherFeedback(values), [values]);
   const curriculumItems = useMemo(() => curriculumRepository.list(), []);
   const curriculumSuggestions = useMemo(() => findCurriculumSuggestions(curriculumItems, values.gradeClass, values.subject), [curriculumItems, values.gradeClass, values.subject]);
   const unitOptions = useMemo(() => unique([...curriculumSuggestions.map((item) => item.unit), currentChapter].filter(Boolean)), [curriculumSuggestions, currentChapter]);
@@ -397,6 +398,15 @@ export const Editor = () => {
       </div>
 
       <div className="h-2 overflow-hidden rounded-full bg-white/[0.07]"><div className="h-full rounded-full bg-cyan-300 transition-all" style={{ width: `${completion}%` }} /></div>
+      {teacherFeedback && (
+        <Card className="border-orange-500/40 bg-orange-500/15 p-4">
+          <p className="text-xs font-black uppercase text-orange-100">{teacherFeedback.title}</p>
+          <p className="mt-1 text-sm font-bold text-white">{teacherFeedback.message}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {teacherFeedback.userName} - {new Date(teacherFeedback.timestamp).toLocaleString()}
+          </p>
+        </Card>
+      )}
 
       <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
         <form className="min-w-0 space-y-4" onSubmit={form.handleSubmit(() => save(true))}>
@@ -610,6 +620,13 @@ export const Editor = () => {
                 <div key={log.id} className="rounded-md border border-cyan-300/10 px-3 py-2 text-xs text-muted-foreground">
                   <p><span className="font-bold text-foreground">{log.userName}</span> - {log.description}</p>
                   <p>{new Date(log.timestamp).toLocaleString()}{log.field ? ` - ${log.field}: ${log.oldValue || "-"} -> ${log.newValue || "-"}` : ""}</p>
+                </div>
+              ))}
+              {(values.approvalHistory || []).slice(0, 4).map((event) => (
+                <div key={event.id} className="rounded-md border border-emerald-300/15 px-3 py-2 text-xs text-muted-foreground">
+                  <p><span className="font-bold text-foreground">{event.userName}</span> - {event.action}</p>
+                  <p>{new Date(event.timestamp).toLocaleString()} - {event.fromStatus} {"->"} {event.toStatus}</p>
+                  {event.comment && <p className="mt-1">{event.comment}</p>}
                 </div>
               ))}
               {!values.activityLogs?.length && <p className="text-sm text-muted-foreground">No activity logged yet.</p>}
@@ -844,11 +861,25 @@ const statusLabel = (status: LessonPlan["status"]) => ({
   draft: "Draft",
   submitted: "Submitted",
   "under-review": "Under Review",
+  "revision-requested": "Revision Requested",
   approved: "Approved",
+  "final-approved": "Final Approved",
   rejected: "Rejected",
   archived: "Archived",
   published: "Published"
 })[status];
+
+const getTeacherFeedback = (lesson: LessonPlan) => {
+  if (!["rejected", "revision-requested"].includes(lesson.status)) return null;
+  const source = lesson.status === "revision-requested" ? lesson.revisionRequests?.[0] : lesson.reviewerComments?.[0];
+  if (!source) return null;
+  return {
+    title: lesson.status === "revision-requested" ? "Revision requested" : "Lesson plan rejected",
+    message: source.note,
+    userName: source.userName,
+    timestamp: source.timestamp
+  };
+};
 
 const PrintPreview = ({ lesson, zoom }: { lesson: LessonPlan; zoom: number }) => {
   const pageCount = estimatePrintPageCount(lesson);

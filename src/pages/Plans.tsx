@@ -1,4 +1,4 @@
-import { Archive, CheckCircle2, Copy, Download, Edit3, FileJson, RefreshCcw, Send, Trash2, Upload, XCircle } from "lucide-react";
+import { Archive, CheckCircle2, Copy, Download, Edit3, FileJson, MessageSquareWarning, RefreshCcw, Send, ShieldCheck, Trash2, Upload, XCircle } from "lucide-react";
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "../components/ui/button";
@@ -9,10 +9,10 @@ import { useToast } from "../components/Toast";
 import { useAuth } from "../contexts/AuthContext";
 import { createBlankLesson } from "../data/defaults";
 import { filterLessons, lessonRepository } from "../services/lessonRepository";
-import { applyLessonVisibility, canDeleteLesson, canEditLesson, canReviewLesson } from "../services/permissions";
+import { applyLessonVisibility, canDeleteLesson, canEditLesson, canFinalApproveLesson, canReviewLesson } from "../services/permissions";
 import { LessonFilters, LessonPlan, LessonStatus } from "../types/lesson";
 
-const lessonStatuses: LessonStatus[] = ["draft", "submitted", "under-review", "approved", "rejected", "archived", "published"];
+const lessonStatuses: LessonStatus[] = ["draft", "submitted", "under-review", "revision-requested", "approved", "final-approved", "rejected", "archived", "published"];
 const defaultSubjectOptions = ["Mathematics", "English", "English (Writing and Grammar)", "Science", "French", "Computer Science", "History", "Geography", "Physics", "Chemistry", "Biology", "Art", "Music", "Physical Education"];
 const defaultGradeOptions = ["K3", "K4", "K5", ...Array.from({ length: 12 }, (_, i) => `Grade ${i + 1}`)];
 
@@ -22,6 +22,8 @@ const initialFilters: LessonFilters = {
   subject: "",
   grade: "",
   date: "",
+  dateFrom: "",
+  dateTo: "",
   topic: "",
   week: "",
   month: "",
@@ -66,6 +68,17 @@ export const Plans = () => {
     lessonRepository.changeStatus(lesson.id, status, currentUser, description);
     refresh();
     notify(`Status updated to ${statusLabel(status)}`);
+  };
+
+  const workflow = (lesson: LessonPlan, action: Parameters<typeof lessonRepository.workflowAction>[1], status: LessonStatus, message: string, needsComment = false) => {
+    const comment = needsComment ? prompt(message) || "" : prompt(message) || "";
+    if (needsComment && !comment.trim()) {
+      notify("A reviewer comment is required");
+      return;
+    }
+    lessonRepository.workflowAction(lesson.id, action, status, currentUser, comment);
+    refresh();
+    notify(`Workflow updated: ${statusLabel(status)}`);
   };
 
   const softDelete = (lesson: LessonPlan) => {
@@ -127,7 +140,9 @@ export const Plans = () => {
           <Field label="Teacher"><Input list="teacher-filter-options" value={filters.teacher} onChange={(e) => patch("teacher", e.target.value)} placeholder="Optional teacher" /></Field>
           <Field label="Subject"><Input list="subject-filter-options" value={filters.subject} onChange={(e) => patch("subject", e.target.value)} placeholder="Optional subject" /></Field>
           <Field label="Grade"><Input list="grade-filter-options" value={filters.grade} onChange={(e) => patch("grade", e.target.value)} placeholder="Optional grade" /></Field>
-          <Field label="Date"><Input type="date" value={filters.date} onChange={(e) => patch("date", e.target.value)} /></Field>
+          <Field label="Exact Date"><Input type="date" value={filters.date} onChange={(e) => patch("date", e.target.value)} /></Field>
+          <Field label="From Date"><Input type="date" value={filters.dateFrom} onChange={(e) => patch("dateFrom", e.target.value)} /></Field>
+          <Field label="To Date"><Input type="date" value={filters.dateTo} onChange={(e) => patch("dateTo", e.target.value)} /></Field>
           <Field label="Term"><Input value={filters.term} onChange={(e) => patch("term", e.target.value)} /></Field>
           <Field label="Week">
             <Select value={filters.week} onChange={(e) => patch("week", e.target.value)}>
@@ -187,11 +202,13 @@ export const Plans = () => {
             <div className="flex min-w-0 flex-wrap items-center gap-2 lg:justify-end">
               {!lesson.deletedAt && <Button variant="outline" onClick={() => navigate(`/editor/${lesson.id}`)}><Edit3 size={16} /> {canEditLesson(currentUser, lesson) ? "Edit" : "Open"}</Button>}
               {!lesson.deletedAt && can("lesson:create") && <Button variant="outline" onClick={() => duplicate(lesson)}><Copy size={16} /> Duplicate</Button>}
-              {!lesson.deletedAt && canEditLesson(currentUser, lesson) && lesson.status === "draft" && <Button variant="outline" onClick={() => setStatus(lesson, "submitted", "Submitted for review")}><Send size={16} /> Submit</Button>}
-              {!lesson.deletedAt && canReviewLesson(currentUser, lesson) && lesson.status === "submitted" && <Button variant="outline" onClick={() => setStatus(lesson, "under-review", "Review started")}><RefreshCcw size={16} /> Review</Button>}
-              {!lesson.deletedAt && (canReviewLesson(currentUser, lesson) || can("lesson:update:any")) && ["submitted", "under-review"].includes(lesson.status) && <Button variant="outline" onClick={() => setStatus(lesson, "approved", "Lesson plan approved")}><CheckCircle2 size={16} /> Approve</Button>}
-              {!lesson.deletedAt && (canReviewLesson(currentUser, lesson) || can("lesson:update:any")) && ["submitted", "under-review"].includes(lesson.status) && <Button variant="danger" onClick={() => setStatus(lesson, "rejected", "Lesson plan rejected")}><XCircle size={16} /> Reject</Button>}
-              {!lesson.deletedAt && can("lesson:update:any") && lesson.status === "approved" && <Button variant="outline" onClick={() => setStatus(lesson, "published", "Lesson plan published")}><CheckCircle2 size={16} /> Publish</Button>}
+              {!lesson.deletedAt && canEditLesson(currentUser, lesson) && ["draft", "revision-requested", "rejected"].includes(lesson.status) && <Button variant="outline" onClick={() => workflow(lesson, "submitted", "submitted", "Optional submission note for the reviewer:")}><Send size={16} /> Submit</Button>}
+              {!lesson.deletedAt && canReviewLesson(currentUser, lesson) && lesson.status === "submitted" && <Button variant="outline" onClick={() => workflow(lesson, "review-started", "under-review", "Optional review start comment:")}><RefreshCcw size={16} /> Review</Button>}
+              {!lesson.deletedAt && canReviewLesson(currentUser, lesson) && ["submitted", "under-review"].includes(lesson.status) && <Button variant="outline" onClick={() => workflow(lesson, "hod-approved", "approved", "HOD approval comment:")}><CheckCircle2 size={16} /> HOD Approve</Button>}
+              {!lesson.deletedAt && canReviewLesson(currentUser, lesson) && ["submitted", "under-review"].includes(lesson.status) && <Button variant="outline" onClick={() => workflow(lesson, "revision-requested", "revision-requested", "Explain corrections required for the teacher:", true)}><MessageSquareWarning size={16} /> Request Revision</Button>}
+              {!lesson.deletedAt && canReviewLesson(currentUser, lesson) && ["submitted", "under-review"].includes(lesson.status) && <Button variant="danger" onClick={() => workflow(lesson, "rejected", "rejected", "Explain why this lesson plan is rejected:", true)}><XCircle size={16} /> Reject</Button>}
+              {!lesson.deletedAt && canFinalApproveLesson(currentUser, lesson) && lesson.status === "approved" && <Button variant="outline" onClick={() => workflow(lesson, "final-approved", "final-approved", "Principal final approval comment:")}><ShieldCheck size={16} /> Final Approve</Button>}
+              {!lesson.deletedAt && can("lesson:update:any") && ["approved", "final-approved"].includes(lesson.status) && <Button variant="outline" onClick={() => setStatus(lesson, "published", "Lesson plan published")}><CheckCircle2 size={16} /> Publish</Button>}
               {!lesson.deletedAt && canEditLesson(currentUser, lesson) && <Button variant="outline" onClick={() => setStatus(lesson, lesson.status === "archived" ? "draft" : "archived", lesson.status === "archived" ? "Lesson plan unarchived" : "Lesson plan archived")}><Archive size={16} /> {lesson.status === "archived" ? "Unarchive" : "Archive"}</Button>}
               {lesson.deletedAt && canDeleteLesson(currentUser, lesson) && <Button variant="outline" onClick={() => restore(lesson)}><RefreshCcw size={16} /> Restore</Button>}
               {!lesson.deletedAt && canDeleteLesson(currentUser, lesson) && <Button variant="danger" onClick={() => softDelete(lesson)}><Trash2 size={16} /> Delete</Button>}
@@ -215,7 +232,9 @@ const statusLabel = (status: LessonStatus) => ({
   draft: "Draft",
   submitted: "Submitted",
   "under-review": "Under Review",
+  "revision-requested": "Revision Requested",
   approved: "Approved",
+  "final-approved": "Final Approved",
   rejected: "Rejected",
   archived: "Archived",
   published: "Published"
@@ -226,7 +245,9 @@ const StatusBadge = ({ status }: { status: LessonStatus }) => {
     draft: "border-slate-950/45 bg-slate-950 !text-white dark:border-slate-400/30 dark:bg-slate-500/15 dark:!text-slate-100",
     submitted: "border-sky-800/45 bg-sky-700 !text-white dark:border-sky-300/35 dark:bg-sky-500/15 dark:!text-sky-100",
     "under-review": "border-amber-800/45 bg-amber-600 !text-white dark:border-amber-300/35 dark:bg-amber-500/15 dark:!text-amber-100",
+    "revision-requested": "border-orange-800/45 bg-orange-700 !text-white dark:border-orange-300/35 dark:bg-orange-500/15 dark:!text-orange-100",
     approved: "border-emerald-800/45 bg-emerald-700 !text-white dark:border-emerald-300/35 dark:bg-emerald-500/15 dark:!text-emerald-100",
+    "final-approved": "border-lime-800/45 bg-lime-700 !text-white dark:border-lime-300/35 dark:bg-lime-500/15 dark:!text-lime-100",
     rejected: "border-red-800/45 bg-red-700 !text-white dark:border-red-300/35 dark:bg-red-500/15 dark:!text-red-100",
     archived: "border-zinc-800/45 bg-zinc-700 !text-white dark:border-zinc-300/35 dark:bg-zinc-500/15 dark:!text-zinc-100",
     published: "border-cyan-800/45 bg-cyan-700 !text-white dark:border-cyan-300/35 dark:bg-cyan-500/15 dark:!text-cyan-100"

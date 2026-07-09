@@ -248,6 +248,10 @@ export const createBlankLesson = (lessonNumber: string): LessonPlan => {
     updatedAt: now,
     activityLogs: [],
     revisionNotes: [],
+    reviewerComments: [],
+    revisionRequests: [],
+    approvalHistory: [],
+    workflowHistory: [],
     versions: []
   };
 };

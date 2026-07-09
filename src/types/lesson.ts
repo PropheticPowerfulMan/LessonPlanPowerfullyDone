@@ -12,7 +12,7 @@ export type LessonStageName =
   | "Homework"
   | "Reflection";
 
-export type LessonStatus = "draft" | "submitted" | "under-review" | "approved" | "rejected" | "archived" | "published";
+export type LessonStatus = "draft" | "submitted" | "under-review" | "revision-requested" | "approved" | "final-approved" | "rejected" | "archived" | "published";
 export type LessonPlanType = "weekly" | "daily";
 export type LessonActivityAction =
   | "created"
@@ -22,6 +22,9 @@ export type LessonActivityAction =
   | "review-started"
   | "approved"
   | "rejected"
+  | "revision-requested"
+  | "final-approved"
+  | "reviewer-comment"
   | "published"
   | "archived"
   | "unarchived"
@@ -29,6 +32,14 @@ export type LessonActivityAction =
   | "soft-deleted"
   | "restored"
   | "revision-note";
+
+export type LessonWorkflowAction =
+  | "submitted"
+  | "review-started"
+  | "hod-approved"
+  | "revision-requested"
+  | "rejected"
+  | "final-approved";
 
 export type WeeklyDayName = "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday";
 
@@ -122,6 +133,18 @@ export interface LessonRevisionNote {
   note: string;
 }
 
+export interface LessonWorkflowEvent {
+  id: string;
+  userId: string;
+  userName: string;
+  userRole: string;
+  action: LessonWorkflowAction;
+  timestamp: string;
+  fromStatus: LessonStatus;
+  toStatus: LessonStatus;
+  comment: string;
+}
+
 export interface LessonPlan {
   id: string;
   ownerId: string;
@@ -172,6 +195,10 @@ export interface LessonPlan {
   deletedByName?: string;
   activityLogs: LessonActivityLog[];
   revisionNotes: LessonRevisionNote[];
+  reviewerComments: LessonRevisionNote[];
+  revisionRequests: LessonRevisionNote[];
+  approvalHistory: LessonWorkflowEvent[];
+  workflowHistory: LessonWorkflowEvent[];
   versions: LessonVersion[];
 }
 
@@ -181,6 +208,8 @@ export interface LessonFilters {
   subject: string;
   grade: string;
   date: string;
+  dateFrom: string;
+  dateTo: string;
   topic: string;
   week: string;
   month: string;

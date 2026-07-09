@@ -8,6 +8,7 @@ const permissionsByRole: Record<UserRole, Permission[]> = {
     "lesson:update:any",
     "lesson:delete:any",
     "lesson:review:department",
+    "lesson:final-approve",
     "curriculum:read",
     "curriculum:manage",
     "dashboard:view",
@@ -16,7 +17,7 @@ const permissionsByRole: Record<UserRole, Permission[]> = {
     "system:manage",
     "backup:manage"
   ],
-  principal: ["lesson:create", "lesson:read:any", "lesson:update:any", "lesson:delete:any", "curriculum:read", "curriculum:manage", "dashboard:view", "reports:view", "backup:manage"],
+  principal: ["lesson:create", "lesson:read:any", "lesson:update:any", "lesson:delete:any", "lesson:final-approve", "curriculum:read", "curriculum:manage", "dashboard:view", "reports:view", "backup:manage"],
   "vice-principal": ["lesson:create", "lesson:read:any", "lesson:update:any", "lesson:delete:any", "curriculum:read", "curriculum:manage", "dashboard:view", "reports:view", "backup:manage"],
   "head-of-department": ["lesson:create", "lesson:read:department", "lesson:update:own", "lesson:delete:own", "lesson:review:department", "curriculum:read", "curriculum:manage", "dashboard:view"],
   teacher: ["lesson:create", "lesson:read:own", "lesson:update:own", "lesson:delete:own", "curriculum:read", "dashboard:view"]
@@ -51,7 +52,10 @@ export const canDeleteLesson = (user: UserProfile | null | undefined, lesson: Le
   hasPermission(user, "lesson:delete:any") || (hasPermission(user, "lesson:delete:own") && isLessonOwner(user, lesson));
 
 export const canReviewLesson = (user: UserProfile | null | undefined, lesson: LessonPlan) =>
-  hasPermission(user, "lesson:review:department") && isDepartmentLesson(user, lesson);
+  hasPermission(user, "lesson:update:any") || (hasPermission(user, "lesson:review:department") && isDepartmentLesson(user, lesson));
+
+export const canFinalApproveLesson = (user: UserProfile | null | undefined, lesson: LessonPlan) =>
+  canViewLesson(user, lesson) && hasPermission(user, "lesson:final-approve");
 
 export const applyLessonVisibility = (user: UserProfile | null | undefined, lessons: LessonPlan[]) => lessons.filter((lesson) => canViewLesson(user, lesson));
 
