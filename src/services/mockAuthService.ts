@@ -2,6 +2,8 @@ import { UserProfile } from "../types/user";
 
 const currentUserKey = "powerful-lesson-planner:current-user-id";
 const usersKey = "powerful-lesson-planner:users";
+const usersVersionKey = "powerful-lesson-planner:users-version";
+const usersVersion = "2";
 const demoPassword = "kcs2026";
 const now = "2026-07-09T00:00:00.000Z";
 
@@ -55,25 +57,13 @@ export const mockUsers: UserProfile[] = [
     updatedAt: now
   },
   {
-    id: "user-teacher-english",
-    name: "Grace Mbuyi",
-    email: "grace.mbuyi@kcs.local",
+    id: "user-teacher",
+    name: "Teacher",
+    email: "teacher@kcs.local",
     role: "teacher",
-    department: "English",
-    subjects: ["English", "English (Writing and Grammar)"],
-    gradeClasses: ["Grade 7", "Grade 8"],
-    status: "active",
-    createdAt: now,
-    updatedAt: now
-  },
-  {
-    id: "user-teacher-math",
-    name: "Daniel Kim",
-    email: "daniel.kim@kcs.local",
-    role: "teacher",
-    department: "Mathematics",
-    subjects: ["Mathematics"],
-    gradeClasses: ["Grade 9", "Grade 10"],
+    department: "Teaching",
+    subjects: ["English", "Mathematics", "Science"],
+    gradeClasses: ["K3", "K4", "K5", "Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"],
     status: "active",
     createdAt: now,
     updatedAt: now
@@ -82,6 +72,7 @@ export const mockUsers: UserProfile[] = [
 
 const readUsers = (): UserProfile[] => {
   try {
+    if (localStorage.getItem(usersVersionKey) !== usersVersion) return seedUsers();
     const stored = JSON.parse(localStorage.getItem(usersKey) || "[]") as UserProfile[];
     return stored.length ? stored : seedUsers();
   } catch {
@@ -91,6 +82,7 @@ const readUsers = (): UserProfile[] => {
 
 const seedUsers = () => {
   localStorage.setItem(usersKey, JSON.stringify(mockUsers));
+  localStorage.setItem(usersVersionKey, usersVersion);
   return mockUsers;
 };
 

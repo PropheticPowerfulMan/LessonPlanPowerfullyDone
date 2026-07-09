@@ -4,6 +4,7 @@ import { useApp } from "../contexts/AppContext";
 import { useAuth } from "../contexts/AuthContext";
 import { useLessons } from "../hooks/useLessons";
 import { Button } from "../components/ui/button";
+import { useToast } from "../components/Toast";
 import { schoolDisplayName } from "../data/defaults";
 import { roleLabels } from "../types/user";
 
@@ -11,9 +12,15 @@ export const AppLayout = () => {
   const { dark, toggleDark, language, setLanguage, imageUrl } = useApp();
   const { currentUser, signOut, can } = useAuth();
   const { createLesson } = useLessons();
+  const { notify } = useToast();
   const navigate = useNavigate();
   const canCreateLessons = can("lesson:create");
   if (!currentUser) return null;
+  const toggleLanguage = () => {
+    const next = language === "en" ? "fr" : "en";
+    setLanguage(next);
+    notify(next === "fr" ? "Langue changée : Français" : "Language changed: English");
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-transparent text-foreground">
@@ -58,8 +65,9 @@ export const AppLayout = () => {
                 <Plus size={17} /> <span className="hidden sm:inline">New Lesson Plan</span>
               </Button>
             )}
-            <Button variant="ghost" onClick={() => setLanguage(language === "en" ? "fr" : "en")} aria-label="Toggle language">
+            <Button variant="ghost" onClick={toggleLanguage} aria-label="Toggle language" title={language === "en" ? "Switch to French" : "Passer en anglais"}>
               <Languages size={18} />
+              <span className="text-xs font-black uppercase">{language === "en" ? "FR" : "EN"}</span>
             </Button>
             <Button variant="ghost" onClick={toggleDark} aria-label="Toggle theme">
               {dark ? <Sun size={18} /> : <Moon size={18} />}

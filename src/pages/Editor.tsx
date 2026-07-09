@@ -687,7 +687,7 @@ const Field = ({ label, children, error }: { label: string; children: React.Reac
 );
 
 const PrintPreview = ({ lesson, zoom }: { lesson: LessonPlan; zoom: number }) => {
-  const pageCount = 3;
+  const pageCount = estimatePrintPageCount(lesson);
   const viewportZoom = typeof window === "undefined" ? zoom : Math.min(zoom, Math.max(0.22, (window.innerWidth - 48) / 1123));
   const width = `${297 * viewportZoom}mm`;
   const height = `${210 * pageCount * viewportZoom}mm`;
@@ -702,4 +702,16 @@ const PrintPreview = ({ lesson, zoom }: { lesson: LessonPlan; zoom: number }) =>
       </div>
     </div>
   );
+};
+
+const estimatePrintPageCount = (lesson: LessonPlan) => {
+  const notesLength = [
+    lesson.learningObjectives,
+    lesson.learningOutcomes,
+    lesson.successCriteria,
+    lesson.vocabulary,
+    lesson.materialsResources
+  ].flatMap((items) => items?.map((item) => item.value) || []).join(" ").length;
+  const supportLength = [lesson.referenceBook, ...Object.values(lesson.differentiation || {}), ...Object.values(lesson.assessment || {}), ...Object.values(lesson.reflection || {})].join(" ").length;
+  return notesLength + supportLength > 700 ? 2 : 1;
 };

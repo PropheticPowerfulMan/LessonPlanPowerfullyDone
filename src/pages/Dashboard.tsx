@@ -103,6 +103,10 @@ export const Dashboard = () => {
               </div>
             ))}
           </div>
+          <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-bold text-muted-foreground">
+            <span className="inline-flex items-center gap-1 rounded-md border border-red-600/30 px-2 py-1"><span className="h-3 w-3 rounded-sm bg-red-600" /> Aujourd'hui</span>
+            <span className="inline-flex items-center gap-1 rounded-md border border-slate-950/30 px-2 py-1"><span className="h-3 w-3 rounded-sm bg-slate-950" /> Semaine planifiée</span>
+          </div>
           <h2 className="mb-3 mt-6 text-xl font-bold text-white">Statistics</h2>
           <div className="space-y-3 text-sm">
             <Bar label="Recently Modified" value={recent.length ? 80 : 0} />

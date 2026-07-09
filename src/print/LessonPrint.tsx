@@ -4,81 +4,98 @@ import { LessonPlan, WeeklyPlanDay } from "../types/lesson";
 
 type RowKey = Exclude<keyof WeeklyPlanDay, "day">;
 
-const pageGroups: { title: string; rows: [RowKey, string][] }[] = [
-  {
-    title: "Lessons and Objectives",
-    rows: [
-      ["lesson", "Lesson"],
-      ["objectives", "Objectives"]
-    ]
-  },
-  {
-    title: "Teaching and Practice",
-    rows: [
-      ["presentation", "Presentation"],
-      ["guidedPractice", "Guided Practice"]
-    ]
-  },
-  {
-    title: "Checking Understanding",
-    rows: [
-      ["exitTicket", "Exit Ticket"],
-      ["assessment", "Assessment"],
-      ["homework", "Homework"]
-    ]
-  }
+const planRows: [RowKey, string][] = [
+  ["lesson", "Lesson"],
+  ["objectives", "Objectives"],
+  ["presentation", "Presentation"],
+  ["guidedPractice", "Guided Practice"],
+  ["exitTicket", "Exit Ticket"],
+  ["assessment", "Assessment"],
+  ["homework", "Homework"]
 ];
 
 export const LessonPrint = forwardRef<HTMLDivElement, { lesson: LessonPlan }>(({ lesson }, ref) => {
   const weeklyPlan = normalizeWeeklyPlan(lesson);
   const planLabel = lesson.planType === "daily" ? "Daily Lesson Plan" : "Weekly Lesson Plan";
+  const notes = buildNotes(lesson);
+  const showNotesPage = notes.some((note) => note.value.trim().length > 160) || notes.length > 5;
+  const totalPages = showNotesPage ? 2 : 1;
 
   return (
     <div ref={ref} className="lesson-print-document bg-transparent text-black">
-      {pageGroups.map((group, pageIndex) => (
-        <PrintPage key={group.title} lesson={lesson} pageTitle={`${planLabel} - ${group.title}`} pageNumber={pageIndex + 1}>
-          <LessonTable rows={group.rows} weeklyPlan={weeklyPlan} />
-          {pageIndex === 2 && <PrintNotes lesson={lesson} />}
+      <PrintPage lesson={lesson} pageTitle={planLabel} pageNumber={1} totalPages={totalPages}>
+        <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_55mm] gap-2">
+          <LessonTable rows={planRows} weeklyPlan={weeklyPlan} isDaily={lesson.planType === "daily"} />
+          <CompactNotes notes={notes.slice(0, showNotesPage ? 4 : 7)} />
+        </div>
+        {!showNotesPage && <Signatures />}
+      </PrintPage>
+      {showNotesPage && (
+        <PrintPage lesson={lesson} pageTitle={`${planLabel} - Support Notes`} pageNumber={2} totalPages={totalPages} compactHeader>
+          <div className="grid grid-cols-2 gap-2 text-[8.2px] leading-tight">
+            {notes.map((note) => <Box key={note.title} title={note.title} value={note.value} />)}
+          </div>
+          <Signatures />
         </PrintPage>
-      ))}
+      )}
     </div>
   );
 });
 
 LessonPrint.displayName = "LessonPrint";
 
-const PrintPage = ({ lesson, pageTitle, pageNumber, children }: { lesson: LessonPlan; pageTitle: string; pageNumber: number; children: React.ReactNode }) => (
-  <section className="print-page mx-auto flex flex-col overflow-hidden bg-white p-[7mm] font-serif text-black shadow-fluent">
-    <img src={schoolImage} alt="" className="pointer-events-none absolute right-[14mm] top-[78mm] h-[330px] w-[330px] object-contain opacity-[0.018]" />
+const PrintPage = ({
+  lesson,
+  pageTitle,
+  pageNumber,
+  totalPages,
+  compactHeader = false,
+  children
+}: {
+  lesson: LessonPlan;
+  pageTitle: string;
+  pageNumber: number;
+  totalPages: number;
+  compactHeader?: boolean;
+  children: React.ReactNode;
+}) => (
+  <section className="print-page mx-auto flex flex-col bg-white p-[5mm] font-serif text-black shadow-fluent">
+    <img src={schoolImage} alt="" className="pointer-events-none absolute left-1/2 top-1/2 h-[360px] w-[360px] -translate-x-1/2 -translate-y-1/2 object-contain opacity-[0.035]" />
     <header className="relative rounded-sm border border-slate-300">
-      <div className="grid grid-cols-[56px_1fr_82px] items-center gap-3 border-b border-slate-300 bg-slate-50 px-3 py-2">
-        <img src={schoolImage} alt="KCS logo" className="h-[48px] w-[48px] object-contain" />
+      <div className="grid grid-cols-[46px_1fr_76px] items-center gap-2 border-b border-slate-300 bg-slate-900 px-2.5 py-1.5 text-white">
+        <span className="grid h-[42px] w-[42px] place-items-center rounded-sm bg-white p-1">
+          <img src={schoolImage} alt="KCS logo" className="h-full w-full object-contain" />
+        </span>
         <div className="text-center">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-700">{safeText(lesson.schoolName, schoolDisplayName)}</p>
-          <h1 className="text-[15px] font-bold uppercase tracking-wide text-slate-950">{safeText(lesson.topic, lesson.planType === "daily" ? "Daily Lesson Plan" : "Weekly Lesson Plan")}</h1>
-          <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-600">{pageTitle}</p>
+          <p className="text-[8.5px] font-bold uppercase tracking-wide text-cyan-100">{safeText(lesson.schoolName, schoolDisplayName)}</p>
+          <h1 className="text-[13px] font-bold uppercase tracking-wide text-white">{safeText(lesson.topic, lesson.planType === "daily" ? "Daily Lesson Plan" : "Weekly Lesson Plan")}</h1>
+          <p className="text-[8.2px] font-semibold uppercase tracking-wide text-slate-200">{pageTitle}</p>
         </div>
-        <div className="text-right text-[8.5px] leading-tight text-slate-700">
-          <p className="font-bold text-slate-950">Page {pageNumber}/3</p>
-          <p>{lesson.planType === "daily" ? "Daily" : formatWeek(lesson.week)}</p>
-          <p>{safeText(lesson.schoolYear, "2026 - 2027")}</p>
+        <div className="text-right text-[7.8px] font-semibold leading-tight text-slate-100">
+          <p>Page {pageNumber}/{totalPages}</p>
+          <p>{lesson.planType === "daily" ? safeText(lesson.date, "Daily") : formatWeek(lesson.week)}</p>
+          <p>{safeText(lesson.schoolYear, "2026-2027")}</p>
         </div>
       </div>
-      <HeaderDetails lesson={lesson} />
+      {!compactHeader && <HeaderDetails lesson={lesson} />}
     </header>
 
-    <main className="relative mt-2 min-h-0">{children}</main>
+    <main className="relative mt-2 flex min-h-0 flex-1 flex-col">{children}</main>
+    <footer className="mt-1 flex justify-between border-t border-slate-200 pt-1 text-[7.2px] font-semibold uppercase tracking-wide text-slate-500">
+      <span>KCS Lesson Planner</span>
+      <span>{safeText(lesson.teachers, "Teacher")} · {safeText(lesson.subject, "Subject")}</span>
+    </footer>
   </section>
 );
 
-const LessonTable = ({ rows, weeklyPlan }: { rows: [RowKey, string][]; weeklyPlan: WeeklyPlanDay[] }) => (
-  <table className="w-full table-fixed border-collapse border border-slate-500 text-[8.5px] leading-[1.18]">
+const LessonTable = ({ rows, weeklyPlan, isDaily }: { rows: [RowKey, string][]; weeklyPlan: WeeklyPlanDay[]; isDaily: boolean }) => (
+  <table className="h-full w-full table-fixed border-collapse border border-slate-400 text-[7.9px] leading-[1.12]">
     <thead>
-      <tr className="h-[7mm]">
-        <th className="w-[10.5%] border border-slate-500 bg-slate-100 px-1 text-center font-bold">Day</th>
+      <tr className="h-[6mm]">
+        <th className="w-[12%] border border-slate-400 bg-slate-100 px-1 text-center font-black uppercase text-slate-700">Section</th>
         {weeklyPlan.map((day) => (
-          <th key={day.day} className="border border-slate-500 bg-slate-100 px-1 text-center font-bold">
-            {day.day}
+          <th key={day.day} className="border border-slate-400 bg-cyan-50 px-1 text-center font-black uppercase text-slate-800">
+            {isDaily ? "Daily Lesson" : day.day}
           </th>
         ))}
       </tr>
@@ -86,10 +103,10 @@ const LessonTable = ({ rows, weeklyPlan }: { rows: [RowKey, string][]; weeklyPla
     <tbody>
       {rows.map(([key, label]) => (
         <tr key={key} className="align-top">
-          <th className="border border-slate-500 bg-slate-50 px-1 py-1 text-center font-bold">{label}</th>
+          <th className="border border-slate-400 bg-slate-50 px-1 py-1 text-center font-black uppercase text-slate-700">{label}</th>
           {weeklyPlan.map((day) => (
-            <td key={`${day.day}-${key}`} className="border border-slate-500 p-1 align-top">
-              <div className="min-h-[22mm] max-h-[36mm] overflow-hidden whitespace-pre-line break-words">{safeText(day[key])}</div>
+            <td key={`${day.day}-${key}`} className="border border-slate-400 p-1 align-top">
+              <div className="whitespace-pre-line break-words">{safeText(day[key])}</div>
             </td>
           ))}
         </tr>
@@ -98,104 +115,61 @@ const LessonTable = ({ rows, weeklyPlan }: { rows: [RowKey, string][]; weeklyPla
   </table>
 );
 
-const PrintNotes = ({ lesson }: { lesson: LessonPlan }) => (
-  <div className="mt-2 grid grid-cols-3 gap-1.5 text-[8.2px] leading-tight">
-    <Box title="Learning Objectives" value={lesson.learningObjectives?.map((item) => item.value).filter(Boolean).join("; ")} />
-    <Box title="Key Vocabulary" value={lesson.vocabulary?.map((item) => item.value).filter(Boolean).join("; ")} />
-    <Box title="Materials / Resources" value={lesson.materialsResources?.map((item) => item.value).filter(Boolean).join("; ")} />
-    <Box title="References" value={lesson.referenceBook} />
-    <Box title="Differentiation" value={Object.values(lesson.differentiation || {}).filter(Boolean).join("; ")} />
-    <Box title="Assessment Notes" value={Object.values(lesson.assessment || {}).filter(Boolean).join("; ")} />
-    <Box title="Reflection" value={Object.values(lesson.reflection || {}).filter(Boolean).join("; ")} />
-  </div>
-);
-
 const HeaderDetails = ({ lesson }: { lesson: LessonPlan }) => (
-  <table
-    style={{
-      width: "100%",
-      borderCollapse: "collapse",
-      tableLayout: "fixed",
-      borderTop: "1px solid #cbd5e1",
-      fontSize: "9.6px",
-      lineHeight: 1.25,
-      color: "#0f172a"
-    }}
-  >
-    <tbody>
-      <tr>
-        <Detail label="Teacher" value={lesson.teachers} />
-        <Detail label="Subject" value={lesson.subject} />
-      </tr>
-      <tr>
-        <Detail label="Grade" value={lesson.gradeClass} />
-        <Detail label="Chapter / Unit" value={lesson.chapter} />
-      </tr>
-      <tr>
-        <Detail label="Date" value={lesson.date} />
-        <Detail label="School Year" value={lesson.schoolYear} />
-      </tr>
-      <tr>
-        <Detail label={lesson.planType === "daily" ? "Plan Type" : "Week"} value={lesson.planType === "daily" ? "Daily Lesson Plan" : formatWeek(lesson.week)} />
-        <Detail label="Duration" value={lesson.duration} />
-      </tr>
-      <tr>
-        <Detail label="Semester" value={formatSemester(lesson.semester)} />
-        <Detail label="Quarter" value={formatQuarter(lesson.quarter)} />
-      </tr>
-      <tr>
-        <Detail label="Term" value={lesson.term} />
-        <Detail label="Classroom" value={lesson.classroom} />
-      </tr>
-      <tr>
-        <Detail label="Students" value={lesson.numberOfStudents} />
-        <Detail label="Lesson No." value={lesson.lessonNumber} />
-      </tr>
-    </tbody>
-  </table>
-);
-
-const Detail = ({ label, value }: { label: string; value?: string }) => (
-  <>
-    <td
-      style={{
-        width: "18%",
-        border: "1px solid #cbd5e1",
-        background: "#f8fafc",
-        padding: "3px 5px",
-        fontWeight: 800,
-        textTransform: "uppercase",
-        letterSpacing: "0.02em",
-        color: "#475569",
-        verticalAlign: "top"
-      }}
-    >
-      {label}
-    </td>
-    <td
-      style={{
-        width: "32%",
-        border: "1px solid #cbd5e1",
-        background: "#ffffff",
-        padding: "3px 5px",
-        fontWeight: 800,
-        color: "#0f172a",
-        verticalAlign: "top",
-        overflowWrap: "anywhere",
-        wordBreak: "break-word"
-      }}
-    >
-      {safeText(value, "-")}
-    </td>
-  </>
-);
-
-const Box = ({ title, value }: { title: string; value?: string }) => (
-  <div className="h-[15mm] overflow-hidden border border-slate-500 bg-white p-1">
-    <p className="font-bold text-slate-900">{title}</p>
-    <p className="mt-0.5 whitespace-pre-line break-words">{safeText(value)}</p>
+  <div className="grid grid-cols-4 border-t border-slate-300 text-[7.8px] leading-tight text-slate-900">
+    <Detail label="Teacher" value={lesson.teachers} />
+    <Detail label="Subject" value={lesson.subject} />
+    <Detail label="Grade" value={lesson.gradeClass} />
+    <Detail label="Date" value={lesson.date} />
+    <Detail label="Chapter" value={lesson.chapter} wide />
+    <Detail label={lesson.planType === "daily" ? "Plan" : "Week"} value={lesson.planType === "daily" ? "Daily" : formatWeek(lesson.week)} />
+    <Detail label="Duration" value={lesson.duration} />
+    <Detail label="Classroom" value={lesson.classroom} />
   </div>
 );
+
+const Detail = ({ label, value, wide = false }: { label: string; value?: string; wide?: boolean }) => (
+  <div className={`grid grid-cols-[18mm_minmax(0,1fr)] border-r border-t border-slate-200 last:border-r-0 ${wide ? "col-span-2" : ""}`}>
+    <span className="bg-slate-50 px-1 py-0.5 font-black uppercase text-slate-500">{label}</span>
+    <span className="truncate bg-white px-1 py-0.5 font-bold text-slate-950">{safeText(value, "-")}</span>
+  </div>
+);
+
+const CompactNotes = ({ notes }: { notes: { title: string; value: string }[] }) => (
+  <aside className="grid content-start gap-1.5 text-[7.6px] leading-tight">
+    {notes.map((note) => <Box key={note.title} title={note.title} value={note.value} compact />)}
+  </aside>
+);
+
+const Box = ({ title, value, compact = false }: { title: string; value?: string; compact?: boolean }) => (
+  <div className={`${compact ? "min-h-[16mm]" : "min-h-[22mm]"} rounded-sm border border-slate-300 bg-white p-1`}>
+    <p className="border-b border-slate-200 pb-0.5 font-black uppercase text-slate-900">{title}</p>
+    <p className="mt-0.5 whitespace-pre-line break-words text-slate-800">{safeText(value)}</p>
+  </div>
+);
+
+const Signatures = () => (
+  <div className="relative mt-3 grid grid-cols-2 gap-8 text-[8px] font-bold uppercase tracking-wide text-slate-700">
+    <div className="pt-7">
+      <div className="border-t border-slate-500 pt-1">Teacher Signature / Date</div>
+    </div>
+    <div className="pt-7">
+      <div className="border-t border-slate-500 pt-1">Principal Signature / Date</div>
+    </div>
+  </div>
+);
+
+const buildNotes = (lesson: LessonPlan) => [
+  { title: "Learning Objectives", value: lesson.learningObjectives?.map((item) => item.value).filter(Boolean).join("; ") || "" },
+  { title: "Learning Outcomes", value: lesson.learningOutcomes?.map((item) => item.value).filter(Boolean).join("; ") || "" },
+  { title: "Success Criteria", value: lesson.successCriteria?.map((item) => item.value).filter(Boolean).join("; ") || "" },
+  { title: "Key Vocabulary", value: lesson.vocabulary?.map((item) => item.value).filter(Boolean).join("; ") || "" },
+  { title: "Materials / Resources", value: lesson.materialsResources?.map((item) => item.value).filter(Boolean).join("; ") || "" },
+  { title: "References", value: lesson.referenceBook || "" },
+  { title: "Differentiation", value: Object.values(lesson.differentiation || {}).filter(Boolean).join("; ") },
+  { title: "Assessment Notes", value: Object.values(lesson.assessment || {}).filter(Boolean).join("; ") },
+  { title: "Reflection", value: Object.values(lesson.reflection || {}).filter(Boolean).join("; ") }
+].filter((note) => note.value.trim());
 
 const normalizeWeeklyPlan = (lesson: LessonPlan) => {
   const weeklyPlan = lesson.weeklyPlan;
@@ -228,14 +202,4 @@ const safeText = (value?: unknown, fallback = " ") => {
 const formatWeek = (week?: string) => {
   const value = safeText(week, "");
   return value.toLowerCase().startsWith("week") ? value : `Week ${safeText(week, "1")}`;
-};
-
-const formatSemester = (semester?: string) => {
-  const value = safeText(semester, "");
-  return value.toLowerCase().includes("semester") ? value : `${safeText(semester, "1st")} Semester`;
-};
-
-const formatQuarter = (quarter?: string) => {
-  const value = safeText(quarter, "");
-  return value.toLowerCase().includes("quarter") ? value : `${safeText(quarter, "1st")} Quarter`;
 };

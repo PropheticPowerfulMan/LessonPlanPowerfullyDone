@@ -164,11 +164,16 @@ select option {
 
 .print-page {
   width: 297mm;
-  height: 210mm;
+  min-height: 210mm;
   box-sizing: border-box;
   background: white;
   color: #111827;
   position: relative;
+  break-after: page;
+}
+
+.lesson-print-document .print-page:last-child {
+  break-after: auto;
 }
 
 @media print {
