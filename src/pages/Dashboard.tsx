@@ -91,7 +91,7 @@ export const Dashboard = () => {
             {calendar.cells.map((cell, index) => (
               <div
                 key={`${cell.iso || "blank"}-${index}`}
-                className={`min-h-14 rounded-md border p-1 text-left transition sm:min-h-16 sm:p-2 ${cell.inMonth ? "border-cyan-300/12 bg-white/[0.055]" : "border-transparent bg-transparent"} ${cell.weekHasPlans && !cell.isToday ? "border-slate-950 bg-slate-950 text-white" : ""} ${cell.isToday ? "border-red-600 bg-red-600 text-white shadow-[0_0_0_2px_rgba(255,255,255,0.45)]" : ""}`}
+                className={`min-h-14 rounded-md border p-1 text-left transition sm:min-h-16 sm:p-2 ${cell.inMonth ? "border-cyan-300/12 bg-white/[0.055]" : "border-transparent bg-transparent"} ${cell.weekHasPlans && !cell.isToday ? "!border-[#020617] !bg-[#020617] !text-[#fff]" : ""} ${cell.isToday ? "!border-[#dc2626] !bg-[#dc2626] !text-[#fff] shadow-[0_0_0_2px_rgba(255,255,255,0.45)]" : ""}`}
               >
                 {cell.inMonth && (
                   <>

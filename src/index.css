@@ -24,9 +24,9 @@
   --ring: var(--primary);
   --ink: #18313f;
   --ink-dim: #496574;
-  --brand-light: #d8f7ff;
-  --brand: #0e7490;
-  --brand-deep: #155e75;
+  --brand-light: #075985;
+  --brand: #0f5f78;
+  --brand-deep: #0f3f53;
   --success: #047857;
 }
 
@@ -49,6 +49,9 @@
   --destructive-foreground: 0 0% 100%;
   --border: 190 53% 22%;
   --input: 198 48% 12%;
+  --brand-light: #7de8ff;
+  --brand: #14b8de;
+  --brand-deep: #0786ad;
 }
 
 * {
@@ -121,6 +124,24 @@ select {
   font-size: 0.75rem;
   font-weight: 800;
   text-transform: uppercase;
+}
+
+:root:not(.dark) .text-cyan-100,
+:root:not(.dark) .text-cyan-200,
+:root:not(.dark) .text-cyan-300,
+:root:not(.dark) .text-cyan-50\/80,
+:root:not(.dark) .text-cyan-50 {
+  color: #0f4c5c !important;
+}
+
+:root:not(.dark) .border-cyan-300\/20,
+:root:not(.dark) .border-cyan-300\/25 {
+  border-color: rgba(15, 76, 92, 0.32) !important;
+}
+
+:root:not(.dark) .bg-cyan-500\/10,
+:root:not(.dark) .bg-cyan-500\/15 {
+  background-color: rgba(15, 95, 120, 0.12) !important;
 }
 
 .dark .glass {
