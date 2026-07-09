@@ -66,6 +66,7 @@ export const Editor = () => {
   const { currentUser, can } = useAuth();
   const [preview, setPreview] = useState(false);
   const [exporting, setExporting] = useState<"pdf" | "docx" | null>(null);
+  const [revisionNote, setRevisionNote] = useState("");
   const printRef = useRef<HTMLDivElement>(null);
   const lesson = useMemo(() => (id ? lessonRepository.get(id) : undefined), [id]);
   const fallback = useMemo(() => createBlankLesson(`LP-${new Date().getFullYear()}-0001`), []);
@@ -244,7 +245,7 @@ export const Editor = () => {
         ? [{ id: crypto.randomUUID(), savedAt: now, summary: `Manual save: ${current.chapter || current.topic}`, snapshot: { ...current, versions: [] } }, ...(current.versions || [])].slice(0, 20)
         : current.versions || []
     };
-    lessonRepository.save(next);
+    lessonRepository.save(next, currentUser, withVersion ? "Manual save with revision snapshot" : "Autosaved lesson changes");
     if (withVersion) {
       form.reset(next);
       notify("Saved");
@@ -290,7 +291,7 @@ export const Editor = () => {
       updatedAt: now,
       versions: []
     }, currentUser);
-    lessonRepository.save(copy);
+    lessonRepository.save(copy, currentUser, "Lesson plan duplicated from editor");
     notify("Duplicated lesson plan");
     navigate(`/editor/${copy.id}`);
   };
@@ -361,7 +362,7 @@ export const Editor = () => {
           <Button variant="outline" onClick={() => setPreview(true)}><Printer size={17} /> Preview</Button>
           <Button variant="outline" disabled={Boolean(exporting)} onClick={() => exportDocument("pdf")}>{exporting === "pdf" ? <Loader2 className="animate-spin" size={17} /> : <FileDown size={17} />} {exporting === "pdf" ? "PDF..." : "PDF"}</Button>
           <Button variant="outline" disabled={Boolean(exporting)} onClick={() => exportDocument("docx")}>{exporting === "docx" ? <Loader2 className="animate-spin" size={17} /> : <Download size={17} />} {exporting === "docx" ? "DOCX..." : "DOCX"}</Button>
-          {canDeleteCurrent && <Button variant="danger" onClick={() => { if (confirm("Delete this lesson plan permanently?")) { lessonRepository.remove(values.id); navigate("/plans"); } }}><Trash2 size={17} /></Button>}
+          {canDeleteCurrent && <Button variant="danger" onClick={() => { if (confirm("Move this lesson plan to deleted items?")) { lessonRepository.remove(values.id, currentUser); navigate("/plans"); } }}><Trash2 size={17} /></Button>}
         </div>
       </div>
 
@@ -499,6 +500,50 @@ export const Editor = () => {
         </form>
 
         <aside className="space-y-4">
+          <Card className="w-full max-w-full overflow-hidden p-3 sm:p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-black text-white">Lifecycle and history</h2>
+                <p className="text-xs text-muted-foreground">Status, revision notes, and activity log.</p>
+              </div>
+              <span className="rounded-full border border-cyan-300/25 bg-cyan-500/10 px-3 py-1 text-xs font-black uppercase text-cyan-100">{statusLabel(values.status)}</span>
+            </div>
+            {canEditCurrent && (
+              <div className="mb-4 space-y-2">
+                <Label>Revision note</Label>
+                <Textarea className="min-h-20" value={revisionNote} onChange={(event) => setRevisionNote(event.target.value)} placeholder="Explain what changed or what needs review..." />
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const next = lessonRepository.addRevisionNote(values.id, revisionNote, currentUser);
+                    if (next) form.reset(next);
+                    setRevisionNote("");
+                    notify("Revision note added");
+                  }}
+                  disabled={!revisionNote.trim()}
+                >
+                  Add note
+                </Button>
+              </div>
+            )}
+            <div className="space-y-3">
+              {(values.revisionNotes || []).slice(0, 3).map((note) => (
+                <div key={note.id} className="rounded-md border border-cyan-300/15 bg-white/[0.04] p-3 text-sm">
+                  <p className="font-bold text-white">{note.userName}</p>
+                  <p className="text-xs text-muted-foreground">{new Date(note.timestamp).toLocaleString()}</p>
+                  <p className="mt-1">{note.note}</p>
+                </div>
+              ))}
+              {(values.activityLogs || []).slice(0, 5).map((log) => (
+                <div key={log.id} className="rounded-md border border-cyan-300/10 px-3 py-2 text-xs text-muted-foreground">
+                  <p><span className="font-bold text-foreground">{log.userName}</span> - {log.description}</p>
+                  <p>{new Date(log.timestamp).toLocaleString()}{log.field ? ` - ${log.field}: ${log.oldValue || "-"} -> ${log.newValue || "-"}` : ""}</p>
+                </div>
+              ))}
+              {!values.activityLogs?.length && <p className="text-sm text-muted-foreground">No activity logged yet.</p>}
+            </div>
+          </Card>
+
           <Card className="sticky top-24 w-full max-w-full overflow-hidden p-3 sm:p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
@@ -685,6 +730,16 @@ const Field = ({ label, children, error }: { label: string; children: React.Reac
     {error && <p className="text-xs font-semibold text-destructive">{error}</p>}
   </div>
 );
+
+const statusLabel = (status: LessonPlan["status"]) => ({
+  draft: "Draft",
+  submitted: "Submitted",
+  "under-review": "Under Review",
+  approved: "Approved",
+  rejected: "Rejected",
+  archived: "Archived",
+  published: "Published"
+})[status];
 
 const PrintPreview = ({ lesson, zoom }: { lesson: LessonPlan; zoom: number }) => {
   const pageCount = estimatePrintPageCount(lesson);

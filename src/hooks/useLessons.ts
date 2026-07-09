@@ -23,14 +23,14 @@ export const useLessons = () => {
   const createLesson = useCallback(() => {
     if (!currentUser) throw new Error("A signed-in user is required to create a lesson plan");
     const lesson = prepareNewLessonForUser(createBlankLesson(nextLessonNumber), currentUser);
-    lessonRepository.save(lesson);
+    lessonRepository.save(lesson, currentUser, "Lesson plan created");
     refresh();
     return lesson;
   }, [currentUser, nextLessonNumber, refresh]);
 
   const saveLesson = useCallback(
     (lesson: LessonPlan) => {
-      lessonRepository.save(lesson);
+      lessonRepository.save(lesson, currentUser, "Lesson plan saved");
       refresh();
     },
     [refresh]

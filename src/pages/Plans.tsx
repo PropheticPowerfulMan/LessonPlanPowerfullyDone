@@ -1,4 +1,4 @@
-import { Archive, Copy, Download, Edit3, FileJson, Trash2, Upload } from "lucide-react";
+import { Archive, CheckCircle2, Copy, Download, Edit3, FileJson, RefreshCcw, Send, Trash2, Upload, XCircle } from "lucide-react";
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "../components/ui/button";
@@ -9,8 +9,10 @@ import { useToast } from "../components/Toast";
 import { useAuth } from "../contexts/AuthContext";
 import { createBlankLesson } from "../data/defaults";
 import { filterLessons, lessonRepository } from "../services/lessonRepository";
-import { applyLessonVisibility, canDeleteLesson, canEditLesson, prepareNewLessonForUser } from "../services/permissions";
-import { LessonFilters, LessonPlan } from "../types/lesson";
+import { applyLessonVisibility, canDeleteLesson, canEditLesson, canReviewLesson } from "../services/permissions";
+import { LessonFilters, LessonPlan, LessonStatus } from "../types/lesson";
+
+const lessonStatuses: LessonStatus[] = ["draft", "submitted", "under-review", "approved", "rejected", "archived", "published"];
 
 const initialFilters: LessonFilters = {
   query: "",
@@ -30,6 +32,7 @@ const initialFilters: LessonFilters = {
 export const Plans = () => {
   const { currentUser, can } = useAuth();
   const [lessons, setLessons] = useState(() => applyLessonVisibility(currentUser, lessonRepository.list()));
+  const [showDeleted, setShowDeleted] = useState(false);
   const [searchParams] = useSearchParams();
   const [filters, setFilters] = useState<LessonFilters>({ ...initialFilters, query: searchParams.get("q") || "" });
   const navigate = useNavigate();
@@ -37,22 +40,39 @@ export const Plans = () => {
   const filtered = useMemo(() => filterLessons(lessons, filters), [lessons, filters]);
 
   const patch = (key: keyof LessonFilters, value: string) => setFilters((current) => ({ ...current, [key]: value }));
-  const refresh = () => setLessons(applyLessonVisibility(currentUser, lessonRepository.list()));
+  const refresh = () => {
+    const source = showDeleted ? lessonRepository.listAll() : lessonRepository.list();
+    setLessons(applyLessonVisibility(currentUser, source));
+  };
 
   useEffect(() => {
     refresh();
-  }, [currentUser]);
+  }, [currentUser, showDeleted]);
 
   const duplicate = (lesson: LessonPlan) => {
     if (!currentUser) return;
-    const now = new Date().toISOString();
-    const copy = prepareNewLessonForUser(
-      { ...lesson, id: crypto.randomUUID(), ownerId: "", ownerName: "", department: "", lessonNumber: createBlankLesson(`LP-${new Date().getFullYear()}-${lessons.length + 1}`).lessonNumber, topic: `${lesson.topic} (Copy)`, createdAt: now, updatedAt: now, versions: [] },
-      currentUser
-    );
-    lessonRepository.save(copy);
+    lessonRepository.duplicate(lesson, currentUser, createBlankLesson(`LP-${new Date().getFullYear()}-${lessons.length + 1}`).lessonNumber);
     refresh();
     notify("Lesson plan duplicated");
+  };
+
+  const setStatus = (lesson: LessonPlan, status: LessonStatus, description?: string) => {
+    lessonRepository.changeStatus(lesson.id, status, currentUser, description);
+    refresh();
+    notify(`Status updated to ${statusLabel(status)}`);
+  };
+
+  const softDelete = (lesson: LessonPlan) => {
+    if (!confirm("Move this lesson plan to deleted items?")) return;
+    lessonRepository.softDelete(lesson.id, currentUser);
+    refresh();
+    notify("Lesson plan moved to deleted items");
+  };
+
+  const restore = (lesson: LessonPlan) => {
+    lessonRepository.restore(lesson.id, currentUser);
+    refresh();
+    notify("Lesson plan restored");
   };
 
   const downloadBackup = () => {
@@ -80,10 +100,10 @@ export const Plans = () => {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-3xl font-black text-white">Lesson Plans</h1>
-          <p className="text-sm text-muted-foreground">Search, filter, archive, duplicate, and back up your local library.</p>
+          <p className="text-sm text-muted-foreground">Search, filter, review, archive, restore, duplicate, and back up your local library.</p>
         </div>
         {can("backup:manage") && (
-        <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={downloadBackup}>
               <Download size={17} /> Export JSON
             </Button>
@@ -111,10 +131,13 @@ export const Plans = () => {
           <Field label="Status">
             <Select value={filters.status} onChange={(e) => patch("status", e.target.value)}>
               <option value="all">All</option>
-              <option value="active">Active</option>
-              <option value="archived">Archived</option>
+              {lessonStatuses.map((status) => <option key={status} value={status}>{statusLabel(status)}</option>)}
             </Select>
           </Field>
+          <label className="flex items-end gap-2 pb-2 text-sm font-bold text-muted-foreground">
+            <input type="checkbox" checked={showDeleted} onChange={(event) => setShowDeleted(event.target.checked)} />
+            Show deleted
+          </label>
         </div>
       </Card>
 
@@ -123,16 +146,25 @@ export const Plans = () => {
           <Card key={lesson.id} className="grid min-w-0 gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_auto]">
             <div className="min-w-0">
               <p className="font-bold text-white">{lesson.topic || "Untitled Lesson"}</p>
-              <p className="text-sm text-muted-foreground">{lesson.lessonNumber} · {lesson.subject || "Subject"} · {lesson.gradeClass || "Grade"} · {lesson.date}</p>
+              <p className="text-sm text-muted-foreground">{lesson.lessonNumber} - {lesson.subject || "Subject"} - {lesson.gradeClass || "Grade"} - {lesson.date}</p>
               <div className="mt-2 flex flex-wrap gap-2">
+                <StatusBadge status={lesson.status} />
+                {lesson.deletedAt && <span className="rounded-full border border-red-400/35 bg-red-500/15 px-2 py-1 text-xs font-bold text-red-100">Deleted</span>}
                 {lesson.tags.map((tag) => <span key={tag} className="rounded-full border border-cyan-300/20 bg-cyan-500/10 px-2 py-1 text-xs font-semibold text-cyan-100">{tag}</span>)}
               </div>
+              <p className="mt-2 text-xs text-muted-foreground">Last update: {new Date(lesson.updatedAt).toLocaleString()} - {lesson.activityLogs?.[0]?.description || "No activity yet"}</p>
             </div>
             <div className="flex min-w-0 flex-wrap items-center gap-2 lg:justify-end">
-              <Button variant="outline" onClick={() => navigate(`/editor/${lesson.id}`)}><Edit3 size={16} /> {canEditLesson(currentUser, lesson) ? "Edit" : "Open"}</Button>
-              {can("lesson:create") && <Button variant="outline" onClick={() => duplicate(lesson)}><Copy size={16} /> Duplicate</Button>}
-              {canEditLesson(currentUser, lesson) && <Button variant="outline" onClick={() => { lessonRepository.save({ ...lesson, status: lesson.status === "archived" ? "active" : "archived", updatedAt: new Date().toISOString() }); refresh(); }}><Archive size={16} /> {lesson.status === "archived" ? "Restore" : "Archive"}</Button>}
-              {canDeleteLesson(currentUser, lesson) && <Button variant="danger" onClick={() => { if (confirm("Delete this lesson plan permanently?")) { lessonRepository.remove(lesson.id); refresh(); notify("Lesson plan deleted"); } }}><Trash2 size={16} /></Button>}
+              {!lesson.deletedAt && <Button variant="outline" onClick={() => navigate(`/editor/${lesson.id}`)}><Edit3 size={16} /> {canEditLesson(currentUser, lesson) ? "Edit" : "Open"}</Button>}
+              {!lesson.deletedAt && can("lesson:create") && <Button variant="outline" onClick={() => duplicate(lesson)}><Copy size={16} /> Duplicate</Button>}
+              {!lesson.deletedAt && canEditLesson(currentUser, lesson) && lesson.status === "draft" && <Button variant="outline" onClick={() => setStatus(lesson, "submitted", "Submitted for review")}><Send size={16} /> Submit</Button>}
+              {!lesson.deletedAt && canReviewLesson(currentUser, lesson) && lesson.status === "submitted" && <Button variant="outline" onClick={() => setStatus(lesson, "under-review", "Review started")}><RefreshCcw size={16} /> Review</Button>}
+              {!lesson.deletedAt && (canReviewLesson(currentUser, lesson) || can("lesson:update:any")) && ["submitted", "under-review"].includes(lesson.status) && <Button variant="outline" onClick={() => setStatus(lesson, "approved", "Lesson plan approved")}><CheckCircle2 size={16} /> Approve</Button>}
+              {!lesson.deletedAt && (canReviewLesson(currentUser, lesson) || can("lesson:update:any")) && ["submitted", "under-review"].includes(lesson.status) && <Button variant="danger" onClick={() => setStatus(lesson, "rejected", "Lesson plan rejected")}><XCircle size={16} /> Reject</Button>}
+              {!lesson.deletedAt && can("lesson:update:any") && lesson.status === "approved" && <Button variant="outline" onClick={() => setStatus(lesson, "published", "Lesson plan published")}><CheckCircle2 size={16} /> Publish</Button>}
+              {!lesson.deletedAt && canEditLesson(currentUser, lesson) && <Button variant="outline" onClick={() => setStatus(lesson, lesson.status === "archived" ? "draft" : "archived", lesson.status === "archived" ? "Lesson plan unarchived" : "Lesson plan archived")}><Archive size={16} /> {lesson.status === "archived" ? "Unarchive" : "Archive"}</Button>}
+              {lesson.deletedAt && canDeleteLesson(currentUser, lesson) && <Button variant="outline" onClick={() => restore(lesson)}><RefreshCcw size={16} /> Restore</Button>}
+              {!lesson.deletedAt && canDeleteLesson(currentUser, lesson) && <Button variant="danger" onClick={() => softDelete(lesson)}><Trash2 size={16} /> Delete</Button>}
             </div>
           </Card>
         ))}
@@ -148,3 +180,27 @@ const Field = ({ label, children }: { label: string; children: React.ReactNode }
     {children}
   </div>
 );
+
+const statusLabel = (status: LessonStatus) => ({
+  draft: "Draft",
+  submitted: "Submitted",
+  "under-review": "Under Review",
+  approved: "Approved",
+  rejected: "Rejected",
+  archived: "Archived",
+  published: "Published"
+})[status];
+
+const StatusBadge = ({ status }: { status: LessonStatus }) => {
+  const styles: Record<LessonStatus, string> = {
+    draft: "border-slate-400/30 bg-slate-500/15 text-slate-100",
+    submitted: "border-sky-300/35 bg-sky-500/15 text-sky-100",
+    "under-review": "border-amber-300/35 bg-amber-500/15 text-amber-100",
+    approved: "border-emerald-300/35 bg-emerald-500/15 text-emerald-100",
+    rejected: "border-red-300/35 bg-red-500/15 text-red-100",
+    archived: "border-zinc-300/35 bg-zinc-500/15 text-zinc-100",
+    published: "border-cyan-300/35 bg-cyan-500/15 text-cyan-100"
+  };
+
+  return <span className={`rounded-full border px-2 py-1 text-xs font-bold ${styles[status]}`}>{statusLabel(status)}</span>;
+};

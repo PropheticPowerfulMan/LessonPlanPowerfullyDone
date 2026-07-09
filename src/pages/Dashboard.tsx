@@ -13,7 +13,7 @@ export const Dashboard = () => {
   const { imageUrl } = useApp();
   const { lessons, createLesson } = useLessons();
   const navigate = useNavigate();
-  const active = lessons.filter((lesson) => lesson.status === "active");
+  const active = lessons.filter((lesson) => !["archived", "rejected"].includes(lesson.status));
   const recent = [...lessons].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 5);
   const subjects = new Set(lessons.map((lesson) => lesson.subject).filter(Boolean)).size;
   const completion = lessons.length ? Math.round((active.length / lessons.length) * 100) : 0;

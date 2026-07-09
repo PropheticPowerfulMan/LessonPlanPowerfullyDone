@@ -12,8 +12,23 @@ export type LessonStageName =
   | "Homework"
   | "Reflection";
 
-export type LessonStatus = "active" | "archived";
+export type LessonStatus = "draft" | "submitted" | "under-review" | "approved" | "rejected" | "archived" | "published";
 export type LessonPlanType = "weekly" | "daily";
+export type LessonActivityAction =
+  | "created"
+  | "updated"
+  | "status-changed"
+  | "submitted"
+  | "review-started"
+  | "approved"
+  | "rejected"
+  | "published"
+  | "archived"
+  | "unarchived"
+  | "duplicated"
+  | "soft-deleted"
+  | "restored"
+  | "revision-note";
 
 export type WeeklyDayName = "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday";
 
@@ -87,6 +102,26 @@ export interface LessonVersion {
   snapshot: LessonPlan;
 }
 
+export interface LessonActivityLog {
+  id: string;
+  userId: string;
+  userName: string;
+  action: LessonActivityAction;
+  timestamp: string;
+  field?: string;
+  oldValue?: string;
+  newValue?: string;
+  description: string;
+}
+
+export interface LessonRevisionNote {
+  id: string;
+  userId: string;
+  userName: string;
+  timestamp: string;
+  note: string;
+}
+
 export interface LessonPlan {
   id: string;
   ownerId: string;
@@ -130,6 +165,11 @@ export interface LessonPlan {
   weeklyPlan: WeeklyPlanDay[];
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string;
+  deletedBy?: string;
+  deletedByName?: string;
+  activityLogs: LessonActivityLog[];
+  revisionNotes: LessonRevisionNote[];
   versions: LessonVersion[];
 }
 

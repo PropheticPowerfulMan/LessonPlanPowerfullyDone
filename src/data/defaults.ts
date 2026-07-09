@@ -178,7 +178,7 @@ export const createBlankLesson = (lessonNumber: string): LessonPlan => {
     department: "",
     lessonNumber,
     planType: "weekly",
-    status: "active",
+    status: "draft",
     tags: [],
     schoolName: schoolDisplayName,
     schoolYear: `${currentYear}-${currentYear + 1}`,
@@ -241,6 +241,8 @@ export const createBlankLesson = (lessonNumber: string): LessonPlan => {
     weeklyPlan: createFlexibleWeeklyPlan(),
     createdAt: now,
     updatedAt: now,
+    activityLogs: [],
+    revisionNotes: [],
     versions: []
   };
 };
