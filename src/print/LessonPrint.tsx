@@ -121,23 +121,35 @@ const LessonTable = ({ rows, weeklyPlan, isDaily }: { rows: [RowKey, string][]; 
 );
 
 const HeaderDetails = ({ lesson }: { lesson: LessonPlan }) => (
-  <div className="grid grid-cols-4 border-t border-slate-300 text-[7.8px] leading-tight text-slate-900">
-    <Detail label="Teacher" value={lesson.teachers} />
-    <Detail label="Subject" value={lesson.subject} />
-    <Detail label="Grade" value={lesson.gradeClass} />
-    <Detail label="Date" value={lesson.date} />
-    <Detail label="Chapter" value={lesson.chapter} wide />
-    <Detail label={lesson.planType === "daily" ? "Plan" : "Week"} value={lesson.planType === "daily" ? "Daily" : formatWeek(lesson.week)} />
-    <Detail label="Duration" value={lesson.duration} />
-    <Detail label="Classroom" value={lesson.classroom} />
-  </div>
+  <table className="w-full table-fixed border-collapse text-[9.2px] leading-[1.18] text-slate-950">
+    <tbody>
+      <tr>
+        <Detail label="Teacher" value={lesson.teachers} />
+        <Detail label="Subject" value={lesson.subject} />
+        <Detail label="Grade" value={lesson.gradeClass} />
+        <Detail label="Date" value={lesson.date} />
+      </tr>
+      <tr>
+        <Detail label="Chapter / Unit" value={lesson.chapter} colSpan={3} />
+        <Detail label={lesson.planType === "daily" ? "Plan" : "Week"} value={lesson.planType === "daily" ? "Daily" : formatWeek(lesson.week)} />
+      </tr>
+      <tr>
+        <Detail label="Duration" value={lesson.duration} />
+        <Detail label="Classroom" value={lesson.classroom} />
+        <Detail label="School Year" value={lesson.schoolYear} />
+        <Detail label="Lesson No." value={lesson.lessonNumber} />
+      </tr>
+    </tbody>
+  </table>
 );
 
-const Detail = ({ label, value, wide = false }: { label: string; value?: string; wide?: boolean }) => (
-  <div className={`grid grid-cols-[18mm_minmax(0,1fr)] border-r border-t border-slate-200 last:border-r-0 ${wide ? "col-span-2" : ""}`}>
-    <span className="bg-slate-50 px-1 py-0.5 font-black uppercase text-slate-500">{label}</span>
-    <span className="break-words bg-white px-1 py-0.5 font-bold text-slate-950">{safeText(value, "-")}</span>
-  </div>
+const Detail = ({ label, value, colSpan = 1 }: { label: string; value?: string; colSpan?: number }) => (
+  <td className="border border-slate-500 p-0 align-top" colSpan={colSpan}>
+    <div className="grid min-h-[7mm] grid-cols-[22mm_minmax(0,1fr)]">
+      <span className="border-r border-slate-500 bg-slate-200 px-1.5 py-1 font-black uppercase text-slate-950">{label}</span>
+      <span className="break-words bg-white px-1.5 py-1 font-black text-slate-950">{safeText(value, "-")}</span>
+    </div>
+  </td>
 );
 
 const CompactNotes = ({ notes }: { notes: { title: string; value: string }[] }) => (
