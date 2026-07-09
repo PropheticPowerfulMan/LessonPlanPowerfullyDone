@@ -32,6 +32,7 @@ const normalizeLesson = (lesson: Partial<LessonPlan>): LessonPlan => {
     ownerId,
     ownerName,
     department,
+    planType: lesson.planType || base.planType,
     schoolName: !lesson.schoolName || lesson.schoolName === schoolName || lesson.schoolName.includes("KINSHASA CHRISTIAN SCHOOL") ? schoolDisplayName : lesson.schoolName,
     schoolYear: lesson.schoolYear || base.schoolYear,
     semester: lesson.semester || base.semester,

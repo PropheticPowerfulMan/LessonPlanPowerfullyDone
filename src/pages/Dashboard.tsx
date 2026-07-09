@@ -91,13 +91,13 @@ export const Dashboard = () => {
             {calendar.cells.map((cell, index) => (
               <div
                 key={`${cell.iso || "blank"}-${index}`}
-                className={`min-h-14 rounded-md border p-1 text-left transition sm:min-h-16 sm:p-2 ${cell.inMonth ? "border-cyan-300/12 bg-white/[0.055]" : "border-transparent bg-transparent"} ${cell.isToday ? "border-red-600 bg-red-600 text-white shadow-[0_0_0_2px_rgba(255,255,255,0.45)]" : ""} ${cell.plans.length && !cell.isToday ? "bg-cyan-300 text-slate-950" : ""}`}
+                className={`min-h-14 rounded-md border p-1 text-left transition sm:min-h-16 sm:p-2 ${cell.inMonth ? "border-cyan-300/12 bg-white/[0.055]" : "border-transparent bg-transparent"} ${cell.weekHasPlans && !cell.isToday ? "border-slate-950 bg-slate-950 text-white" : ""} ${cell.isToday ? "border-red-600 bg-red-600 text-white shadow-[0_0_0_2px_rgba(255,255,255,0.45)]" : ""}`}
               >
                 {cell.inMonth && (
                   <>
-                    <p className={`text-sm font-black ${cell.isToday ? "text-[#fff]" : ""}`}>{cell.dayNumber}</p>
-                    <p className={`mt-1 hidden truncate text-[10px] capitalize sm:block ${cell.isToday ? "text-[#fff]/90" : cell.plans.length ? "text-slate-800" : "text-muted-foreground"}`}>{cell.weekdayLong}</p>
-                    {cell.plans.length > 0 && <p className={`mt-1 truncate text-[9px] font-bold sm:text-[10px] ${cell.isToday ? "text-[#fff]" : ""}`}>{cell.plans.length} plan</p>}
+                    <p className={`text-sm font-black ${cell.isToday || cell.weekHasPlans ? "text-[#fff]" : ""}`}>{cell.dayNumber}</p>
+                    <p className={`mt-1 hidden truncate text-[10px] capitalize sm:block ${cell.isToday || cell.weekHasPlans ? "text-[#fff]/90" : "text-muted-foreground"}`}>{cell.weekdayLong}</p>
+                    {cell.plans.length > 0 && <p className={`mt-1 truncate text-[9px] font-bold sm:text-[10px] ${cell.isToday || cell.weekHasPlans ? "text-[#fff]" : ""}`}>{cell.plans.length} plan</p>}
                   </>
                 )}
               </div>
@@ -133,27 +133,32 @@ const buildCalendar = (today: Date, lessons: ReturnType<typeof useLessons>["less
   const todayIso = toIsoDate(today);
   const weekdays = ["lun.", "mar.", "mer.", "jeu.", "ven.", "sam.", "dim."];
   const plannedByDate = new Map<string, typeof lessons>();
+  const plannedWeeks = new Set<string>();
 
   lessons.forEach((lesson) => {
     if (!lesson.date) return;
-    const iso = toIsoDate(new Date(`${lesson.date}T00:00:00`));
+    const date = new Date(`${lesson.date}T00:00:00`);
+    const iso = toIsoDate(date);
     plannedByDate.set(iso, [...(plannedByDate.get(iso) || []), lesson]);
+    plannedWeeks.add(toWeekKey(date));
   });
 
   const cells = Array.from({ length: 42 }, (_, index) => {
     const dayNumber = index - startOffset + 1;
     if (dayNumber < 1 || dayNumber > daysInMonth) {
-      return { inMonth: false, iso: "", dayNumber: "", weekdayLong: "", plans: [], isToday: false };
+      return { inMonth: false, iso: "", dayNumber: "", weekdayLong: "", plans: [], weekHasPlans: false, isToday: false };
     }
 
     const date = new Date(year, month, dayNumber);
     const iso = toIsoDate(date);
+    const plans = plannedByDate.get(iso) || [];
     return {
       inMonth: true,
       iso,
       dayNumber: String(dayNumber),
       weekdayLong: new Intl.DateTimeFormat("fr-FR", { weekday: "long" }).format(date),
-      plans: plannedByDate.get(iso) || [],
+      plans,
+      weekHasPlans: plannedWeeks.has(toWeekKey(date)),
       isToday: iso === todayIso
     };
   });
@@ -177,6 +182,12 @@ const toIsoDate = (date: Date) => {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+};
+
+const toWeekKey = (date: Date) => {
+  const monday = new Date(date);
+  monday.setDate(date.getDate() - ((date.getDay() + 6) % 7));
+  return toIsoDate(monday);
 };
 
 const Bar = ({ label, value }: { label: string; value: number }) => (

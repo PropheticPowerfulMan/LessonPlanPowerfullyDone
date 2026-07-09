@@ -31,11 +31,12 @@ const pageGroups: { title: string; rows: [RowKey, string][] }[] = [
 
 export const LessonPrint = forwardRef<HTMLDivElement, { lesson: LessonPlan }>(({ lesson }, ref) => {
   const weeklyPlan = normalizeWeeklyPlan(lesson);
+  const planLabel = lesson.planType === "daily" ? "Daily Lesson Plan" : "Weekly Lesson Plan";
 
   return (
     <div ref={ref} className="lesson-print-document bg-transparent text-black">
       {pageGroups.map((group, pageIndex) => (
-        <PrintPage key={group.title} lesson={lesson} pageTitle={group.title} pageNumber={pageIndex + 1}>
+        <PrintPage key={group.title} lesson={lesson} pageTitle={`${planLabel} - ${group.title}`} pageNumber={pageIndex + 1}>
           <LessonTable rows={group.rows} weeklyPlan={weeklyPlan} />
           {pageIndex === 2 && <PrintNotes lesson={lesson} />}
         </PrintPage>
@@ -54,12 +55,12 @@ const PrintPage = ({ lesson, pageTitle, pageNumber, children }: { lesson: Lesson
         <img src={schoolImage} alt="KCS logo" className="h-[48px] w-[48px] object-contain" />
         <div className="text-center">
           <p className="text-[10px] font-bold uppercase tracking-wide text-slate-700">{safeText(lesson.schoolName, schoolDisplayName)}</p>
-          <h1 className="text-[15px] font-bold uppercase tracking-wide text-slate-950">{safeText(lesson.topic, "Weekly Lesson Plan")}</h1>
+          <h1 className="text-[15px] font-bold uppercase tracking-wide text-slate-950">{safeText(lesson.topic, lesson.planType === "daily" ? "Daily Lesson Plan" : "Weekly Lesson Plan")}</h1>
           <p className="text-[9px] font-semibold uppercase tracking-wide text-slate-600">{pageTitle}</p>
         </div>
         <div className="text-right text-[8.5px] leading-tight text-slate-700">
           <p className="font-bold text-slate-950">Page {pageNumber}/3</p>
-          <p>{formatWeek(lesson.week)}</p>
+          <p>{lesson.planType === "daily" ? "Daily" : formatWeek(lesson.week)}</p>
           <p>{safeText(lesson.schoolYear, "2026 - 2027")}</p>
         </div>
       </div>
@@ -135,7 +136,7 @@ const HeaderDetails = ({ lesson }: { lesson: LessonPlan }) => (
         <Detail label="School Year" value={lesson.schoolYear} />
       </tr>
       <tr>
-        <Detail label="Week" value={formatWeek(lesson.week)} />
+        <Detail label={lesson.planType === "daily" ? "Plan Type" : "Week"} value={lesson.planType === "daily" ? "Daily Lesson Plan" : formatWeek(lesson.week)} />
         <Detail label="Duration" value={lesson.duration} />
       </tr>
       <tr>
@@ -200,7 +201,7 @@ const normalizeWeeklyPlan = (lesson: LessonPlan) => {
   const weeklyPlan = lesson.weeklyPlan;
   const base = createFlexibleWeeklyPlan(lesson.subject, lesson.gradeClass, lesson.chapter);
 
-  return base.map((day, index) => ({
+  const normalized = base.map((day, index) => ({
     ...day,
     ...(weeklyPlan?.[index] || {}),
     day: weeklyPlan?.[index]?.day || day.day,
@@ -212,6 +213,10 @@ const normalizeWeeklyPlan = (lesson: LessonPlan) => {
     assessment: weeklyPlan?.[index]?.assessment ?? day.assessment,
     homework: weeklyPlan?.[index]?.homework ?? day.homework
   }));
+
+  return lesson.planType === "daily"
+    ? [{ ...normalized[0], day: "Monday" as const, lesson: normalized[0].lesson || lesson.chapter || lesson.topic || "Daily Lesson" }]
+    : normalized;
 };
 
 const safeText = (value?: unknown, fallback = " ") => {

@@ -177,6 +177,7 @@ export const createBlankLesson = (lessonNumber: string): LessonPlan => {
     ownerName: "",
     department: "",
     lessonNumber,
+    planType: "weekly",
     status: "active",
     tags: [],
     schoolName: schoolDisplayName,

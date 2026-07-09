@@ -44,6 +44,7 @@ const schoolYearOptions = Array.from({ length: 8 }, (_, index) => {
   return `${start}-${start + 1}`;
 });
 type SetupField =
+  | "planType"
   | "teachers"
   | "subject"
   | "gradeClass"
@@ -86,7 +87,9 @@ export const Editor = () => {
   const previousAutoObjectivesRef = useRef<string[]>([]);
   const values = form.watch();
   const currentChapter = sanitizeChapter(values.chapter);
+  const planType = values.planType || "weekly";
   const weeklyPlan = normalizeEditableWeeklyPlan(values.weeklyPlan, values.subject, values.gradeClass, currentChapter);
+  const displayedPlan = planType === "daily" ? weeklyPlan.slice(0, 1) : weeklyPlan;
   const lessonSignature = weeklyPlan.map((day) => day.lesson).join("|");
   const printableLesson = toPrintableLesson(values);
 
@@ -181,7 +184,7 @@ export const Editor = () => {
         shouldValidate: false
       });
     }
-  }, [form, values.subject, values.gradeClass, values.chapter, values.week]);
+  }, [form, values.subject, values.gradeClass, values.chapter, values.week, values.planType]);
 
   useEffect(() => {
     const current = form.getValues();
@@ -225,10 +228,10 @@ export const Editor = () => {
       values.subject,
       values.gradeClass,
       values.chapter,
-      ...weeklyPlan.flatMap((day) => [day.lesson, day.objectives, day.presentation, day.assessment])
+      ...displayedPlan.flatMap((day) => [day.lesson, day.objectives, day.presentation, day.assessment])
     ];
     return Math.round((required.filter(Boolean).length / required.length) * 100);
-  }, [values, weeklyPlan]);
+  }, [displayedPlan, values]);
 
   const save = (withVersion = false) => {
     if (!canEditCurrent) return;
@@ -300,9 +303,9 @@ export const Editor = () => {
     const grade = current.gradeClass || "";
     const generated: WeeklyPlanDay[] = createFlexibleWeeklyPlan(subject, grade, chapter);
     form.setValue("weeklyPlan", generated, { shouldDirty: true });
-    const generatedTitle = buildAutomaticTitle({ ...current, subject, gradeClass: grade, chapter });
+    const generatedTitle = buildAutomaticTitle({ ...current, subject, gradeClass: grade, chapter, planType });
     form.setValue("topic", generatedTitle, { shouldDirty: true });
-    notify("Week generated automatically");
+    notify(planType === "daily" ? "Daily lesson generated automatically" : "Week generated automatically");
   };
 
   const updateWeeklyDay = (index: number, key: keyof Omit<WeeklyPlanDay, "day">, value: string) => {
@@ -341,7 +344,7 @@ export const Editor = () => {
     <div className="min-w-0 space-y-4 overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-black uppercase text-cyan-200">KCS weekly lesson plan</p>
+          <p className="text-xs font-black uppercase text-cyan-200">KCS {planType === "daily" ? "daily" : "weekly"} lesson plan</p>
           <h1 className="truncate text-2xl font-black text-white md:text-3xl">{printableLesson.topic || printableLesson.chapter || printableLesson.subject || "New Lesson Plan"}</h1>
           <p className="text-sm text-muted-foreground">
             KCS stays fixed; the title, lesson details, and teaching content come from your fields.
@@ -367,17 +370,23 @@ export const Editor = () => {
       <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(320px,380px)]">
         <form className="min-w-0 space-y-4" onSubmit={form.handleSubmit(() => save(true))}>
           <fieldset disabled={!canEditCurrent} className="min-w-0 space-y-4 disabled:opacity-75">
-          <Card className="p-4">
+          <Card className="w-full max-w-full overflow-hidden p-3 sm:p-4">
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-black text-white">1. Essential setup</h2>
                 <p className="text-sm text-muted-foreground">Only the changing details are editable. KCS is already known.</p>
               </div>
               <div className="flex gap-2">
-                <Button type="button" variant="secondary" onClick={generateWeek}><Sparkles size={17} /> Generate week</Button>
+                <Button type="button" variant="secondary" onClick={generateWeek}><Sparkles size={17} /> {planType === "daily" ? "Generate day" : "Generate week"}</Button>
               </div>
             </div>
             <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <Field label="Plan Type">
+                <Select value={planType} onChange={(event) => updateSetupField("planType", event.target.value)}>
+                  <option value="weekly">Weekly Lesson Plan</option>
+                  <option value="daily">Daily Lesson Plan</option>
+                </Select>
+              </Field>
               <Field label="Lesson Plan Title"><Input readOnly value={printableLesson.topic} className="bg-white/[0.03]" /></Field>
               <LockedSchool />
               <Field label="Teacher"><Input value={values.teachers || ""} onChange={(event) => updateSetupField("teachers", event.target.value)} /></Field>
@@ -385,11 +394,11 @@ export const Editor = () => {
               <Field label="Grade"><Input list="grade-suggestions" value={values.gradeClass || ""} onChange={(event) => updateSetupField("gradeClass", event.target.value)} /></Field>
               <Field label="Chapter / Unit"><Input value={values.chapter || ""} onChange={(event) => updateSetupField("chapter", event.target.value)} /></Field>
               <Field label="Date"><Input type="date" value={values.date || ""} onChange={(event) => updateSetupField("date", event.target.value)} /></Field>
-              <Field label="Week">
+              {planType === "weekly" && <Field label="Week">
                 <Select value={values.week || "1"} onChange={(event) => updateSetupField("week", event.target.value)}>
                   {weekOptions.map((week) => <option key={week} value={week}>Week {week}</option>)}
                 </Select>
-              </Field>
+              </Field>}
               <Field label="Duration">
                 <Select value={values.duration || "45 min"} onChange={(event) => updateSetupField("duration", event.target.value)}>
                   {durationOptions.map((duration) => <option key={duration} value={duration}>{duration}</option>)}
@@ -425,7 +434,7 @@ export const Editor = () => {
             </datalist>
           </Card>
 
-          <Card className="p-4">
+          <Card className="w-full max-w-full overflow-hidden p-3 sm:p-4">
             <div className="mb-4">
               <h2 className="text-lg font-black text-white">2. Print notes and support</h2>
               <p className="text-sm text-muted-foreground">These fields are editable and appear in the final document.</p>
@@ -459,15 +468,15 @@ export const Editor = () => {
             </div>
           </Card>
 
-          <Card className="p-4">
+          <Card className="w-full max-w-full overflow-hidden p-3 sm:p-4">
             <div className="mb-4">
-              <h2 className="text-lg font-black text-white">3. Weekly grid</h2>
-              <p className="text-sm text-muted-foreground">Use Generate week first, then edit only the parts that need teacher judgement.</p>
+              <h2 className="text-lg font-black text-white">3. {planType === "daily" ? "Daily lesson" : "Weekly grid"}</h2>
+              <p className="text-sm text-muted-foreground">{planType === "daily" ? "Edit the single lesson for the selected date." : "Use Generate week first, then edit only the parts that need teacher judgement."}</p>
             </div>
-            <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-5">
-              {weeklyPlan.map((day, index) => (
+            <div className={`grid min-w-0 grid-cols-1 gap-3 ${planType === "weekly" ? "md:grid-cols-2 2xl:grid-cols-5" : ""}`}>
+              {displayedPlan.map((day, index) => (
                 <div key={day.day} className="min-w-0 rounded-lg border border-cyan-300/15 bg-[#030d14]/70 p-3">
-                  <h3 className="mb-3 rounded-md border border-cyan-300/20 bg-cyan-500/10 px-3 py-2 text-center text-sm font-black text-cyan-100">{day.day}</h3>
+                  <h3 className="mb-3 rounded-md border border-cyan-300/20 bg-cyan-500/10 px-3 py-2 text-center text-sm font-black text-cyan-100">{planType === "daily" ? "Daily Lesson" : day.day}</h3>
                   <div className="space-y-2">
                     <Field label="Lesson"><Textarea className="min-h-16" value={day.lesson} onChange={(event) => updateWeeklyDay(index, "lesson", event.target.value)} /></Field>
                     <Field label="Objectives"><Textarea className="min-h-20" value={day.objectives} onChange={(event) => updateWeeklyDay(index, "objectives", event.target.value)} /></Field>
@@ -490,7 +499,7 @@ export const Editor = () => {
         </form>
 
         <aside className="space-y-4">
-          <Card className="sticky top-24 p-4">
+          <Card className="sticky top-24 w-full max-w-full overflow-hidden p-3 sm:p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
                 <h2 className="text-lg font-black text-white">Print preview</h2>
@@ -507,7 +516,7 @@ export const Editor = () => {
         <LessonPrint lesson={printableLesson} ref={printRef} />
       </div>
 
-      <Dialog open={preview} title="Weekly Lesson Plan Preview" onClose={() => setPreview(false)}>
+      <Dialog open={preview} title={`${planType === "daily" ? "Daily" : "Weekly"} Lesson Plan Preview`} onClose={() => setPreview(false)}>
         <div className="mb-4 flex justify-end gap-2">
           <Button onClick={print}><Printer size={17} /> Print</Button>
           <Button variant="outline" disabled={Boolean(exporting)} onClick={() => exportDocument("pdf")}>{exporting === "pdf" ? <Loader2 className="animate-spin" size={17} /> : <FileDown size={17} />} {exporting === "pdf" ? "PDF..." : "PDF"}</Button>
@@ -538,11 +547,12 @@ const toPrintableLesson = (lesson: LessonPlan): LessonPlan => {
   return {
     ...lesson,
     schoolName: schoolDisplayName,
+    planType: lesson.planType || "weekly",
     subject,
     gradeClass,
     chapter,
-    topic: buildAutomaticTitle({ ...lesson, subject, gradeClass, chapter }),
-    weeklyPlan,
+    topic: buildAutomaticTitle({ ...lesson, subject, gradeClass, chapter, planType: lesson.planType || "weekly" }),
+    weeklyPlan: (lesson.planType || "weekly") === "daily" ? weeklyPlan.map((day, index) => (index === 0 ? day : weeklyPlan[index])) : weeklyPlan,
     learningObjectives,
     learningOutcomes,
     successCriteria,
@@ -596,10 +606,10 @@ const buildAutomaticTitle = (lesson: Partial<LessonPlan>) => {
   const gradeClass = sanitizeTitlePart(lesson.gradeClass);
   const chapter = sanitizeChapter(lesson.chapter);
   const parts = [
-    "Weekly Lesson Plan",
+    lesson.planType === "daily" ? "Daily Lesson Plan" : "Weekly Lesson Plan",
     subject,
     gradeClass,
-    lesson.week ? `Week ${lesson.week}` : "",
+    lesson.planType === "daily" ? lesson.date || "" : lesson.week ? `Week ${lesson.week}` : "",
     chapter
   ]
     .map((part) => part?.trim())

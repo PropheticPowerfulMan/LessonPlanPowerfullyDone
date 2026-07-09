@@ -13,6 +13,7 @@ export type LessonStageName =
   | "Reflection";
 
 export type LessonStatus = "active" | "archived";
+export type LessonPlanType = "weekly" | "daily";
 
 export type WeeklyDayName = "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday";
 
@@ -92,6 +93,7 @@ export interface LessonPlan {
   ownerName: string;
   department: string;
   lessonNumber: string;
+  planType: LessonPlanType;
   status: LessonStatus;
   tags: string[];
   schoolName: string;
