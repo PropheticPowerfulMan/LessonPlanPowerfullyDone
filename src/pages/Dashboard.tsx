@@ -84,9 +84,9 @@ export const Dashboard = () => {
               {calendar.plannedCount} plan{calendar.plannedCount > 1 ? "s" : ""}
             </span>
           </div>
-          <div className="grid grid-cols-7 gap-1 text-center text-[10px] sm:gap-2 sm:text-xs">
+          <div className="grid min-w-0 grid-cols-7 gap-1 text-center text-[9px] sm:gap-2 sm:text-xs">
             {calendar.weekdays.map((day) => (
-              <span key={day} className="rounded-md border border-cyan-300/10 bg-white/[0.04] py-2 font-bold uppercase text-muted-foreground">{day}</span>
+              <span key={day} className="min-w-0 truncate rounded-md border border-cyan-300/10 bg-white/[0.04] px-0.5 py-2 font-bold uppercase leading-none text-muted-foreground">{day}</span>
             ))}
             {calendar.cells.map((cell, index) => (
               <div
@@ -96,8 +96,8 @@ export const Dashboard = () => {
                 {cell.inMonth && (
                   <>
                     <p className={`text-sm font-black ${cell.isToday ? "text-[#fff]" : ""}`}>{cell.dayNumber}</p>
-                    <p className={`mt-1 text-[10px] capitalize ${cell.isToday ? "text-[#fff]/90" : cell.plans.length ? "text-slate-800" : "text-muted-foreground"}`}>{cell.weekdayLong}</p>
-                    {cell.plans.length > 0 && <p className={`mt-1 truncate text-[10px] font-bold ${cell.isToday ? "text-[#fff]" : ""}`}>{cell.plans.length} lesson plan</p>}
+                    <p className={`mt-1 hidden truncate text-[10px] capitalize sm:block ${cell.isToday ? "text-[#fff]/90" : cell.plans.length ? "text-slate-800" : "text-muted-foreground"}`}>{cell.weekdayLong}</p>
+                    {cell.plans.length > 0 && <p className={`mt-1 truncate text-[9px] font-bold sm:text-[10px] ${cell.isToday ? "text-[#fff]" : ""}`}>{cell.plans.length} plan</p>}
                   </>
                 )}
               </div>
