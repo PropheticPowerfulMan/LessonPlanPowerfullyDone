@@ -144,6 +144,41 @@ select {
   background-color: rgba(15, 95, 120, 0.12) !important;
 }
 
+.theme-dark-panel {
+  color: #e7faff;
+}
+
+:root:not(.dark) .theme-dark-panel .text-white,
+:root:not(.dark) .theme-dark-panel .text-cyan-50,
+:root:not(.dark) .theme-dark-panel .text-cyan-50\/80,
+:root:not(.dark) .theme-dark-panel .text-cyan-100,
+:root:not(.dark) .theme-dark-panel .text-cyan-100\/80,
+:root:not(.dark) .theme-dark-panel .text-cyan-200,
+:root:not(.dark) .theme-dark-panel .text-cyan-300 {
+  color: #e7faff !important;
+}
+
+:root:not(.dark) .theme-dark-panel .text-cyan-200 {
+  color: #9cecff !important;
+}
+
+:root:not(.dark) .theme-dark-panel .text-muted-foreground {
+  color: rgba(231, 250, 255, 0.78) !important;
+}
+
+:root:not(.dark) .theme-dark-panel .border-cyan-300\/10,
+:root:not(.dark) .theme-dark-panel .border-cyan-300\/12,
+:root:not(.dark) .theme-dark-panel .border-cyan-300\/15,
+:root:not(.dark) .theme-dark-panel .border-cyan-300\/20,
+:root:not(.dark) .theme-dark-panel .border-cyan-300\/25 {
+  border-color: rgba(156, 236, 255, 0.24) !important;
+}
+
+:root:not(.dark) .theme-dark-panel .bg-cyan-500\/10,
+:root:not(.dark) .theme-dark-panel .bg-cyan-500\/15 {
+  background-color: rgba(20, 184, 222, 0.16) !important;
+}
+
 .dark .glass {
   background: var(--glass-bg-dark);
   border-color: var(--glass-border);

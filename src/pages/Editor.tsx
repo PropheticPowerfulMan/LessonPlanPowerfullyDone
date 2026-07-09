@@ -475,7 +475,7 @@ export const Editor = () => {
             </div>
             <div className={`grid min-w-0 grid-cols-1 gap-3 ${planType === "weekly" ? "md:grid-cols-2 2xl:grid-cols-5" : ""}`}>
               {displayedPlan.map((day, index) => (
-                <div key={day.day} className="min-w-0 rounded-lg border border-cyan-300/15 bg-[#030d14]/70 p-3">
+                <div key={day.day} className="theme-dark-panel min-w-0 rounded-lg border border-cyan-300/15 bg-[#030d14]/70 p-3">
                   <h3 className="mb-3 rounded-md border border-cyan-300/20 bg-cyan-500/10 px-3 py-2 text-center text-sm font-black text-cyan-100">{planType === "daily" ? "Daily Lesson" : day.day}</h3>
                   <div className="space-y-2">
                     <Field label="Lesson"><Textarea className="min-h-16" value={day.lesson} onChange={(event) => updateWeeklyDay(index, "lesson", event.target.value)} /></Field>

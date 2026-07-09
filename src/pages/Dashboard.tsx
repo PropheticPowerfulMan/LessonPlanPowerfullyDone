@@ -21,7 +21,7 @@ export const Dashboard = () => {
 
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-lg border border-cyan-300/20 bg-[#061520]/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_24px_70px_rgba(0,0,0,0.38)]">
+      <section className="theme-dark-panel relative overflow-hidden rounded-lg border border-cyan-300/20 bg-[#061520]/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_24px_70px_rgba(0,0,0,0.38)]">
         <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(20,184,222,0.20),transparent_32%,rgba(16,185,129,0.12)_70%,rgba(251,191,36,0.10))]" />
         <div className="relative grid gap-6 p-5 text-white md:grid-cols-[1.3fr_0.7fr] md:p-8">
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
