@@ -1,6 +1,6 @@
 import { FormEvent, useMemo, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { LockKeyhole, Mail, ShieldCheck, UserRoundCheck } from "lucide-react";
+import { Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, UserRoundCheck } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Input, Select } from "../components/ui/input";
@@ -16,6 +16,7 @@ export const Login = () => {
   const activeUsers = useMemo(() => users.filter((user) => user.status === "active"), [users]);
   const [email, setEmail] = useState(activeUsers[0]?.email || "");
   const [password, setPassword] = useState(mockAuthService.demoPassword);
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
 
   if (currentUser) return <Navigate to="/" replace />;
@@ -72,7 +73,15 @@ export const Login = () => {
             <Label>Mot de passe</Label>
             <div className="relative">
               <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={17} />
-              <Input className="pl-9" type="password" value={password} onChange={(event) => setPassword(event.target.value)} />
+              <Input className="pl-9 pr-11" type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} />
+              <button
+                type="button"
+                className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-muted-foreground hover:bg-primary/10 hover:text-foreground"
+                onClick={() => setShowPassword((value) => !value)}
+                aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+              >
+                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+              </button>
             </div>
             <p className="text-xs text-muted-foreground">Mode local temporaire : mot de passe démo {mockAuthService.demoPassword}</p>
           </div>

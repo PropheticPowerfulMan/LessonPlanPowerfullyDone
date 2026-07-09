@@ -65,20 +65,20 @@ const PrintPage = ({
   <section className="print-page mx-auto flex flex-col bg-white p-[5mm] font-serif text-black shadow-fluent">
     <img src={schoolImage} alt="" className="pointer-events-none absolute left-1/2 top-1/2 h-[360px] w-[360px] -translate-x-1/2 -translate-y-1/2 object-contain opacity-[0.035]" />
     <header className="print-header relative rounded-sm border border-slate-300">
-      <div className="grid grid-cols-[46px_1fr_76px] items-center gap-2 border-b border-slate-300 bg-slate-900 px-2.5 py-1.5 text-white">
-        <span className="grid h-[42px] w-[42px] place-items-center rounded-sm bg-white p-1">
+      <div className="grid grid-cols-[48px_1fr_86px] items-center gap-2 border-b-2 border-slate-800 bg-slate-50 px-2.5 py-1.5 text-slate-950">
+        <span className="grid h-[44px] w-[44px] place-items-center rounded-sm border border-slate-300 bg-white p-1">
           <img src={schoolImage} alt="KCS logo" className="h-full w-full object-contain" />
         </span>
         <div className="min-w-0 text-center">
-          <p className="break-words text-[8.2px] font-bold uppercase leading-tight tracking-wide text-cyan-100">{safeText(lesson.schoolName, schoolDisplayName)}</p>
-          <h1 className="break-words text-[12px] font-bold uppercase leading-tight tracking-wide text-white">{safeText(lesson.topic, lesson.planType === "daily" ? "Daily Lesson Plan" : "Weekly Lesson Plan")}</h1>
-          <p className="break-words text-[8px] font-semibold uppercase leading-tight tracking-wide text-slate-200">{pageTitle}</p>
+          <p className="break-words text-[9px] font-black uppercase leading-tight tracking-wide text-slate-800">{safeText(lesson.schoolName, schoolDisplayName)}</p>
+          <h1 className="break-words text-[13.5px] font-black uppercase leading-tight tracking-wide text-slate-950">{safeText(lesson.topic, lesson.planType === "daily" ? "Daily Lesson Plan" : "Weekly Lesson Plan")}</h1>
+          <p className="break-words text-[8.5px] font-black uppercase leading-tight tracking-wide text-slate-700">{pageTitle}</p>
         </div>
-        <div className="text-right text-[7.8px] font-semibold leading-tight text-slate-100">
+        <div className="rounded-sm border border-slate-300 bg-white p-1 text-right text-[7.6px] font-black leading-tight text-slate-900">
           <p>Page {pageNumber}/{totalPages}</p>
           <p>{lesson.planType === "daily" ? safeText(lesson.date, "Daily") : formatWeek(lesson.week)}</p>
           <p>{safeText(lesson.schoolYear, "2026-2027")}</p>
-          <p className="mt-0.5 text-[7px] text-slate-300">Printed: {generatedAt}</p>
+          <p className="mt-0.5 text-[6.8px] text-slate-700">Printed: {generatedAt}</p>
         </div>
       </div>
       {!compactHeader && <HeaderDetails lesson={lesson} />}
