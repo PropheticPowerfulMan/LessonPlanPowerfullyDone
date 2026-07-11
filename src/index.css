@@ -227,12 +227,41 @@ select option {
 
 .print-page {
   width: 297mm;
-  height: 210mm;
+  min-height: 210mm;
   box-sizing: border-box;
   background: white;
   color: #111827;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
+}
+
+.print-page table {
+  height: auto;
+}
+
+.print-page tr,
+.print-page td,
+.print-page th {
+  height: auto;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  vertical-align: top;
+}
+
+.print-density-comfortable table {
+  font-size: 7.9px;
+  line-height: 1.14;
+}
+
+.print-density-compact table {
+  font-size: 7.5px;
+  line-height: 1.1;
+}
+
+.print-density-ultra-compact table {
+  font-size: 7.1px;
+  line-height: 1.06;
 }
 
 @media print {

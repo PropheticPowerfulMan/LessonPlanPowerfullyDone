@@ -1,8 +1,10 @@
 import { forwardRef } from "react";
 import { createFlexibleWeeklyPlan, schoolDisplayName, schoolImage } from "../data/defaults";
+import { getActivityDurations } from "../services/durationValidationService";
+import { getPrintDensity, isLikelyOversizedForOnePage } from "../services/printDensityService";
 import { LessonPlan, WeeklyPlanDay } from "../types/lesson";
 
-type RowKey = Exclude<keyof WeeklyPlanDay, "day">;
+type RowKey = keyof Pick<WeeklyPlanDay, "lesson" | "objectives" | "presentation" | "guidedPractice" | "exitTicket" | "assessment" | "homework">;
 
 const planRows: [RowKey, string][] = [
   ["lesson", "Lesson"],
@@ -18,10 +20,12 @@ export const LessonPrint = forwardRef<HTMLDivElement, { lesson: LessonPlan }>(({
   const weeklyPlan = normalizeWeeklyPlan(lesson);
   const planLabel = lesson.planType === "daily" ? "Daily Lesson Plan" : "Weekly Lesson Plan";
   const generatedAt = formatGeneratedAt(new Date());
+  const density = getPrintDensity({ ...lesson, weeklyPlan });
+  const oversized = isLikelyOversizedForOnePage({ ...lesson, weeklyPlan });
 
   return (
     <div ref={ref} className="lesson-print-document bg-transparent text-black">
-      <PrintPage lesson={lesson} pageTitle={planLabel} generatedAt={generatedAt}>
+      <PrintPage lesson={lesson} pageTitle={planLabel} generatedAt={generatedAt} density={density} oversized={oversized}>
         <LessonTable rows={planRows} weeklyPlan={weeklyPlan} isDaily={lesson.planType === "daily"} />
         <Signatures lesson={lesson} />
       </PrintPage>
@@ -35,15 +39,19 @@ const PrintPage = ({
   lesson,
   pageTitle,
   generatedAt,
+  density,
+  oversized,
   children
 }: {
   lesson: LessonPlan;
   pageTitle: string;
   generatedAt: string;
+  density: string;
+  oversized: boolean;
   children: React.ReactNode;
 }) => (
-  <section className="print-page mx-auto flex flex-col bg-white p-[5mm] font-serif text-black shadow-fluent">
-    <img src={schoolImage} alt="" className="pointer-events-none absolute left-1/2 top-1/2 h-[360px] w-[360px] -translate-x-1/2 -translate-y-1/2 object-contain opacity-[0.035]" />
+  <section className={`print-page print-density-${density} mx-auto flex flex-col bg-white p-[5mm] font-serif text-black shadow-fluent`}>
+    <Watermark status={lesson.status} />
     <header className="print-header relative rounded-sm border border-slate-300">
       <div className="grid grid-cols-[58px_1fr_90px] items-center gap-2 border-b-2 border-slate-800 bg-slate-50 px-2.5 py-1.5 text-slate-950">
         <span className="grid h-[54px] w-[54px] place-items-center rounded-sm border border-slate-300 bg-white p-1">
@@ -63,12 +71,17 @@ const PrintPage = ({
       </div>
       <HeaderDetails lesson={lesson} />
     </header>
+    {oversized && (
+      <p className="relative mt-1 border border-amber-400 bg-amber-50 px-2 py-1 text-[7.5px] font-bold text-amber-900">
+        One-page warning: this lesson contains dense content. Shorten oversized cells or use compact wording before final printing.
+      </p>
+    )}
 
     <main className="relative mt-2 flex min-h-0 flex-1 flex-col">{children}</main>
     <footer className="mt-1 flex justify-between border-t border-slate-200 pt-1 text-[7.2px] font-semibold uppercase tracking-wide text-slate-500">
       <span>KCS Lesson Planner</span>
       <span>Generated on {generatedAt}</span>
-      <span>{safeText(lesson.teachers, "Teacher")} | {safeText(lesson.subject, "Subject")}</span>
+      <span>{safeText(lesson.status, "draft")} | Modified {formatGeneratedAt(new Date(lesson.updatedAt || Date.now()))}</span>
     </footer>
   </section>
 );
@@ -89,9 +102,12 @@ const LessonTable = ({ rows, weeklyPlan, isDaily }: { rows: [RowKey, string][]; 
       {rows.map(([key, label]) => (
         <tr key={key} className="align-top">
           <th className="border border-slate-400 bg-slate-50 px-1 py-1 text-center font-black uppercase text-slate-700">{label}</th>
-          {weeklyPlan.map((day) => (
+          {weeklyPlan.map((day, index) => (
             <td key={`${day.day}-${key}`} className="border border-slate-400 p-1 align-top">
-              <div className="whitespace-pre-line break-words">{safeText(day[key])}</div>
+              <div className="whitespace-pre-line break-words">
+                <DurationBadge rowKey={key} day={day} index={index} />
+                {safeText(day[key])}
+              </div>
             </td>
           ))}
         </tr>
@@ -120,6 +136,7 @@ const HeaderDetails = ({ lesson }: { lesson: LessonPlan }) => (
       <tr>
         <Detail label="School Year" value={lesson.schoolYear} />
         <Detail label="Lesson No." value={lesson.lessonNumber} />
+        <Detail label="Status" value={lesson.status} />
       </tr>
     </tbody>
   </table>
@@ -153,7 +170,26 @@ const QrCodeBox = ({ lesson }: { lesson: LessonPlan }) => {
   return (
     <div className="justify-self-end text-center">
       <img src={qrUrl} alt="Lesson plan QR code" className="h-[21mm] w-[21mm] bg-white" crossOrigin="anonymous" />
-      <p className="mt-0.5 text-[5.8px] leading-tight text-slate-600">Scan for lesson summary</p>
+      <p className="mt-0.5 text-[5.8px] leading-tight text-slate-600">Scan to open the digital Lesson Plan</p>
+    </div>
+  );
+};
+
+const DurationBadge = ({ rowKey, day, index }: { rowKey: RowKey; day: WeeklyPlanDay; index: number }) => {
+  if (!["presentation", "guidedPractice", "exitTicket"].includes(rowKey)) return null;
+  const durations = getActivityDurations(day, index);
+  const value = durations[rowKey as keyof typeof durations];
+  return <span className="mb-0.5 mr-1 inline-block rounded-sm border border-slate-300 bg-slate-100 px-1 text-[6.6px] font-black uppercase text-slate-700">{value} min</span>;
+};
+
+const Watermark = ({ status }: { status: LessonPlan["status"] }) => {
+  const label = status === "approved" || status === "final-approved" ? "Approved" : status === "submitted" ? "Submitted" : status === "under-review" ? "Under Review" : status === "draft" ? "Draft" : "";
+  if (!label) {
+    return <img src={schoolImage} alt="" className="pointer-events-none absolute left-1/2 top-1/2 h-[360px] w-[360px] -translate-x-1/2 -translate-y-1/2 object-contain opacity-[0.035]" />;
+  }
+  return (
+    <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rotate-[-18deg] text-[48px] font-black uppercase tracking-[0.28em] text-slate-900 opacity-[0.035]">
+      {label}
     </div>
   );
 };

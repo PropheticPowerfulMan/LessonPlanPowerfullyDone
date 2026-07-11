@@ -25,6 +25,9 @@ import { LessonPrint } from "../print/LessonPrint";
 import { curriculumRepository, findCurriculumSuggestions } from "../services/curriculumRepository";
 import { lessonRepository } from "../services/lessonRepository";
 import { canDeleteLesson, canEditLesson, canReviewLesson, canViewLesson, prepareNewLessonForUser } from "../services/permissions";
+import { analyzeWeeklyPlanQuality } from "../services/contentQualityService";
+import { analyzeDurationAllocation, getActivityDurations } from "../services/durationValidationService";
+import { createSuggestedWeeklyDay, createVariedWeeklyPlan } from "../services/lessonContentVariationService";
 import { LessonPlan, WeeklyPlanDay } from "../types/lesson";
 import { exportElementToDocx, exportElementToPdf } from "../utils/export";
 
@@ -61,6 +64,7 @@ type SetupField =
   | "term"
   | "classroom"
   | "numberOfStudents";
+type WeeklyEditableKey = keyof Omit<WeeklyPlanDay, "day" | "activityDurations" | "lockedFields">;
 
 export const Editor = () => {
   const { id } = useParams();
@@ -102,6 +106,8 @@ export const Editor = () => {
   const unitOptions = useMemo(() => unique([...curriculumSuggestions.map((item) => item.unit), currentChapter].filter(Boolean)), [curriculumSuggestions, currentChapter]);
   const topicOptions = useMemo(() => unique(curriculumSuggestions.map((item) => item.topic).filter(Boolean)), [curriculumSuggestions]);
   const subtopicOptions = useMemo(() => unique(curriculumSuggestions.map((item) => item.subtopic).filter(Boolean)), [curriculumSuggestions]);
+  const qualityWarnings = useMemo(() => analyzeWeeklyPlanQuality(printableLesson), [printableLesson]);
+  const durationWarnings = useMemo(() => analyzeDurationAllocation(printableLesson), [printableLesson]);
 
   useEffect(() => {
     const current = form.getValues();
@@ -122,7 +128,7 @@ export const Editor = () => {
     if (!hasSetup) return;
 
     if (planCanSync) {
-      form.setValue("weeklyPlan", createFlexibleWeeklyPlan(current.subject, current.gradeClass, chapter), {
+      form.setValue("weeklyPlan", createVariedWeeklyPlan(current), {
         shouldDirty: true,
         shouldValidate: false
       });
@@ -311,14 +317,14 @@ export const Editor = () => {
     const subject = current.subject || "";
     const chapter = sanitizeChapter(current.chapter);
     const grade = current.gradeClass || "";
-    const generated: WeeklyPlanDay[] = createFlexibleWeeklyPlan(subject, grade, chapter);
+    const generated: WeeklyPlanDay[] = createVariedWeeklyPlan({ ...current, subject, gradeClass: grade, chapter });
     form.setValue("weeklyPlan", generated, { shouldDirty: true });
     const generatedTitle = buildAutomaticTitle({ ...current, subject, gradeClass: grade, chapter, planType });
     form.setValue("topic", generatedTitle, { shouldDirty: true });
     notify(planType === "daily" ? "Daily lesson generated automatically" : "Week generated automatically");
   };
 
-  const updateWeeklyDay = (index: number, key: keyof Omit<WeeklyPlanDay, "day">, value: string) => {
+  const updateWeeklyDay = (index: number, key: WeeklyEditableKey, value: string) => {
     if (!canEditCurrent) return;
     const next = normalizeEditableWeeklyPlan(form.getValues().weeklyPlan, form.getValues().subject, form.getValues().gradeClass, sanitizeChapter(form.getValues().chapter));
     next[index] = {
@@ -329,6 +335,67 @@ export const Editor = () => {
       shouldDirty: true,
       shouldValidate: false
     });
+  };
+
+  const regenerateDay = (index: number) => {
+    if (!canEditCurrent) return;
+    const current = form.getValues();
+    const next = normalizeEditableWeeklyPlan(current.weeklyPlan, current.subject, current.gradeClass, sanitizeChapter(current.chapter));
+    const suggestion = createSuggestedWeeklyDay(current, index);
+    next[index] = {
+      ...next[index],
+      ...Object.fromEntries(Object.entries(suggestion).filter(([key]) => key === "day" || !next[index].lockedFields?.[key as WeeklyEditableKey]))
+    } as WeeklyPlanDay;
+    form.setValue("weeklyPlan", next, { shouldDirty: true, shouldValidate: false });
+    notify(`${next[index].day} regenerated`);
+  };
+
+  const regenerateCell = (index: number, key: WeeklyEditableKey) => {
+    if (!canEditCurrent) return;
+    const current = form.getValues();
+    const next = normalizeEditableWeeklyPlan(current.weeklyPlan, current.subject, current.gradeClass, sanitizeChapter(current.chapter));
+    if (next[index].lockedFields?.[key]) {
+      notify("Unlock this cell before regenerating it");
+      return;
+    }
+    const suggestion = createSuggestedWeeklyDay(current, index);
+    next[index] = { ...next[index], [key]: suggestion[key] };
+    form.setValue("weeklyPlan", next, { shouldDirty: true, shouldValidate: false });
+  };
+
+  const regenerateRow = (key: WeeklyEditableKey) => {
+    if (!canEditCurrent) return;
+    const current = form.getValues();
+    const next = normalizeEditableWeeklyPlan(current.weeklyPlan, current.subject, current.gradeClass, sanitizeChapter(current.chapter));
+    const suggestions = createVariedWeeklyPlan(current);
+    form.setValue("weeklyPlan", next.map((day, index) => day.lockedFields?.[key] ? day : { ...day, [key]: suggestions[index][key] }), {
+      shouldDirty: true,
+      shouldValidate: false
+    });
+    notify(`${rowLabel(key)} row regenerated`);
+  };
+
+  const toggleCellLock = (index: number, key: WeeklyEditableKey) => {
+    if (!canEditCurrent) return;
+    const current = form.getValues();
+    const next = normalizeEditableWeeklyPlan(current.weeklyPlan, current.subject, current.gradeClass, sanitizeChapter(current.chapter));
+    const lockedFields = { ...(next[index].lockedFields || {}), [key]: !next[index].lockedFields?.[key] };
+    next[index] = { ...next[index], lockedFields };
+    form.setValue("weeklyPlan", next, { shouldDirty: true, shouldValidate: false });
+  };
+
+  const updateActivityDuration = (index: number, key: "presentation" | "guidedPractice" | "exitTicket", value: string) => {
+    if (!canEditCurrent) return;
+    const current = form.getValues();
+    const next = normalizeEditableWeeklyPlan(current.weeklyPlan, current.subject, current.gradeClass, sanitizeChapter(current.chapter));
+    next[index] = {
+      ...next[index],
+      activityDurations: {
+        ...next[index].activityDurations,
+        [key]: Math.max(0, Number(value) || 0)
+      }
+    };
+    form.setValue("weeklyPlan", next, { shouldDirty: true, shouldValidate: false });
   };
 
   const updateSetupField = (field: SetupField, value: string) => {
@@ -405,6 +472,15 @@ export const Editor = () => {
           <p className="mt-1 text-xs text-muted-foreground">
             {teacherFeedback.userName} - {new Date(teacherFeedback.timestamp).toLocaleString()}
           </p>
+        </Card>
+      )}
+      {(qualityWarnings.length > 0 || durationWarnings.length > 0) && (
+        <Card className="border-amber-400/35 bg-amber-500/10 p-4">
+          <p className="text-xs font-black uppercase text-amber-100">Weekly plan quality checks</p>
+          <div className="mt-2 grid gap-2 text-sm text-amber-50 md:grid-cols-2">
+            {qualityWarnings.map((warning) => <p key={warning.id}>{warning.message}</p>)}
+            {durationWarnings.map((warning) => <p key={warning.id}>{warning.message}</p>)}
+          </div>
         </Card>
       )}
 
@@ -518,30 +594,63 @@ export const Editor = () => {
           )}
 
           <Card className="w-full max-w-full overflow-hidden p-3 sm:p-4">
-            <div className="mb-4">
-              <h2 className="text-lg font-black text-white">2. {planType === "daily" ? "Daily lesson" : "Weekly grid"}</h2>
-              <p className="text-sm text-muted-foreground">{planType === "daily" ? "Edit the single lesson for the selected date." : "Use Generate week first, then edit only the parts that need teacher judgement."}</p>
+            <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-black text-white">2. {planType === "daily" ? "Daily lesson" : "Weekly grid"}</h2>
+                <p className="text-sm text-muted-foreground">{planType === "daily" ? "Edit the single lesson for the selected date." : "Use Generate week first, then edit only the parts that need teacher judgement."}</p>
+              </div>
+              {planType === "weekly" && canEditCurrent && (
+                <div className="flex flex-wrap gap-2">
+                  <Button type="button" variant="outline" onClick={() => regenerateRow("objectives")}>Objectives row</Button>
+                  <Button type="button" variant="outline" onClick={() => regenerateRow("presentation")}>Presentation row</Button>
+                  <Button type="button" variant="outline" onClick={() => regenerateRow("assessment")}>Assessment row</Button>
+                </div>
+              )}
             </div>
             <div className={`grid min-w-0 grid-cols-1 gap-3 ${planType === "weekly" ? "md:grid-cols-2 2xl:grid-cols-5" : ""}`}>
-              {displayedPlan.map((day, index) => (
+              {displayedPlan.map((day, index) => {
+                const durations = getActivityDurations(day, index);
+                const allocated = durations.presentation + durations.guidedPractice + durations.exitTicket;
+                return (
                 <div key={day.day} className="theme-dark-panel min-w-0 rounded-lg border border-cyan-300/15 bg-[#030d14]/70 p-3">
-                  <h3 className="mb-3 rounded-md border border-cyan-300/20 bg-cyan-500/10 px-3 py-2 text-center text-sm font-black text-cyan-100">{planType === "daily" ? "Daily Lesson" : day.day}</h3>
+                  <div className="mb-3 rounded-md border border-cyan-300/20 bg-cyan-500/10 px-3 py-2 text-center">
+                    <h3 className="text-sm font-black text-cyan-100">{planType === "daily" ? "Daily Lesson" : day.day}</h3>
+                    <p className="text-[11px] font-bold text-cyan-50/80">{allocated} min allocated</p>
+                    {canEditCurrent && <Button type="button" variant="ghost" className="mt-2 h-7 px-2 text-xs" onClick={() => regenerateDay(index)}><Sparkles size={13} /> Regenerate day</Button>}
+                  </div>
                   <div className="space-y-2">
-                    <Field label="Lesson"><Textarea className="min-h-16" value={day.lesson} onChange={(event) => updateWeeklyDay(index, "lesson", event.target.value)} /></Field>
-                    <Field label="Objectives"><Textarea className="min-h-20" value={day.objectives} onChange={(event) => updateWeeklyDay(index, "objectives", event.target.value)} /></Field>
-                    <Field label="Presentation"><Textarea className="min-h-20" value={day.presentation} onChange={(event) => updateWeeklyDay(index, "presentation", event.target.value)} /></Field>
+                    <WeeklyField label="Lesson" locked={Boolean(day.lockedFields?.lesson)} onRegenerate={() => regenerateCell(index, "lesson")} onToggleLock={() => toggleCellLock(index, "lesson")}>
+                      <Textarea className="min-h-16" value={day.lesson} onChange={(event) => updateWeeklyDay(index, "lesson", event.target.value)} />
+                    </WeeklyField>
+                    <WeeklyField label="Objectives" locked={Boolean(day.lockedFields?.objectives)} onRegenerate={() => regenerateCell(index, "objectives")} onToggleLock={() => toggleCellLock(index, "objectives")}>
+                      <Textarea className="min-h-20" value={day.objectives} onChange={(event) => updateWeeklyDay(index, "objectives", event.target.value)} />
+                    </WeeklyField>
+                    <WeeklyField label={`Presentation (${durations.presentation} min)`} locked={Boolean(day.lockedFields?.presentation)} onRegenerate={() => regenerateCell(index, "presentation")} onToggleLock={() => toggleCellLock(index, "presentation")}>
+                      <Textarea className="min-h-20" value={day.presentation} onChange={(event) => updateWeeklyDay(index, "presentation", event.target.value)} />
+                      <Input type="number" min="0" className="mt-1 h-8" value={durations.presentation} onChange={(event) => updateActivityDuration(index, "presentation", event.target.value)} />
+                    </WeeklyField>
                     <details>
                       <summary className="cursor-pointer rounded-md border border-cyan-300/15 px-3 py-2 text-xs font-bold text-cyan-100">More for this day</summary>
                       <div className="mt-2 space-y-2">
-                        <Field label="Guided Practice"><Textarea className="min-h-16" value={day.guidedPractice} onChange={(event) => updateWeeklyDay(index, "guidedPractice", event.target.value)} /></Field>
-                        <Field label="Exit Ticket"><Textarea className="min-h-16" value={day.exitTicket} onChange={(event) => updateWeeklyDay(index, "exitTicket", event.target.value)} /></Field>
-                        <Field label="Assessment"><Textarea className="min-h-16" value={day.assessment} onChange={(event) => updateWeeklyDay(index, "assessment", event.target.value)} /></Field>
-                        <Field label="Homework"><Textarea className="min-h-16" value={day.homework} onChange={(event) => updateWeeklyDay(index, "homework", event.target.value)} /></Field>
+                        <WeeklyField label={`Guided Practice (${durations.guidedPractice} min)`} locked={Boolean(day.lockedFields?.guidedPractice)} onRegenerate={() => regenerateCell(index, "guidedPractice")} onToggleLock={() => toggleCellLock(index, "guidedPractice")}>
+                          <Textarea className="min-h-16" value={day.guidedPractice} onChange={(event) => updateWeeklyDay(index, "guidedPractice", event.target.value)} />
+                          <Input type="number" min="0" className="mt-1 h-8" value={durations.guidedPractice} onChange={(event) => updateActivityDuration(index, "guidedPractice", event.target.value)} />
+                        </WeeklyField>
+                        <WeeklyField label={`Exit Ticket (${durations.exitTicket} min)`} locked={Boolean(day.lockedFields?.exitTicket)} onRegenerate={() => regenerateCell(index, "exitTicket")} onToggleLock={() => toggleCellLock(index, "exitTicket")}>
+                          <Textarea className="min-h-16" value={day.exitTicket} onChange={(event) => updateWeeklyDay(index, "exitTicket", event.target.value)} />
+                          <Input type="number" min="0" className="mt-1 h-8" value={durations.exitTicket} onChange={(event) => updateActivityDuration(index, "exitTicket", event.target.value)} />
+                        </WeeklyField>
+                        <WeeklyField label="Assessment" locked={Boolean(day.lockedFields?.assessment)} onRegenerate={() => regenerateCell(index, "assessment")} onToggleLock={() => toggleCellLock(index, "assessment")}>
+                          <Textarea className="min-h-16" value={day.assessment} onChange={(event) => updateWeeklyDay(index, "assessment", event.target.value)} />
+                        </WeeklyField>
+                        <WeeklyField label="Homework" locked={Boolean(day.lockedFields?.homework)} onRegenerate={() => regenerateCell(index, "homework")} onToggleLock={() => toggleCellLock(index, "homework")}>
+                          <Textarea className="min-h-16" value={day.homework} onChange={(event) => updateWeeklyDay(index, "homework", event.target.value)} />
+                        </WeeklyField>
                       </div>
                     </details>
                   </div>
                 </div>
-              ))}
+              );})}
             </div>
           </Card>
           </fieldset>
@@ -826,6 +935,33 @@ const Field = ({ label, children, error }: { label: string; children: React.Reac
   </div>
 );
 
+const WeeklyField = ({
+  label,
+  locked,
+  onRegenerate,
+  onToggleLock,
+  children
+}: {
+  label: string;
+  locked: boolean;
+  onRegenerate: () => void;
+  onToggleLock: () => void;
+  children: React.ReactNode;
+}) => (
+  <div className="min-w-0 space-y-1">
+    <div className="flex items-center justify-between gap-2">
+      <Label>{label}</Label>
+      <div className="flex gap-1">
+        <Button type="button" variant="ghost" className="h-7 px-2 text-[11px]" onClick={onRegenerate} disabled={locked}>Restore suggestion</Button>
+        <Button type="button" variant="ghost" className="h-7 px-2 text-[11px]" onClick={onToggleLock}>{locked ? "Unlock" : "Lock"}</Button>
+      </div>
+    </div>
+    {children}
+  </div>
+);
+
+const rowLabel = (key: WeeklyEditableKey) => key.replace(/([A-Z])/g, " $1").toLowerCase();
+
 const statusLabel = (status: LessonPlan["status"]) => ({
   draft: "Draft",
   submitted: "Submitted",
@@ -853,12 +989,12 @@ const getTeacherFeedback = (lesson: LessonPlan) => {
 const PrintPreview = ({ lesson, zoom }: { lesson: LessonPlan; zoom: number }) => {
   const viewportZoom = typeof window === "undefined" ? zoom : Math.min(zoom, Math.max(0.22, (window.innerWidth - 48) / 1123));
   const width = `${297 * viewportZoom}mm`;
-  const height = `${210 * viewportZoom}mm`;
+  const minHeight = `${210 * viewportZoom}mm`;
   const style = { "--preview-scale": viewportZoom } as CSSProperties;
 
   return (
     <div className="max-h-[72dvh] max-w-full overflow-auto rounded-lg border border-cyan-300/15 bg-slate-950/70 p-2 sm:p-3">
-      <div style={{ width, height }} className="mx-auto">
+      <div style={{ width, minHeight }} className="mx-auto">
         <div className="origin-top-left scale-[var(--preview-scale)]" style={style}>
           <LessonPrint lesson={lesson} />
         </div>

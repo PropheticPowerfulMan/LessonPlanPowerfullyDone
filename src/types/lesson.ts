@@ -69,6 +69,12 @@ export interface WeeklyPlanDay {
   exitTicket: string;
   assessment: string;
   homework: string;
+  activityDurations?: {
+    presentation?: number;
+    guidedPractice?: number;
+    exitTicket?: number;
+  };
+  lockedFields?: Partial<Record<keyof Omit<WeeklyPlanDay, "day" | "activityDurations" | "lockedFields">, boolean>>;
 }
 
 export interface BloomQuestions {
