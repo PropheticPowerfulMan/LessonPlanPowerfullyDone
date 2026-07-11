@@ -20,7 +20,54 @@ export const stageNames: LessonStageName[] = [
 ];
 
 export const weeklyDayNames: WeeklyDayName[] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
-export const flexibleFocusLabels = ["Introduction", "Guided practice", "Skill development", "Application", "Review and assessment"];
+
+const weeklyFocusBlueprints = [
+  {
+    focus: "Concept discovery",
+    objective: "identify and describe",
+    presentation: "Activate prior knowledge, define the central concept, and model one clear example linked to",
+    practice: "Learners annotate examples, explain their first observations, and correct misconceptions with teacher support.",
+    exit: "Learners state the key idea in their own words and solve one introductory item.",
+    assessment: "Teacher listens for accurate vocabulary, checks notebooks, and notes learners who need reteaching.",
+    homework: "Write three examples and one question connected to"
+  },
+  {
+    focus: "Guided analysis",
+    objective: "classify, compare, and explain",
+    presentation: "Use worked examples to compare important features, ask probing questions, and connect evidence to",
+    practice: "Learners sort examples, justify answers with a partner, and revise weak explanations.",
+    exit: "Learners classify two new examples and explain the reason for each choice.",
+    assessment: "Teacher checks reasoning, partner discussion, and accuracy during guided tasks.",
+    homework: "Complete a short classification exercise based on"
+  },
+  {
+    focus: "Skill development",
+    objective: "construct, solve, and apply",
+    presentation: "Demonstrate a step-by-step method, think aloud through common errors, and link the process to",
+    practice: "Learners complete scaffolded tasks, then attempt similar items with reduced support.",
+    exit: "Learners complete one independent task that shows they can use the method correctly.",
+    assessment: "Teacher marks sample responses and records errors that should shape the next lesson.",
+    homework: "Practise five items that require the method learned in"
+  },
+  {
+    focus: "Independent application",
+    objective: "apply, justify, and create",
+    presentation: "Present a real or extended task, review success criteria, and show how strong responses use",
+    practice: "Learners work independently or in pairs to create, solve, or defend a response using the week's concepts.",
+    exit: "Learners submit one improved response with a short justification.",
+    assessment: "Teacher reviews independence, quality of explanation, and correct transfer of learning.",
+    homework: "Prepare one original example or solution connected to"
+  },
+  {
+    focus: "Review and assessment",
+    objective: "evaluate, correct, and demonstrate mastery of",
+    presentation: "Review the week's learning path, address common errors, and connect the main concepts from",
+    practice: "Learners complete a mixed review, correct mistakes, and explain the strategies they used.",
+    exit: "Learners complete a brief assessment or reflection showing what they have mastered.",
+    assessment: "Teacher uses the review or quiz to identify mastery, partial understanding, and follow-up needs.",
+    homework: "Revise the week's notes and complete a final review task on"
+  }
+];
 
 export const emptyItem = (value = ""): RepeatableItem => ({ id: uid("item"), value });
 
@@ -40,17 +87,33 @@ export const createFlexibleWeeklyPlan = (subject = "", gradeClass = "", chapter 
   const subjectLabel = subject || "the subject";
   const gradeLabel = gradeClass || "the class";
   const chapterLabel = chapter || "the selected unit";
+  const concepts = splitConcepts(chapterLabel);
 
-  return weeklyDayNames.map((day, index) => ({
-    day,
-    lesson: `${chapterLabel} - ${flexibleFocusLabels[index]}`,
-    objectives: `By the end of the lesson, learners in ${gradeLabel} should be able to understand and apply the key ideas from ${chapterLabel}.`,
-    presentation: `Introduce the ${subjectLabel} focus with clear examples, guided questioning, and short teacher modelling.`,
-    guidedPractice: "Learners practise with teacher support, compare answers, and correct misconceptions.",
-    exitTicket: "Learners complete one short task that proves understanding of the day's objective.",
-    assessment: "Teacher checks oral responses, written work, participation, and accuracy during practice.",
-    homework: `Complete a short exercise connected to ${chapterLabel} and prepare one example for the next lesson.`
-  }));
+  return weeklyDayNames.map((day, index) => {
+    const blueprint = weeklyFocusBlueprints[index];
+    const concept = concepts[index] || concepts[concepts.length - 1] || chapterLabel;
+    const nextConcept = concepts[index + 1] || chapterLabel;
+
+    return {
+      day,
+      lesson: `${concept} - ${blueprint.focus}`,
+      objectives: `By the end of the lesson, learners in ${gradeLabel} should be able to ${blueprint.objective} ${concept} in ${subjectLabel}.`,
+      presentation: `${blueprint.presentation} ${concept}.`,
+      guidedPractice: blueprint.practice,
+      exitTicket: blueprint.exit,
+      assessment: blueprint.assessment,
+      homework: `${blueprint.homework} ${index < weeklyDayNames.length - 1 ? nextConcept : chapterLabel}.`
+    };
+  });
+};
+
+const splitConcepts = (value: string) => {
+  const parts = value
+    .split(/\s*(?:\/|,|;|\band\b|\&|\+)\s*/i)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  return parts.length ? parts : [value];
 };
 
 export const isAutoGeneratedWeeklyPlan = (weeklyPlan?: Partial<WeeklyPlanDay>[], subject = "", gradeClass = "", chapter = "") => {

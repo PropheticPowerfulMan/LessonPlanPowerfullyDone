@@ -202,7 +202,7 @@ export const Editor = () => {
     let changed = false;
 
     const nextPlan = currentPlan.map((day, index) => {
-      const autoObjective = createDailyObjective(day.lesson, current.subject, current.gradeClass);
+      const autoObjective = createDailyObjective(day.lesson, current.subject, current.gradeClass, index);
       const previousAutoObjective = previousAutoObjectivesRef.current[index];
       const currentObjective = day.objectives || "";
       const objectiveCanSync =
@@ -766,12 +766,20 @@ const toIsoDate = (date: Date) => {
   return `${year}-${month}-${day}`;
 };
 
-const createDailyObjective = (lessonTitle = "", subject = "", gradeClass = "") => {
+const createDailyObjective = (lessonTitle = "", subject = "", gradeClass = "", dayIndex = 0) => {
   const lesson = lessonTitle.trim() || "the lesson";
   const subjectLabel = subject.trim() || "the subject";
   const gradeLabel = gradeClass.trim() || "the class";
+  const actionTurns = [
+    "identify, describe, and explain",
+    "classify, compare, and justify",
+    "construct, solve, and apply",
+    "apply, defend, and create",
+    "evaluate, correct, and demonstrate mastery of"
+  ];
+  const actions = actionTurns[dayIndex % actionTurns.length];
 
-  return `By the end of the lesson, learners in ${gradeLabel} should be able to explain, practise, and apply ${lesson} in ${subjectLabel}.`;
+  return `By the end of the lesson, learners in ${gradeLabel} should be able to ${actions} ${lesson} in ${subjectLabel}.`;
 };
 
 const isGenericObjective = (objective: string, gradeClass = "", chapter = "") => {
