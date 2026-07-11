@@ -476,9 +476,9 @@ export const Editor = () => {
         </Card>
       )}
       {(qualityWarnings.length > 0 || durationWarnings.length > 0) && (
-        <Card className="border-amber-400/35 bg-amber-500/10 p-4">
-          <p className="text-xs font-black uppercase text-amber-100">Weekly plan quality checks</p>
-          <div className="mt-2 grid gap-2 text-sm text-amber-50 md:grid-cols-2">
+        <Card className="border-amber-500/45 bg-amber-100/80 p-4 dark:border-amber-400/35 dark:bg-amber-500/10">
+          <p className="text-xs font-black uppercase text-amber-950 dark:text-amber-100">Weekly plan quality checks</p>
+          <div className="mt-2 grid gap-2 text-sm font-semibold text-amber-900 dark:text-amber-50 md:grid-cols-2">
             {qualityWarnings.map((warning) => <p key={warning.id}>{warning.message}</p>)}
             {durationWarnings.map((warning) => <p key={warning.id}>{warning.message}</p>)}
           </div>
