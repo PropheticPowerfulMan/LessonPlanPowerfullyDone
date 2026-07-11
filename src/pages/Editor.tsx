@@ -26,7 +26,7 @@ import { curriculumRepository, findCurriculumSuggestions } from "../services/cur
 import { lessonRepository } from "../services/lessonRepository";
 import { canDeleteLesson, canEditLesson, canReviewLesson, canViewLesson, prepareNewLessonForUser } from "../services/permissions";
 import { analyzeWeeklyPlanQuality } from "../services/contentQualityService";
-import { analyzeDurationAllocation, getActivityDurations } from "../services/durationValidationService";
+import { analyzeDurationAllocation, distributeActivityDurations, getActivityDurations, parseMinutes } from "../services/durationValidationService";
 import { createSuggestedWeeklyDay, createVariedWeeklyPlan } from "../services/lessonContentVariationService";
 import { LessonPlan, WeeklyPlanDay } from "../types/lesson";
 import { exportElementToDocx, exportElementToPdf } from "../utils/export";
@@ -399,8 +399,33 @@ export const Editor = () => {
     form.setValue("weeklyPlan", next, { shouldDirty: true, shouldValidate: false });
   };
 
+  const updateLessonDuration = (value: string) => {
+    if (!canEditCurrent) return;
+    const totalMinutes = parseMinutes(value);
+    const current = form.getValues();
+    const next = normalizeEditableWeeklyPlan(current.weeklyPlan, current.subject, current.gradeClass, sanitizeChapter(current.chapter));
+    form.setValue("duration", value, {
+      shouldDirty: true,
+      shouldValidate: false
+    });
+
+    if (!totalMinutes) return;
+
+    form.setValue("weeklyPlan", next.map((day, index) => ({
+      ...day,
+      activityDurations: distributeActivityDurations(totalMinutes, day, index)
+    })), {
+      shouldDirty: true,
+      shouldValidate: false
+    });
+  };
+
   const updateSetupField = (field: SetupField, value: string) => {
     if (!canEditCurrent) return;
+    if (field === "duration") {
+      updateLessonDuration(value);
+      return;
+    }
     if (field === "weekStartDate") {
       form.setValue("weekEndDate", addBusinessWeekEnd(value), {
         shouldDirty: true,
@@ -524,6 +549,7 @@ export const Editor = () => {
               </div>}
               <Field label="Duration">
                 <Select value={values.duration || "45 min"} onChange={(event) => updateSetupField("duration", event.target.value)}>
+                  {values.duration && !durationOptions.includes(values.duration) && <option value={values.duration}>{values.duration}</option>}
                   {durationOptions.map((duration) => <option key={duration} value={duration}>{duration}</option>)}
                 </Select>
               </Field>
@@ -612,11 +638,23 @@ export const Editor = () => {
               {displayedPlan.map((day, index) => {
                 const durations = getActivityDurations(day, index);
                 const allocated = durations.presentation + durations.guidedPractice + durations.exitTicket;
+                const lessonDuration = parseMinutes(values.duration) || allocated;
                 return (
                 <div key={day.day} className="theme-dark-panel min-w-0 rounded-lg border border-cyan-300/15 bg-[#030d14]/70 p-3">
                   <div className="mb-3 rounded-md border border-cyan-300/20 bg-cyan-500/10 px-3 py-2 text-center">
                     <h3 className="text-sm font-black text-cyan-100">{planType === "daily" ? "Daily Lesson" : day.day}</h3>
-                    <p className="text-[11px] font-bold text-cyan-50/80">{allocated} min allocated</p>
+                    <div className="mx-auto mt-2 flex max-w-[11rem] items-center justify-center gap-2">
+                      <Input
+                        type="number"
+                        min="1"
+                        className="h-8 text-center"
+                        value={lessonDuration}
+                        onChange={(event) => updateLessonDuration(`${Math.max(1, Number(event.target.value) || 1)} min`)}
+                        aria-label={`${planType === "daily" ? "Daily lesson" : day.day} duration`}
+                      />
+                      <span className="text-[11px] font-bold text-cyan-50/80">min</span>
+                    </div>
+                    <p className="mt-1 text-[11px] font-bold text-cyan-50/70">{allocated} min in activities</p>
                     {canEditCurrent && <Button type="button" variant="ghost" className="mt-2 h-7 px-2 text-xs" onClick={() => regenerateDay(index)}><Sparkles size={13} /> Regenerate day</Button>}
                   </div>
                   <div className="space-y-2">

@@ -15,6 +15,22 @@ export const getActivityDurations = (day: WeeklyPlanDay, index: number) => {
   };
 };
 
+export const distributeActivityDurations = (totalMinutes: number, day: WeeklyPlanDay, index: number) => {
+  const current = getActivityDurations(day, index);
+  const currentTotal = current.presentation + current.guidedPractice + current.exitTicket;
+  const source = currentTotal > 0 ? current : getProgressionDay(index).defaultDurations;
+  const sourceTotal = source.presentation + source.guidedPractice + source.exitTicket || 1;
+  const presentation = Math.max(0, Math.round((totalMinutes * source.presentation) / sourceTotal));
+  const guidedPractice = Math.max(0, Math.round((totalMinutes * source.guidedPractice) / sourceTotal));
+  const exitTicket = Math.max(0, totalMinutes - presentation - guidedPractice);
+
+  return {
+    presentation,
+    guidedPractice,
+    exitTicket
+  };
+};
+
 export const analyzeDurationAllocation = (lesson: LessonPlan): DurationWarning[] => {
   const stated = parseMinutes(lesson.duration);
   if (!stated) return [];
@@ -30,7 +46,7 @@ export const analyzeDurationAllocation = (lesson: LessonPlan): DurationWarning[]
   }).filter(Boolean) as DurationWarning[];
 };
 
-const parseMinutes = (value?: string) => {
+export const parseMinutes = (value?: string) => {
   if (!value) return 0;
   const text = value.toLowerCase().replace(/\s+/g, "");
   const hourMatch = text.match(/^(\d+)h(?:(\d+))?$/);
