@@ -519,41 +519,7 @@ export const Editor = () => {
 
           <Card className="w-full max-w-full overflow-hidden p-3 sm:p-4">
             <div className="mb-4">
-              <h2 className="text-lg font-black text-white">2. Print notes and support</h2>
-              <p className="text-sm text-muted-foreground">These fields are editable and appear in the final document.</p>
-            </div>
-            <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-              <Field label="Learning Objectives">
-                <Textarea
-                  className="min-h-28"
-                  value={values.learningObjectives?.map((item) => item.value).join("\n") || ""}
-                  onChange={(e) => form.setValue("learningObjectives", textToItems(e.target.value, "objective"), { shouldDirty: true })}
-                />
-              </Field>
-              <Field label="Key Vocabulary">
-                <Textarea
-                  className="min-h-28"
-                  value={values.vocabulary?.map((item) => item.value).join("; ") || ""}
-                  onChange={(e) => form.setValue("vocabulary", [{ id: "vocabulary", value: e.target.value }], { shouldDirty: true })}
-                />
-              </Field>
-              <Field label="Materials / Resources">
-                <Textarea
-                  className="min-h-28"
-                  value={values.materialsResources?.map((item) => item.value).join("; ") || ""}
-                  onChange={(e) => form.setValue("materialsResources", [{ id: "materials", value: e.target.value }], { shouldDirty: true })}
-                />
-              </Field>
-              <Field label="References"><Textarea className="min-h-24" {...form.register("referenceBook")} /></Field>
-              <Field label="Differentiation"><Textarea className="min-h-24" {...form.register("differentiation.inclusiveStrategies")} /></Field>
-              <Field label="Assessment Notes"><Textarea className="min-h-24" {...form.register("assessment.teacherComments")} /></Field>
-              <Field label="Reflection"><Textarea className="min-h-24" {...form.register("reflection.teacherNotes")} /></Field>
-            </div>
-          </Card>
-
-          <Card className="w-full max-w-full overflow-hidden p-3 sm:p-4">
-            <div className="mb-4">
-              <h2 className="text-lg font-black text-white">3. {planType === "daily" ? "Daily lesson" : "Weekly grid"}</h2>
+              <h2 className="text-lg font-black text-white">2. {planType === "daily" ? "Daily lesson" : "Weekly grid"}</h2>
               <p className="text-sm text-muted-foreground">{planType === "daily" ? "Edit the single lesson for the selected date." : "Use Generate week first, then edit only the parts that need teacher judgement."}</p>
             </div>
             <div className={`grid min-w-0 grid-cols-1 gap-3 ${planType === "weekly" ? "md:grid-cols-2 2xl:grid-cols-5" : ""}`}>
@@ -834,11 +800,6 @@ const mergeFilled = <T extends Record<string, string>>(base: T, overrides: Parti
   return next;
 };
 
-const textToItems = (text: string, prefix: string) => {
-  const lines = text.split(/\r?\n/).map((value) => value.trim()).filter(Boolean);
-  return (lines.length ? lines : [""]).map((value, index) => ({ id: `${prefix}-${index + 1}`, value }));
-};
-
 const LockedSchool = () => (
   <div className="space-y-1">
     <Label>School</Label>
@@ -882,10 +843,9 @@ const getTeacherFeedback = (lesson: LessonPlan) => {
 };
 
 const PrintPreview = ({ lesson, zoom }: { lesson: LessonPlan; zoom: number }) => {
-  const pageCount = estimatePrintPageCount(lesson);
   const viewportZoom = typeof window === "undefined" ? zoom : Math.min(zoom, Math.max(0.22, (window.innerWidth - 48) / 1123));
   const width = `${297 * viewportZoom}mm`;
-  const height = `${210 * pageCount * viewportZoom}mm`;
+  const height = `${210 * viewportZoom}mm`;
   const style = { "--preview-scale": viewportZoom } as CSSProperties;
 
   return (
@@ -897,16 +857,4 @@ const PrintPreview = ({ lesson, zoom }: { lesson: LessonPlan; zoom: number }) =>
       </div>
     </div>
   );
-};
-
-const estimatePrintPageCount = (lesson: LessonPlan) => {
-  const notesLength = [
-    lesson.learningObjectives,
-    lesson.learningOutcomes,
-    lesson.successCriteria,
-    lesson.vocabulary,
-    lesson.materialsResources
-  ].flatMap((items) => items?.map((item) => item.value) || []).join(" ").length;
-  const supportLength = [lesson.referenceBook, ...Object.values(lesson.differentiation || {}), ...Object.values(lesson.assessment || {}), ...Object.values(lesson.reflection || {})].join(" ").length;
-  return notesLength + supportLength > 700 ? 2 : 1;
 };

@@ -227,11 +227,12 @@ select option {
 
 .print-page {
   width: 297mm;
-  min-height: 210mm;
+  height: 210mm;
   box-sizing: border-box;
   background: white;
   color: #111827;
   position: relative;
+  overflow: hidden;
 }
 
 @media print {
