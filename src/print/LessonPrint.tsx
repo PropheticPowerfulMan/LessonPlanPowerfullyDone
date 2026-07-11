@@ -53,16 +53,16 @@ const PrintPage = ({
   <section className={`print-page print-density-${density} mx-auto flex flex-col bg-white p-[5mm] font-serif text-black shadow-fluent`}>
     <Watermark status={lesson.status} />
     <header className="print-header relative rounded-sm border border-slate-300">
-      <div className="grid grid-cols-[58px_1fr_90px] items-center gap-2 border-b-2 border-slate-800 bg-slate-50 px-2.5 py-1.5 text-slate-950">
-        <span className="grid h-[54px] w-[54px] place-items-center rounded-sm border border-slate-300 bg-white p-1">
+      <div className="grid grid-cols-[48px_1fr_86px] items-center gap-2 border-b-2 border-slate-800 bg-slate-50 px-2 py-1 text-slate-950">
+        <span className="grid h-[44px] w-[44px] place-items-center rounded-sm border border-slate-300 bg-white p-1">
           <img src={schoolImage} alt="KCS logo" className="h-full w-full object-contain" />
         </span>
         <div className="min-w-0 text-center">
-          <p className="break-words text-[9px] font-black uppercase leading-tight tracking-wide text-slate-800">{safeText(lesson.schoolName, schoolDisplayName)}</p>
-          <h1 className="break-words text-[13.5px] font-black uppercase leading-tight tracking-wide text-slate-950">{safeText(lesson.topic, lesson.planType === "daily" ? "Daily Lesson Plan" : "Weekly Lesson Plan")}</h1>
-          <p className="break-words text-[8.5px] font-black uppercase leading-tight tracking-wide text-slate-700">{pageTitle}</p>
+          <p className="break-words text-[8.2px] font-black uppercase leading-tight tracking-wide text-slate-800">{safeText(lesson.schoolName, schoolDisplayName)}</p>
+          <h1 className="break-words text-[12.4px] font-black uppercase leading-tight tracking-wide text-slate-950">{safeText(lesson.topic, lesson.planType === "daily" ? "Daily Lesson Plan" : "Weekly Lesson Plan")}</h1>
+          <p className="break-words text-[7.8px] font-black uppercase leading-tight tracking-wide text-slate-700">{pageTitle}</p>
         </div>
-        <div className="rounded-sm border border-slate-300 bg-white p-1 text-right text-[7.6px] font-black leading-tight text-slate-900">
+        <div className="rounded-sm border border-slate-300 bg-white p-1 text-right text-[6.8px] font-black leading-tight text-slate-900">
           <p>Page 1/1</p>
           <p>{lesson.planType === "daily" ? safeText(lesson.date, "Daily") : formatWeek(lesson.week)}</p>
           {lesson.planType === "weekly" && <p className="text-[6.7px]">{formatWeekRange(lesson)}</p>}
@@ -77,7 +77,7 @@ const PrintPage = ({
       </p>
     )}
 
-    <main className="relative mt-2 flex min-h-0 flex-1 flex-col">{children}</main>
+    <main className="relative mt-1.5 flex min-h-0 flex-1 flex-col">{children}</main>
     <footer className="mt-1 flex justify-between border-t border-slate-200 pt-1 text-[7.2px] font-semibold uppercase tracking-wide text-slate-500">
       <span>KCS Lesson Planner</span>
       <span>Generated on {generatedAt}</span>
@@ -87,7 +87,7 @@ const PrintPage = ({
 );
 
 const LessonTable = ({ rows, weeklyPlan, isDaily }: { rows: [RowKey, string][]; weeklyPlan: WeeklyPlanDay[]; isDaily: boolean }) => (
-  <table className="h-full w-full table-fixed border-collapse border border-slate-400 text-[7.9px] leading-[1.12]">
+  <table className="lesson-table min-h-0 w-full flex-1 table-fixed border-collapse border border-slate-400 text-[7.9px] leading-[1.12]">
     <thead>
       <tr className="h-[6mm]">
         <th className="w-[12%] border border-slate-400 bg-slate-100 px-1 text-center font-black uppercase text-slate-700">Section</th>
@@ -117,7 +117,7 @@ const LessonTable = ({ rows, weeklyPlan, isDaily }: { rows: [RowKey, string][]; 
 );
 
 const HeaderDetails = ({ lesson }: { lesson: LessonPlan }) => (
-  <table className="w-full table-fixed border-collapse text-[9.2px] leading-[1.18] text-slate-950">
+  <table className="print-meta-table w-full table-fixed border-collapse text-[7.2px] leading-none text-slate-950">
     <tbody>
       <tr>
         <Detail label="Teacher" value={lesson.teachers} />
@@ -126,17 +126,9 @@ const HeaderDetails = ({ lesson }: { lesson: LessonPlan }) => (
         <Detail label="Duration" value={lesson.duration} />
       </tr>
       <tr>
-        <Detail label="Chapter / Unit" value={lesson.chapter} colSpan={3} />
+        <Detail label="Unit" value={lesson.chapter} colSpan={2} />
         <Detail label={lesson.planType === "daily" ? "Plan" : "Week"} value={lesson.planType === "daily" ? "Daily" : formatWeek(lesson.week)} />
-      </tr>
-      <tr>
-        {lesson.planType === "weekly" && <Detail label="Week Range" value={formatWeekRange(lesson)} colSpan={2} />}
-        <Detail label="Classroom" value={lesson.classroom} />
-      </tr>
-      <tr>
-        <Detail label="School Year" value={lesson.schoolYear} />
-        <Detail label="Lesson No." value={lesson.lessonNumber} />
-        <Detail label="Status" value={lesson.status} />
+        <Detail label="ID / Status" value={`${safeText(lesson.lessonNumber, lesson.id)} / ${safeText(lesson.status, "draft")}`} />
       </tr>
     </tbody>
   </table>
@@ -144,9 +136,9 @@ const HeaderDetails = ({ lesson }: { lesson: LessonPlan }) => (
 
 const Detail = ({ label, value, colSpan = 1 }: { label: string; value?: string; colSpan?: number }) => (
   <td className="border border-slate-500 p-0 align-top" colSpan={colSpan}>
-    <div className="grid min-h-[7mm] grid-cols-[22mm_minmax(0,1fr)]">
-      <span className="border-r border-slate-500 bg-slate-200 px-1.5 py-1 font-black uppercase text-slate-950">{label}</span>
-      <span className="break-words bg-white px-1.5 py-1 font-black text-slate-950">{safeText(value, "-")}</span>
+    <div className="grid min-h-[4.2mm] grid-cols-[15mm_minmax(0,1fr)]">
+      <span className="border-r border-slate-500 bg-slate-200 px-1 py-0.5 font-black uppercase text-slate-950">{label}</span>
+      <span className="break-words bg-white px-1 py-0.5 font-black text-slate-950">{safeText(value, "-")}</span>
     </div>
   </td>
 );

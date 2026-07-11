@@ -361,6 +361,7 @@ export const Editor = () => {
     const suggestion = createSuggestedWeeklyDay(current, index);
     next[index] = { ...next[index], [key]: suggestion[key] };
     form.setValue("weeklyPlan", next, { shouldDirty: true, shouldValidate: false });
+    notify(`${next[index].day} ${rowLabel(key)} restored`);
   };
 
   const regenerateRow = (key: WeeklyEditableKey) => {
@@ -952,7 +953,7 @@ const WeeklyField = ({
     <div className="flex items-center justify-between gap-2">
       <Label>{label}</Label>
       <div className="flex gap-1">
-        <Button type="button" variant="ghost" className="h-7 px-2 text-[11px]" onClick={onRegenerate} disabled={locked}>Restore suggestion</Button>
+        <Button type="button" variant="ghost" className="h-7 px-2 text-[11px]" onClick={onRegenerate}>Restore suggestion</Button>
         <Button type="button" variant="ghost" className="h-7 px-2 text-[11px]" onClick={onToggleLock}>{locked ? "Unlock" : "Lock"}</Button>
       </div>
     </div>
@@ -989,13 +990,13 @@ const getTeacherFeedback = (lesson: LessonPlan) => {
 const PrintPreview = ({ lesson, zoom }: { lesson: LessonPlan; zoom: number }) => {
   const viewportZoom = typeof window === "undefined" ? zoom : Math.min(zoom, Math.max(0.22, (window.innerWidth - 48) / 1123));
   const width = `${297 * viewportZoom}mm`;
-  const minHeight = `${210 * viewportZoom}mm`;
+  const height = `${210 * viewportZoom}mm`;
   const style = { "--preview-scale": viewportZoom } as CSSProperties;
 
   return (
     <div className="max-h-[72dvh] max-w-full overflow-auto rounded-lg border border-cyan-300/15 bg-slate-950/70 p-2 sm:p-3">
-      <div style={{ width, minHeight }} className="mx-auto">
-        <div className="origin-top-left scale-[var(--preview-scale)]" style={style}>
+      <div style={{ width, height }} className="mx-auto overflow-hidden">
+        <div className="origin-top-left scale-[var(--preview-scale)]" style={{ ...style, width: "297mm", height: "210mm" }}>
           <LessonPrint lesson={lesson} />
         </div>
       </div>

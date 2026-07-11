@@ -227,15 +227,23 @@ select option {
 
 .print-page {
   width: 297mm;
-  min-height: 210mm;
+  height: 210mm;
   box-sizing: border-box;
   background: white;
   color: #111827;
   position: relative;
-  overflow: visible;
+  overflow: hidden;
 }
 
 .print-page table {
+  height: auto;
+}
+
+.print-page .lesson-table {
+  height: 100%;
+}
+
+.print-page .print-meta-table {
   height: auto;
 }
 
@@ -243,25 +251,34 @@ select option {
 .print-page td,
 .print-page th {
   height: auto;
-  overflow: visible;
+  overflow: hidden;
   overflow-wrap: anywhere;
   word-break: normal;
   vertical-align: top;
 }
 
 .print-density-comfortable table {
-  font-size: 7.9px;
-  line-height: 1.14;
-}
-
-.print-density-compact table {
-  font-size: 7.5px;
+  font-size: 7.7px;
   line-height: 1.1;
 }
 
+.print-density-compact table {
+  font-size: 7.15px;
+  line-height: 1.05;
+}
+
 .print-density-ultra-compact table {
-  font-size: 7.1px;
-  line-height: 1.06;
+  font-size: 6.7px;
+  line-height: 1.02;
+}
+
+.print-density-compact .print-header,
+.print-density-ultra-compact .print-header {
+  font-size: 92%;
+}
+
+.print-density-ultra-compact .signature-block {
+  margin-top: 1.5mm;
 }
 
 @media print {
