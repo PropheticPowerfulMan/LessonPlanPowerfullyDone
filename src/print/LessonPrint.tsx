@@ -87,33 +87,35 @@ const PrintPage = ({
 );
 
 const LessonTable = ({ rows, weeklyPlan, isDaily }: { rows: [RowKey, string][]; weeklyPlan: WeeklyPlanDay[]; isDaily: boolean }) => (
-  <table className="lesson-table min-h-0 w-full flex-1 table-fixed border-collapse border border-slate-400 text-[7.9px] leading-[1.12]">
-    <thead>
-      <tr className="h-[6mm]">
-        <th className="w-[12%] border border-slate-400 bg-slate-100 px-1 text-center font-black uppercase text-slate-700">Section</th>
-        {weeklyPlan.map((day) => (
-          <th key={day.day} className="border border-slate-400 bg-cyan-50 px-1 text-center font-black uppercase text-slate-800">
-            {isDaily ? "Daily Lesson" : day.day}
-          </th>
-        ))}
-      </tr>
-    </thead>
-    <tbody>
-      {rows.map(([key, label]) => (
-        <tr key={key} className="align-top">
-          <th className="border border-slate-400 bg-slate-50 px-1 py-1 text-center font-black uppercase text-slate-700">{label}</th>
-          {weeklyPlan.map((day, index) => (
-            <td key={`${day.day}-${key}`} className="border border-slate-400 p-1 align-top">
-              <div className="whitespace-pre-line break-words">
-                <DurationBadge rowKey={key} day={day} index={index} />
-                {safeText(day[key])}
-              </div>
-            </td>
+  <div className="lesson-table-shell min-h-0 flex-1">
+    <table className="lesson-table h-full min-h-0 w-full table-fixed border-collapse border border-slate-400 text-[7.9px] leading-[1.12]">
+      <thead>
+        <tr>
+          <th className="w-[12%] border border-slate-400 bg-slate-100 px-1 py-1 text-center font-black uppercase leading-none text-slate-800">Section</th>
+          {weeklyPlan.map((day) => (
+            <th key={day.day} className="day-header border border-slate-400 bg-cyan-50 px-1 py-1 text-center font-black uppercase leading-none text-slate-950">
+              {isDaily ? "Daily Lesson" : day.day}
+            </th>
           ))}
         </tr>
-      ))}
-    </tbody>
-  </table>
+      </thead>
+      <tbody>
+        {rows.map(([key, label]) => (
+          <tr key={key} className="align-top">
+            <th className="row-label border border-slate-400 bg-slate-50 px-1 py-1 text-center font-black uppercase leading-tight text-slate-700">{label}</th>
+            {weeklyPlan.map((day, index) => (
+              <td key={`${day.day}-${key}`} className="border border-slate-400 p-1 align-top">
+                <div className="whitespace-pre-line break-words">
+                  <DurationBadge rowKey={key} day={day} index={index} />
+                  {safeText(day[key])}
+                </div>
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
 );
 
 const HeaderDetails = ({ lesson }: { lesson: LessonPlan }) => (
@@ -144,11 +146,11 @@ const Detail = ({ label, value, colSpan = 1 }: { label: string; value?: string; 
 );
 
 const Signatures = ({ lesson }: { lesson: LessonPlan }) => (
-  <div className="signature-block relative mt-3 grid grid-cols-[1fr_1fr_25mm] items-end gap-6 text-[8px] font-bold uppercase tracking-wide text-slate-700">
-    <div className="pt-7">
+  <div className="signature-block relative mt-1.5 grid grid-cols-[1fr_1fr_21mm] items-end gap-5 text-[7.4px] font-bold uppercase tracking-wide text-slate-700">
+    <div className="pt-4">
       <div className="border-t border-slate-500 pt-1">Teacher Signature / Date</div>
     </div>
-    <div className="pt-7">
+    <div className="pt-4">
       <div className="border-t border-slate-500 pt-1">Principal Signature / Date</div>
     </div>
     <QrCodeBox lesson={lesson} />
@@ -161,8 +163,8 @@ const QrCodeBox = ({ lesson }: { lesson: LessonPlan }) => {
 
   return (
     <div className="justify-self-end text-center">
-      <img src={qrUrl} alt="Lesson plan QR code" className="h-[21mm] w-[21mm] bg-white" crossOrigin="anonymous" />
-      <p className="mt-0.5 text-[5.8px] leading-tight text-slate-600">Scan to open the digital Lesson Plan</p>
+      <img src={qrUrl} alt="Lesson plan QR code" className="h-[18mm] w-[18mm] bg-white" crossOrigin="anonymous" />
+      <p className="mt-0.5 text-[5.2px] leading-none text-slate-600">Scan to open the digital Lesson Plan</p>
     </div>
   );
 };
@@ -171,7 +173,11 @@ const DurationBadge = ({ rowKey, day, index }: { rowKey: RowKey; day: WeeklyPlan
   if (!["presentation", "guidedPractice", "exitTicket"].includes(rowKey)) return null;
   const durations = getActivityDurations(day, index);
   const value = durations[rowKey as keyof typeof durations];
-  return <span className="mb-0.5 mr-1 inline-block rounded-sm border border-slate-300 bg-slate-100 px-1 text-[6.6px] font-black uppercase text-slate-700">{value} min</span>;
+  return (
+    <span className="duration-badge mb-0.5 mr-1 inline-block rounded-full border border-slate-300 bg-slate-100 font-black text-slate-700">
+      <span className="duration-badge-text">{value} min</span>
+    </span>
+  );
 };
 
 const Watermark = ({ status }: { status: LessonPlan["status"] }) => {

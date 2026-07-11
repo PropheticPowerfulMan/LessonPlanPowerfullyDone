@@ -239,8 +239,15 @@ select option {
   height: auto;
 }
 
+.print-page .lesson-table-shell {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .print-page .lesson-table {
   height: 100%;
+  min-height: 0;
 }
 
 .print-page .print-meta-table {
@@ -255,6 +262,46 @@ select option {
   overflow-wrap: anywhere;
   word-break: normal;
   vertical-align: top;
+}
+
+.print-page .lesson-table thead th {
+  height: 6.8mm;
+  min-height: 6.8mm;
+  overflow: visible;
+  white-space: nowrap;
+}
+
+.print-page .lesson-table .day-header {
+  letter-spacing: 0;
+}
+
+.print-page .lesson-table .row-label {
+  width: 12%;
+}
+
+.print-page .duration-badge {
+  position: relative;
+  width: 13.5mm;
+  height: 4.2mm;
+  white-space: nowrap;
+  overflow: visible;
+  font-size: 0;
+  line-height: 0;
+  letter-spacing: 0;
+  vertical-align: -0.6mm;
+}
+
+.print-page .duration-badge-text {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 18%;
+  display: block;
+  transform: translateY(-50%);
+  text-align: center;
+  font-size: 6.4px;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .print-density-comfortable table {
@@ -277,8 +324,19 @@ select option {
   font-size: 92%;
 }
 
+.print-density-compact .duration-badge,
+.print-density-ultra-compact .duration-badge {
+  width: 12.5mm;
+  height: 4mm;
+}
+
+.print-density-compact .duration-badge-text,
+.print-density-ultra-compact .duration-badge-text {
+  font-size: 5.9px;
+}
+
 .print-density-ultra-compact .signature-block {
-  margin-top: 1.5mm;
+  margin-top: 1mm;
 }
 
 @media print {
