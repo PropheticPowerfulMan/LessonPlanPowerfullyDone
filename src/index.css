@@ -293,11 +293,10 @@ select option {
 
 .print-page .duration-badge-text {
   position: absolute;
-  left: 18%;
-  right: auto;
-  top: 50%;
+  left: 0;
+  right: 0;
+  top: 18%;
   display: block;
-  width: 64%;
   transform: translateY(-50%);
   text-align: center;
   font-size: 6.4px;
