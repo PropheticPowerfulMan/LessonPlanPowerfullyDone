@@ -51,7 +51,7 @@ const PrintPage = ({
   children: React.ReactNode;
 }) => (
   <section className={`print-page print-density-${density} mx-auto flex flex-col bg-white p-[5mm] font-serif text-black shadow-fluent`}>
-    <Watermark status={lesson.status} />
+    <Watermark status={lesson.status} planType={lesson.planType} />
     <header className="print-header relative rounded-sm border border-slate-300">
       <div className="grid grid-cols-[48px_1fr_86px] items-center gap-2 border-b-2 border-slate-800 bg-slate-50 px-2 py-1 text-slate-950">
         <span className="grid h-[44px] w-[44px] place-items-center rounded-sm border border-slate-300 bg-white p-1">
@@ -180,7 +180,11 @@ const DurationBadge = ({ rowKey, day, index }: { rowKey: RowKey; day: WeeklyPlan
   );
 };
 
-const Watermark = ({ status }: { status: LessonPlan["status"] }) => {
+const Watermark = ({ status, planType }: { status: LessonPlan["status"]; planType: LessonPlan["planType"] }) => {
+  if (planType === "daily") {
+    return <img src={schoolImage} alt="" className="pointer-events-none absolute left-1/2 top-1/2 h-[360px] w-[360px] -translate-x-1/2 -translate-y-1/2 object-contain opacity-[0.035]" />;
+  }
+
   const label = status === "approved" || status === "final-approved" ? "Approved" : status === "submitted" ? "Submitted" : status === "under-review" ? "Under Review" : status === "draft" ? "Draft" : "";
   if (!label) {
     return <img src={schoolImage} alt="" className="pointer-events-none absolute left-1/2 top-1/2 h-[360px] w-[360px] -translate-x-1/2 -translate-y-1/2 object-contain opacity-[0.035]" />;

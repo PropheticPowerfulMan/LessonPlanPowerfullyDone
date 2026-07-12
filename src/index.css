@@ -295,7 +295,7 @@ select option {
   position: absolute;
   left: 0;
   right: 0;
-  top: 18%;
+  top: 50%;
   display: block;
   transform: translateY(-50%);
   text-align: center;
