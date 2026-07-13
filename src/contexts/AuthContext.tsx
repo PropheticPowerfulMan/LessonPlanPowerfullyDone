@@ -11,7 +11,9 @@ interface AuthContextValue {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (profile: SignUpProfileInput) => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<string | void>;
+  changePassword: (currentPassword: string, nextPassword: string) => Promise<void>;
+  setUserPassword: (id: string, nextPassword?: string) => Promise<string | void>;
   signOut: () => Promise<void>;
   updateProfile: (profile: UserProfile) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
@@ -76,7 +78,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       await cloudAuthService.resetPassword(email);
       return;
     }
-    mockAuthService.resetPassword(email);
+    return mockAuthService.resetPassword(email);
+  };
+
+  const changePassword = async (currentPassword: string, nextPassword: string) => {
+    if (cloudAuthService.enabled) {
+      await cloudAuthService.changePassword(currentPassword, nextPassword);
+      return;
+    }
+    if (!currentUser) throw new Error("A signed-in user is required.");
+    mockAuthService.changePassword(currentUser.id, currentPassword, nextPassword);
+  };
+
+  const setUserPassword = async (id: string, nextPassword?: string) => {
+    if (cloudAuthService.enabled) {
+      const user = users.find((item) => item.id === id);
+      if (!user) throw new Error("User profile not found.");
+      await cloudAuthService.resetPassword(user.email);
+      return;
+    }
+    return mockAuthService.setUserPassword(id, nextPassword);
   };
 
   const signOut = async () => {
@@ -112,6 +133,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       signIn,
       signUp,
       resetPassword,
+      changePassword,
+      setUserPassword,
       signOut,
       updateProfile,
       deleteUser,

@@ -88,8 +88,8 @@ export const Login = () => {
     setMessage("");
     setBusy(true);
     try {
-      await resetPassword(resetEmail);
-      setMessage(authMode === "cloud" ? "Password recovery email sent." : "Local demo mode cannot send email, but this account exists.");
+      const temporary = await resetPassword(resetEmail);
+      setMessage(authMode === "cloud" ? "Password recovery email sent. Open the email link, then set your new password here." : `Local recovery complete. Temporary password: ${temporary}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to start password recovery.");
     } finally {

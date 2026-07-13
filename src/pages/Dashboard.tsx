@@ -50,7 +50,9 @@ type DashboardContext = {
   currentUser: UserProfile;
   updateProfile: (profile: UserProfile) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<string | void>;
+  changePassword: (currentPassword: string, nextPassword: string) => Promise<void>;
+  setUserPassword: (id: string, nextPassword?: string) => Promise<string | void>;
   navigate: ReturnType<typeof useNavigate>;
   createLesson: ReturnType<typeof useLessons>["createLesson"];
   stats: ReturnType<typeof buildStats>;
@@ -65,7 +67,7 @@ const rejectedStatuses: LessonStatus[] = ["rejected", "revision-requested"];
 
 export const Dashboard = () => {
   const { imageUrl } = useApp();
-  const { currentUser, users, updateProfile, deleteUser, resetPassword } = useAuth();
+  const { currentUser, users, updateProfile, deleteUser, resetPassword, changePassword, setUserPassword } = useAuth();
   const { lessons, createLesson } = useLessons();
   const navigate = useNavigate();
   if (!currentUser) return null;
@@ -74,7 +76,7 @@ export const Dashboard = () => {
   const recentActivity = useMemo(() => buildRecentActivity(lessons), [lessons]);
   const upcoming = useMemo(() => buildUpcomingLessons(lessons), [lessons]);
   const calendar = useMemo(() => buildCalendar(new Date(), lessons), [lessons]);
-  const context: DashboardContext = { lessons, users, currentUser, updateProfile, deleteUser, resetPassword, navigate, createLesson, stats, recentActivity, upcoming, calendar };
+  const context: DashboardContext = { lessons, users, currentUser, updateProfile, deleteUser, resetPassword, changePassword, setUserPassword, navigate, createLesson, stats, recentActivity, upcoming, calendar };
 
   const roleTitle = currentUser.role === "head-of-department" ? "HOD Dashboard" : `${roleLabels[currentUser.role]} Dashboard`;
 
@@ -110,6 +112,8 @@ export const Dashboard = () => {
           </div>
         </div>
       </section>
+
+      <AccountSecurityPanel currentUser={currentUser} changePassword={changePassword} />
 
       {currentUser.role === "teacher" && <TeacherDashboard context={context} />}
       {currentUser.role === "head-of-department" && <HodDashboard context={context} />}
@@ -214,55 +218,133 @@ const PrincipalDashboard = ({ context }: { context: DashboardContext }) => {
   );
 };
 
+const AccountSecurityPanel = ({ currentUser, changePassword }: { currentUser: UserProfile; changePassword: (currentPassword: string, nextPassword: string) => Promise<void> }) => {
+  const [open, setOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [nextPassword, setNextPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [notice, setNotice] = useState("");
+
+  const submit = async () => {
+    setNotice("");
+    if (nextPassword.length < 6) {
+      setNotice("New password must contain at least 6 characters.");
+      return;
+    }
+    if (nextPassword !== confirmPassword) {
+      setNotice("The new password confirmation does not match.");
+      return;
+    }
+    try {
+      await changePassword(currentPassword, nextPassword);
+      setCurrentPassword("");
+      setNextPassword("");
+      setConfirmPassword("");
+      setOpen(false);
+      setNotice("Password changed successfully.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Unable to change password.");
+    }
+  };
+
+  return (
+    <Card className="p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-lg font-black text-white">My Account Security</h2>
+          <p className="text-sm text-muted-foreground">{currentUser.email} - change your own password whenever needed.</p>
+        </div>
+        <Button type="button" variant="outline" onClick={() => setOpen((value) => !value)}><RotateCcw size={16} /> Change password</Button>
+      </div>
+      {notice && <p className="mt-3 rounded-md border border-cyan-300/20 bg-cyan-500/10 px-3 py-2 text-sm font-bold text-cyan-50">{notice}</p>}
+      {open && (
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <Input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} placeholder="Current password" />
+          <Input type="password" value={nextPassword} onChange={(event) => setNextPassword(event.target.value)} placeholder="New password" />
+          <Input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Confirm new password" />
+          <div className="flex gap-2 md:col-span-3">
+            <Button type="button" onClick={submit}>Save new password</Button>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+};
+
 const AdministratorDashboard = ({ context }: { context: DashboardContext }) => {
-  const { lessons, users, stats, recentActivity, navigate, updateProfile, deleteUser, resetPassword } = context;
+  const { lessons, users, stats, recentActivity, navigate, updateProfile, deleteUser, resetPassword, setUserPassword } = context;
+  const [window, setWindow] = useState<"overview" | "users" | "security" | "system">("overview");
   const roles = Object.entries(groupCount(users, "role"));
   const storageKb = Math.max(1, Math.round(JSON.stringify({ lessons, users }).length / 1024));
-  const pendingUsers = users.filter((user) => user.status === "inactive");
 
   return (
     <>
-      <MetricGrid>
-        <Metric icon={Users} label="Users" value={users.length} tone="cyan" />
-        <Metric icon={ShieldCheck} label="Roles" value={roles.length} tone="violet" />
-        <Metric icon={Activity} label="System Activity" value={recentActivity.length} tone="amber" />
-        <Metric icon={Database} label="Data Overview" value={lessons.length} tone="emerald" />
-        <Metric icon={HardDrive} label="Storage Overview" value={`${storageKb} KB`} tone="slate" />
-      </MetricGrid>
-      <AdminUserManager users={users} currentUser={context.currentUser} updateProfile={updateProfile} deleteUser={deleteUser} resetPassword={resetPassword} />
-      <DashboardGrid>
-        <Panel title="Account Activation" icon={UserCheck}>
-          <CompactList
-            items={(pendingUsers.length ? pendingUsers : users.filter((user) => user.status === "active").slice(0, 5)).map((user) => ({
-              title: user.name,
-              detail: `${roleLabels[user.role]} - ${user.email} - ${user.status}`
-            }))}
-            empty="No user accounts."
-          />
-          <div className="mt-3 grid gap-2">
-            {pendingUsers.map((user) => (
-              <Button key={user.id} variant="secondary" onClick={() => updateProfile({ ...user, status: "active" })}>
-                <UserCheck size={16} /> Activate {user.name}
-              </Button>
-            ))}
-          </div>
-        </Panel>
-        <Panel title="Users & Roles" icon={Users}>
-          <CompactList items={roles.map(([role, count]) => ({ title: roleLabels[role as keyof typeof roleLabels], detail: `${count} active profile${count > 1 ? "s" : ""}` }))} />
-        </Panel>
-        <Panel title="System Activity" icon={Activity}><ActivityList items={recentActivity} /></Panel>
-        <Panel title="Data Overview" icon={Database}><ProgressStack stats={stats} /></Panel>
-        <Panel title="Configuration Shortcuts" icon={Settings}>
-          <ActionGrid
-            actions={[
-              { label: "Manage Plans", icon: FileText, onClick: () => navigate("/plans") },
-              { label: "Curriculum Data", icon: BookOpen, onClick: () => navigate("/curriculum") },
-              { label: "Approval Queue", icon: ClipboardCheck, onClick: () => navigate("/plans?status=submitted") },
-              { label: "Archive Review", icon: Archive, onClick: () => navigate("/plans?status=archived") }
-            ]}
-          />
-        </Panel>
-      </DashboardGrid>
+      <Card className="p-3 sm:p-4">
+        <div className="grid gap-2 sm:grid-cols-4">
+          {[
+            ["overview", "Overview", Database],
+            ["users", "Users", Users],
+            ["security", "Security", ShieldCheck],
+            ["system", "System", Settings]
+          ].map(([key, label, Icon]) => (
+            <button key={key as string} type="button" onClick={() => setWindow(key as typeof window)} className={`flex min-h-12 items-center justify-center gap-2 rounded-md border px-3 text-sm font-black ${window === key ? "border-cyan-200 bg-cyan-300/20 text-white" : "border-cyan-300/15 bg-white/[0.04] text-cyan-100 hover:bg-cyan-500/10"}`}>
+              <Icon size={16} /> {label as string}
+            </button>
+          ))}
+        </div>
+      </Card>
+
+      {window === "overview" && (
+        <>
+          <MetricGrid>
+            <Metric icon={Users} label="Users" value={users.length} tone="cyan" />
+            <Metric icon={ShieldCheck} label="Roles" value={roles.length} tone="violet" />
+            <Metric icon={Activity} label="System Activity" value={recentActivity.length} tone="amber" />
+            <Metric icon={Database} label="Lesson Data" value={lessons.length} tone="emerald" />
+            <Metric icon={HardDrive} label="Storage Overview" value={`${storageKb} KB`} tone="slate" />
+          </MetricGrid>
+          <DashboardGrid>
+            <Panel title="Users & Roles" icon={Users}>
+              <CompactList items={roles.map(([role, count]) => ({ title: roleLabels[role as keyof typeof roleLabels], detail: `${count} profile${count > 1 ? "s" : ""}` }))} />
+            </Panel>
+            <Panel title="Data Overview" icon={Database}><ProgressStack stats={stats} /></Panel>
+          </DashboardGrid>
+        </>
+      )}
+
+      {window === "users" && <AdminUserManager users={users} currentUser={context.currentUser} updateProfile={updateProfile} deleteUser={deleteUser} resetPassword={resetPassword} setUserPassword={setUserPassword} />}
+
+      {window === "security" && (
+        <DashboardGrid>
+          <PasswordRecoveryCenter users={users} resetPassword={resetPassword} setUserPassword={setUserPassword} />
+          <Panel title="Administrator Authority" icon={ShieldCheck}>
+            <CompactList
+              items={users.filter((user) => ["administrator", "principal", "vice-principal"].includes(user.role)).map((user) => ({
+                title: user.name,
+                detail: `${roleLabels[user.role]} - ${user.email} - ${user.status}`
+              }))}
+              empty="No authority profiles found."
+            />
+          </Panel>
+        </DashboardGrid>
+      )}
+
+      {window === "system" && (
+        <DashboardGrid>
+          <Panel title="System Activity" icon={Activity}><ActivityList items={recentActivity} /></Panel>
+          <Panel title="Configuration Shortcuts" icon={Settings}>
+            <ActionGrid
+              actions={[
+                { label: "Manage Plans", icon: FileText, onClick: () => navigate("/plans") },
+                { label: "Curriculum Data", icon: BookOpen, onClick: () => navigate("/curriculum") },
+                { label: "Approval Queue", icon: ClipboardCheck, onClick: () => navigate("/plans?status=submitted") },
+                { label: "Archive Review", icon: Archive, onClick: () => navigate("/plans?status=archived") }
+              ]}
+            />
+          </Panel>
+        </DashboardGrid>
+      )}
     </>
   );
 };
@@ -272,13 +354,15 @@ const AdminUserManager = ({
   currentUser,
   updateProfile,
   deleteUser,
-  resetPassword
+  resetPassword,
+  setUserPassword
 }: {
   users: UserProfile[];
   currentUser: UserProfile;
   updateProfile: (profile: UserProfile) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
-  resetPassword: (email: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<string | void>;
+  setUserPassword: (id: string, nextPassword?: string) => Promise<string | void>;
 }) => {
   const [query, setQuery] = useState("");
   const [editingId, setEditingId] = useState("");
@@ -310,8 +394,8 @@ const AdminUserManager = ({
   };
 
   const recover = async (user: UserProfile) => {
-    await resetPassword(user.email);
-    setNotice(`Password recovery started for ${user.email}.`);
+    const temporary = await setUserPassword(user.id);
+    setNotice(temporary ? `Temporary password for ${user.email}: ${temporary}` : `Recovery email sent to ${user.email}.`);
   };
 
   const remove = async (user: UserProfile) => {
@@ -385,6 +469,43 @@ const AdminUserManager = ({
         {filtered.length === 0 && <p className="py-8 text-sm text-muted-foreground">No users match this search.</p>}
       </div>
     </Card>
+  );
+};
+
+const PasswordRecoveryCenter = ({ users, resetPassword, setUserPassword }: { users: UserProfile[]; resetPassword: (email: string) => Promise<string | void>; setUserPassword: (id: string, nextPassword?: string) => Promise<string | void> }) => {
+  const [selectedId, setSelectedId] = useState(users[0]?.id || "");
+  const [customPassword, setCustomPassword] = useState("");
+  const [notice, setNotice] = useState("");
+  const selected = users.find((user) => user.id === selectedId) || users[0];
+
+  const sendRecovery = async () => {
+    if (!selected) return;
+    const temporary = await resetPassword(selected.email);
+    setNotice(temporary ? `Local recovery complete. Temporary password: ${temporary}` : `Recovery email sent to ${selected.email}.`);
+  };
+
+  const setTemporary = async () => {
+    if (!selected) return;
+    const temporary = await setUserPassword(selected.id, customPassword || undefined);
+    setNotice(temporary ? `Temporary password for ${selected.email}: ${temporary}` : `Recovery email sent to ${selected.email}.`);
+    setCustomPassword("");
+  };
+
+  return (
+    <Panel title="Password Recovery Center" icon={RotateCcw}>
+      <div className="space-y-3">
+        <p className="text-sm text-muted-foreground">Choose a user, then send a recovery email in cloud mode or set a temporary password in local mode.</p>
+        <Select value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
+          {users.map((user) => <option key={user.id} value={user.id}>{user.name} - {user.email}</option>)}
+        </Select>
+        <Input value={customPassword} onChange={(event) => setCustomPassword(event.target.value)} placeholder="Optional temporary password" />
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" onClick={sendRecovery}><RotateCcw size={16} /> Send recovery</Button>
+          <Button type="button" variant="outline" onClick={setTemporary}><RotateCcw size={16} /> Set temporary password</Button>
+        </div>
+        {notice && <p className="rounded-md border border-cyan-300/20 bg-cyan-500/10 px-3 py-2 text-sm font-bold text-cyan-50">{notice}</p>}
+      </div>
+    </Panel>
   );
 };
 

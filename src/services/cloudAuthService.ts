@@ -177,6 +177,21 @@ export const cloudAuthService = {
       body: JSON.stringify({ password })
     });
   },
+  async changePassword(currentPassword: string, nextPassword: string) {
+    const session = readSession();
+    if (!session) throw new Error("Please sign in again before changing your password.");
+    const profile = await this.getCurrentUser();
+    if (!profile) throw new Error("Current user profile was not found.");
+    await request<SupabaseSession>(authUrl("token?grant_type=password"), {
+      method: "POST",
+      body: JSON.stringify({ email: profile.email, password: currentPassword })
+    });
+    await request(authUrl("user"), {
+      method: "PUT",
+      headers: baseHeaders(session.accessToken),
+      body: JSON.stringify({ password: nextPassword })
+    });
+  },
   async signOut() {
     const session = readSession();
     clearSession();
