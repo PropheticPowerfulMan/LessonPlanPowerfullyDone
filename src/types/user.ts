@@ -2,6 +2,8 @@ export type UserRole = "administrator" | "principal" | "vice-principal" | "head-
 
 export type UserStatus = "active" | "inactive";
 
+export type AuthMode = "cloud" | "local";
+
 export interface UserProfile {
   id: string;
   name: string;
@@ -13,6 +15,16 @@ export interface UserProfile {
   status: UserStatus;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface SignUpProfileInput {
+  name: string;
+  email: string;
+  password: string;
+  role: UserRole;
+  department: string;
+  subjects: string[];
+  gradeClasses: string[];
 }
 
 export type Permission =

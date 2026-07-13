@@ -20,7 +20,8 @@ const ErrorPage = () => (
 );
 
 const ProtectedRoute = ({ children }: { children: ReactNode }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, loading } = useAuth();
+  if (loading) return <div className="grid min-h-screen place-items-center bg-background text-sm font-black text-foreground">Loading secure session...</div>;
   return currentUser?.status === "active" ? children : <Navigate to="/login" replace />;
 };
 

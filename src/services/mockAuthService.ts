@@ -1,4 +1,4 @@
-import { UserProfile } from "../types/user";
+import { SignUpProfileInput, UserProfile } from "../types/user";
 
 const currentUserKey = "powerful-lesson-planner:current-user-id";
 const usersKey = "powerful-lesson-planner:users";
@@ -88,6 +88,8 @@ const seedUsers = () => {
 
 const readCurrentUserId = () => localStorage.getItem(currentUserKey);
 
+const parseList = (items: string[]) => items.map((item) => item.trim()).filter(Boolean);
+
 export const mockAuthService = {
   demoPassword,
   listUsers() {
@@ -104,6 +106,32 @@ export const mockAuthService = {
     if (!user || password !== demoPassword) throw new Error("Invalid email or password");
     localStorage.setItem(currentUserKey, user.id);
     return user;
+  },
+  signUp(input: SignUpProfileInput) {
+    const users = readUsers();
+    if (users.some((user) => user.email.toLowerCase() === input.email.trim().toLowerCase())) {
+      throw new Error("An account already exists for this email.");
+    }
+    const now = new Date().toISOString();
+    const profile: UserProfile = {
+      id: crypto.randomUUID(),
+      name: input.name.trim(),
+      email: input.email.trim().toLowerCase(),
+      role: input.role,
+      department: input.department.trim() || (input.role === "teacher" ? "Teaching" : "Administration"),
+      subjects: parseList(input.subjects),
+      gradeClasses: parseList(input.gradeClasses),
+      status: "inactive",
+      createdAt: now,
+      updatedAt: now
+    };
+    localStorage.setItem(usersKey, JSON.stringify([profile, ...users]));
+    return profile;
+  },
+  resetPassword(email: string) {
+    if (!readUsers().some((user) => user.email.toLowerCase() === email.trim().toLowerCase())) {
+      throw new Error("No account found for this email.");
+    }
   },
   signOut() {
     localStorage.removeItem(currentUserKey);

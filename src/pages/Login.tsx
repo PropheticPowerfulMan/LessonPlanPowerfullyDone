@@ -1,43 +1,127 @@
 import { FormEvent, useMemo, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, UserRoundCheck } from "lucide-react";
+import { Eye, EyeOff, LockKeyhole, Mail, RotateCcw, ShieldCheck, UserPlus, UserRoundCheck } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Input, Select } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { useAuth } from "../contexts/AuthContext";
 import { schoolDisplayName, schoolImage } from "../data/defaults";
+import { cloudAuthService } from "../services/cloudAuthService";
 import { mockAuthService } from "../services/mockAuthService";
-import { roleLabels } from "../types/user";
+import { roleLabels, SignUpProfileInput, UserRole } from "../types/user";
+
+type AuthPanel = "signin" | "signup" | "reset" | "new-password";
+
+const departmentOptions = ["Administration", "Teaching", "English", "Mathematics", "Science", "Social Studies", "Bible", "French", "Arts", "Physical Education"];
+const subjectOptions = ["English", "English (Writing and Grammar)", "Mathematics", "Science", "Social Studies", "Bible", "French", "Art", "Music", "Physical Education", "Computer Science"];
+const gradeOptions = ["K3", "K4", "K5", ...Array.from({ length: 12 }, (_, index) => `Grade ${index + 1}`)];
+
+const emptySignup: SignUpProfileInput = {
+  name: "",
+  email: "",
+  password: "",
+  role: "teacher",
+  department: "",
+  subjects: [],
+  gradeClasses: []
+};
 
 export const Login = () => {
-  const { currentUser, users, signIn } = useAuth();
+  const { currentUser, users, authMode, loading, signIn, signUp, resetPassword } = useAuth();
   const navigate = useNavigate();
   const activeUsers = useMemo(() => users.filter((user) => user.status === "active"), [users]);
+  const pendingUsers = useMemo(() => users.filter((user) => user.status === "inactive"), [users]);
+  const recoveryToken = getRecoveryAccessToken();
+  const [panel, setPanel] = useState<AuthPanel>(recoveryToken ? "new-password" : "signin");
   const [email, setEmail] = useState(activeUsers[0]?.email || "");
-  const [password, setPassword] = useState(mockAuthService.demoPassword);
+  const [password, setPassword] = useState(authMode === "local" ? mockAuthService.demoPassword : "");
+  const [signup, setSignup] = useState(emptySignup);
+  const [resetEmail, setResetEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showSignupPassword, setShowSignupPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   if (currentUser) return <Navigate to="/" replace />;
 
   const selectedUser = activeUsers.find((user) => user.email === email);
 
-  const submit = (event: FormEvent) => {
+  const submitSignin = async (event: FormEvent) => {
     event.preventDefault();
     setError("");
+    setMessage("");
+    setBusy(true);
     try {
-      signIn(email, password);
+      await signIn(email, password);
       navigate("/", { replace: true });
-    } catch {
-      setError("Incorrect email or password.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Incorrect email or password.");
+    } finally {
+      setBusy(false);
     }
   };
+
+  const submitSignup = async (event: FormEvent) => {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+    setBusy(true);
+    try {
+      await signUp(signup);
+      setSignup(emptySignup);
+      setPanel("signin");
+      setMessage("Account created. A school authority must activate it before first login.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to create this account.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitReset = async (event: FormEvent) => {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+    setBusy(true);
+    try {
+      await resetPassword(resetEmail);
+      setMessage(authMode === "cloud" ? "Password recovery email sent." : "Local demo mode cannot send email, but this account exists.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to start password recovery.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const submitNewPassword = async (event: FormEvent) => {
+    event.preventDefault();
+    setError("");
+    setMessage("");
+    setBusy(true);
+    try {
+      if (!recoveryToken || authMode !== "cloud") throw new Error("Recovery link is missing or expired.");
+      await cloudAuthService.updatePasswordFromRecovery(recoveryToken, newPassword);
+      window.history.replaceState(null, "", `${import.meta.env.BASE_URL}login`);
+      setNewPassword("");
+      setPanel("signin");
+      setMessage("Password updated. You can sign in with your new password.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to update the password.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const patchSignup = <K extends keyof SignUpProfileInput>(key: K, value: SignUpProfileInput[K]) => setSignup((current) => ({ ...current, [key]: value }));
 
   return (
     <main className="login-edupay theme-dark-panel grid min-h-screen place-items-center overflow-hidden bg-[#030d14] px-4 py-8 text-[#e7faff]">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(20,184,222,0.20),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.14),transparent_30%),linear-gradient(180deg,#031b34_0%,#04141f_42%,#030d14_100%)]" />
-      <Card className="relative w-full max-w-lg overflow-hidden border-cyan-300/20 bg-[#071824]/95 p-0 text-[#e7faff]">
+      <Card className="relative w-full max-w-2xl overflow-hidden border-cyan-300/20 bg-[#071824]/95 p-0 text-[#e7faff]">
         <div className="border-b border-cyan-300/20 bg-slate-950 px-6 py-5 text-white sm:px-7">
           <div className="flex items-center gap-3">
             <span className="grid h-16 w-16 shrink-0 place-items-center rounded-md border border-cyan-200/40 bg-white p-1 shadow-sm">
@@ -45,65 +129,170 @@ export const Login = () => {
             </span>
             <div className="min-w-0">
               <p className="font-mono text-xs font-black uppercase tracking-[0.22em] text-cyan-200">EduPlanner KCS</p>
-              <h1 className="font-display truncate text-3xl font-bold text-white">Login</h1>
+              <h1 className="font-display truncate text-3xl font-bold text-white">Access Portal</h1>
               <p className="text-sm text-slate-300">{schoolDisplayName}</p>
             </div>
           </div>
-          <p className="mt-4 rounded-md border border-cyan-300/20 bg-white/[0.06] px-3 py-2 text-sm text-cyan-50">
-            Individual access for teachers, HODs, and school authorities.
-          </p>
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            <Tab active={panel === "signin"} onClick={() => setPanel("signin")}>Sign in</Tab>
+            <Tab active={panel === "signup"} onClick={() => setPanel("signup")}>Create account</Tab>
+            <Tab active={panel === "reset"} onClick={() => setPanel("reset")}>Password</Tab>
+          </div>
         </div>
 
-        <form className="space-y-4 p-6 sm:p-7" onSubmit={submit}>
-          <div className="space-y-1">
-            <Label className="font-mono text-cyan-50">User account</Label>
-            <div className="relative">
-              <span className="pointer-events-none absolute left-2.5 top-1/2 z-10 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-sm bg-cyan-300/10 text-[#9cecff] shadow-[0_0_12px_rgba(156,236,255,0.22)]">
-                <Mail size={16} strokeWidth={2.5} />
-              </span>
-              <Select className="border-cyan-300/20 bg-[#030d14]/85 pl-10 text-cyan-50" value={email} onChange={(event) => setEmail(event.target.value)}>
-                {activeUsers.map((user) => (
-                  <option key={user.id} value={user.email}>
-                    {user.name} - {roleLabels[user.role]}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          </div>
+        <div className="p-6 sm:p-7">
+          {loading && <p className="rounded-md border border-cyan-300/20 bg-cyan-500/10 px-3 py-2 text-sm font-bold text-cyan-50">Loading secure session...</p>}
+          {message && <p className="mb-4 rounded-md border border-emerald-300/30 bg-emerald-500/10 px-3 py-2 text-sm font-bold text-emerald-100">{message}</p>}
+          {error && <p className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-bold text-destructive">{error}</p>}
 
-          <div className="space-y-1">
-            <Label className="font-mono text-cyan-50">Password</Label>
-            <div className="relative">
-              <span className="pointer-events-none absolute left-2.5 top-1/2 z-10 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-sm bg-cyan-300/10 text-[#9cecff] shadow-[0_0_12px_rgba(156,236,255,0.22)]">
-                <LockKeyhole size={16} strokeWidth={2.5} />
-              </span>
-              <Input className="border-cyan-300/20 bg-[#030d14]/85 pl-10 pr-11 text-cyan-50" type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} />
-              <button
-                type="button"
-                className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-cyan-200 hover:bg-cyan-500/15 hover:text-white"
-                onClick={() => setShowPassword((value) => !value)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
-              </button>
-            </div>
-            <p className="text-xs text-cyan-100/80">Temporary local mode: demo password {mockAuthService.demoPassword}</p>
-          </div>
+          {panel === "signin" && (
+            <form className="space-y-4" onSubmit={submitSignin}>
+              <AuthField label="Email" icon={<Mail size={16} strokeWidth={2.5} />}>
+                {authMode === "local" ? (
+                  <Select className="border-cyan-300/20 bg-[#030d14]/85 pl-10 text-cyan-50" value={email} onChange={(event) => setEmail(event.target.value)}>
+                    {activeUsers.map((user) => (
+                      <option key={user.id} value={user.email}>{user.name} - {roleLabels[user.role]}</option>
+                    ))}
+                  </Select>
+                ) : (
+                  <Input required className="border-cyan-300/20 bg-[#030d14]/85 pl-10 text-cyan-50" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+                )}
+              </AuthField>
 
-          {selectedUser && (
-            <div className="rounded-md border border-cyan-300/20 bg-cyan-500/10 px-3 py-3 text-sm">
-              <p className="font-display flex items-center gap-2 font-bold text-cyan-50"><ShieldCheck size={16} /> {roleLabels[selectedUser.role]}</p>
-              <p className="mt-1 text-cyan-100/80">
-                {selectedUser.department} - {selectedUser.subjects.length ? selectedUser.subjects.join(", ") : "Institutional access"}
-              </p>
-            </div>
+              <AuthField label="Password" icon={<LockKeyhole size={16} strokeWidth={2.5} />}>
+                <Input required className="border-cyan-300/20 bg-[#030d14]/85 pl-10 pr-11 text-cyan-50" type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} />
+                <button type="button" className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-cyan-200 hover:bg-cyan-500/15 hover:text-white" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "Hide password" : "Show password"}>
+                  {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                </button>
+              </AuthField>
+
+              {authMode === "local" && <p className="text-xs text-cyan-100/80">Local fallback mode: demo password {mockAuthService.demoPassword}</p>}
+              {selectedUser && <AccountSummary user={selectedUser} />}
+              <Button className="w-full" type="submit" disabled={busy || loading}><UserRoundCheck size={18} /> Sign in</Button>
+            </form>
           )}
 
-          {error && <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-bold text-destructive">{error}</p>}
+          {panel === "signup" && (
+            <form className="grid grid-cols-1 gap-4 md:grid-cols-2" onSubmit={submitSignup}>
+              <Field label="Full name"><Input required value={signup.name} onChange={(event) => patchSignup("name", event.target.value)} /></Field>
+              <Field label="Email"><Input required type="email" value={signup.email} onChange={(event) => patchSignup("email", event.target.value)} /></Field>
+              <Field label="Password">
+                <div className="relative">
+                  <Input required minLength={6} className="pr-11" type={showSignupPassword ? "text" : "password"} value={signup.password} onChange={(event) => patchSignup("password", event.target.value)} />
+                  <button type="button" className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-cyan-200 hover:bg-cyan-500/15 hover:text-white" onClick={() => setShowSignupPassword((value) => !value)} aria-label={showSignupPassword ? "Hide password" : "Show password"}>
+                    {showSignupPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                  </button>
+                </div>
+              </Field>
+              <Field label="Role">
+                <Select value={signup.role} onChange={(event) => patchSignup("role", event.target.value as UserRole)}>
+                  {Object.entries(roleLabels).map(([role, label]) => <option key={role} value={role}>{label}</option>)}
+                </Select>
+              </Field>
+              <Field label="Department">
+                <Select value={signup.department} onChange={(event) => patchSignup("department", event.target.value)}>
+                  <option value="">Select department</option>
+                  {departmentOptions.map((department) => <option key={department} value={department}>{department}</option>)}
+                </Select>
+              </Field>
+              <ChoiceField label="Subjects" options={subjectOptions} values={signup.subjects} onChange={(subjects) => patchSignup("subjects", subjects)} />
+              <ChoiceField label="Grade classes" options={gradeOptions} values={signup.gradeClasses} onChange={(gradeClasses) => patchSignup("gradeClasses", gradeClasses)} />
+              <div className="flex items-end">
+                <Button className="w-full" type="submit" disabled={busy}><UserPlus size={18} /> Create account</Button>
+              </div>
+              <p className="md:col-span-2 text-sm text-cyan-100/80">New accounts start inactive. An administrator or authority activates the profile before access.</p>
+            </form>
+          )}
 
-          <Button className="w-full" type="submit"><UserRoundCheck size={18} /> Sign in</Button>
-        </form>
+          {panel === "reset" && (
+            <form className="space-y-4" onSubmit={submitReset}>
+              <AuthField label="Account email" icon={<Mail size={16} strokeWidth={2.5} />}>
+                <Input required className="border-cyan-300/20 bg-[#030d14]/85 pl-10 text-cyan-50" type="email" value={resetEmail} onChange={(event) => setResetEmail(event.target.value)} />
+              </AuthField>
+              <Button className="w-full" type="submit" disabled={busy}><RotateCcw size={18} /> Recover password</Button>
+            </form>
+          )}
+
+          {panel === "new-password" && (
+            <form className="space-y-4" onSubmit={submitNewPassword}>
+              <AuthField label="New password" icon={<LockKeyhole size={16} strokeWidth={2.5} />}>
+                <Input required minLength={6} className="border-cyan-300/20 bg-[#030d14]/85 pl-10 pr-11 text-cyan-50" type={showNewPassword ? "text" : "password"} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} />
+                <button type="button" className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-cyan-200 hover:bg-cyan-500/15 hover:text-white" onClick={() => setShowNewPassword((value) => !value)} aria-label={showNewPassword ? "Hide password" : "Show password"}>
+                  {showNewPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                </button>
+              </AuthField>
+              <Button className="w-full" type="submit" disabled={busy}><RotateCcw size={18} /> Set new password</Button>
+            </form>
+          )}
+
+          {pendingUsers.length > 0 && (
+            <p className="mt-5 rounded-md border border-amber-300/25 bg-amber-500/10 px-3 py-2 text-xs font-bold text-amber-100">
+              Pending activation: {pendingUsers.length} account{pendingUsers.length > 1 ? "s" : ""}.
+            </p>
+          )}
+        </div>
       </Card>
     </main>
   );
 };
+
+const getRecoveryAccessToken = () => {
+  if (typeof window === "undefined") return "";
+  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+  const query = new URLSearchParams(window.location.search);
+  return hash.get("access_token") || query.get("access_token") || "";
+};
+
+const Tab = ({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) => (
+  <button type="button" className={`rounded-md border px-3 py-2 text-sm font-black ${active ? "border-cyan-200 bg-cyan-300/20 text-white" : "border-cyan-300/15 bg-white/[0.04] text-cyan-100 hover:bg-cyan-500/15"}`} onClick={onClick}>
+    {children}
+  </button>
+);
+
+const AuthField = ({ label, icon, children }: { label: string; icon: React.ReactNode; children: React.ReactNode }) => (
+  <div className="space-y-1">
+    <Label className="font-mono text-cyan-50">{label}</Label>
+    <div className="relative">
+      <span className="pointer-events-none absolute left-2.5 top-1/2 z-10 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-sm bg-cyan-300/10 text-[#9cecff] shadow-[0_0_12px_rgba(156,236,255,0.22)]">
+        {icon}
+      </span>
+      {children}
+    </div>
+  </div>
+);
+
+const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <label className="space-y-1">
+    <span className="font-mono text-sm font-bold text-cyan-50">{label}</span>
+    {children}
+  </label>
+);
+
+const ChoiceField = ({ label, options, values, onChange }: { label: string; options: string[]; values: string[]; onChange: (values: string[]) => void }) => (
+  <div className="space-y-1 md:col-span-2">
+    <span className="font-mono text-sm font-bold text-cyan-50">{label}</span>
+    <div className="grid max-h-40 gap-2 overflow-auto rounded-md border border-cyan-300/20 bg-[#030d14]/85 p-2 sm:grid-cols-2 md:grid-cols-3">
+      {options.map((option) => {
+        const checked = values.includes(option);
+        return (
+          <label key={option} className={`flex min-h-9 items-center gap-2 rounded-md border px-2 text-sm font-bold ${checked ? "border-cyan-200 bg-cyan-300/15 text-white" : "border-cyan-300/10 bg-white/[0.03] text-cyan-100"}`}>
+            <input
+              type="checkbox"
+              className="h-4 w-4 accent-cyan-300"
+              checked={checked}
+              onChange={(event) => onChange(event.target.checked ? [...values, option] : values.filter((value) => value !== option))}
+            />
+            <span>{option}</span>
+          </label>
+        );
+      })}
+    </div>
+  </div>
+);
+
+const AccountSummary = ({ user }: { user: { role: UserRole; department: string; subjects: string[] } }) => (
+  <div className="rounded-md border border-cyan-300/20 bg-cyan-500/10 px-3 py-3 text-sm">
+    <p className="font-display flex items-center gap-2 font-bold text-cyan-50"><ShieldCheck size={16} /> {roleLabels[user.role]}</p>
+    <p className="mt-1 text-cyan-100/80">{user.department} - {user.subjects.length ? user.subjects.join(", ") : "Institutional access"}</p>
+  </div>
+);

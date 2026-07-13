@@ -77,7 +77,7 @@ export const AppLayout = () => {
             <Button variant="ghost" onClick={toggleDark} aria-label="Toggle theme">
               {dark ? <Sun size={18} /> : <Moon size={18} />}
             </Button>
-            <Button variant="ghost" onClick={() => { signOut(); navigate("/login", { replace: true }); }} aria-label="Logout">
+            <Button variant="ghost" onClick={() => { signOut().finally(() => navigate("/login", { replace: true })); }} aria-label="Logout">
               <LogOut size={18} />
             </Button>
           </div>

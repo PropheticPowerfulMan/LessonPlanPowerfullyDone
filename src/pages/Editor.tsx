@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Copy, Download, FileDown, Loader2, Printer, Save, Sparkles, Trash2 } from "lucide-react";
+import { Copy, Download, FileDown, Layers3, Loader2, Printer, Save, Sparkles, Trash2 } from "lucide-react";
 import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useReactToPrint } from "react-to-print";
@@ -262,8 +262,8 @@ export const Editor = () => {
     };
     lessonRepository.save(next, currentUser, withVersion ? "Manual save with revision snapshot" : "Autosaved lesson changes");
     if (withVersion) {
-      form.reset(next);
-      notify("Saved");
+      form.reset(next, { keepValues: true });
+      notify(`Saved checkpoint ${next.versions.length}`);
     }
   };
 
@@ -309,6 +309,91 @@ export const Editor = () => {
     lessonRepository.save(copy, currentUser, "Lesson plan duplicated from editor");
     notify("Duplicated lesson plan");
     navigate(`/editor/${copy.id}`);
+  };
+
+  const splitWeeklyIntoDailyPlans = () => {
+    if (!currentUser || !canEditCurrent || planType !== "weekly") return;
+    const current = toPrintableLesson(form.getValues());
+    const sourcePlan = normalizeEditableWeeklyPlan(current.weeklyPlan, current.subject, current.gradeClass, sanitizeChapter(current.chapter));
+    const now = new Date().toISOString();
+    const created = sourcePlan.map((day, index) => {
+      const daily = prepareNewLessonForUser({
+        ...current,
+        id: crypto.randomUUID(),
+        lessonNumber: `${current.lessonNumber || `LP-${new Date().getFullYear()}`}-D${index + 1}`,
+        planType: "daily",
+        status: "draft",
+        date: addDaysToIso(current.weekStartDate || getWeekStartFromDate(current.date), index),
+        topic: buildAutomaticTitle({ ...current, planType: "daily", date: addDaysToIso(current.weekStartDate || getWeekStartFromDate(current.date), index) }),
+        weeklyPlan: [day, ...createFlexibleWeeklyPlan(current.subject, current.gradeClass, sanitizeChapter(current.chapter)).slice(1)],
+        createdAt: now,
+        updatedAt: now,
+        activityLogs: [],
+        revisionNotes: [],
+        reviewerComments: [],
+        revisionRequests: [],
+        approvalHistory: [],
+        workflowHistory: [],
+        versions: []
+      }, currentUser);
+      lessonRepository.save(daily, currentUser, `Daily lesson created from ${current.lessonNumber || current.id}`);
+      return daily;
+    });
+    notify(`${created.length} daily lesson plans created`);
+    navigate(`/editor/${created[0].id}`);
+  };
+
+  const buildWeeklyFromDailyPlans = () => {
+    if (!currentUser || !canEditCurrent || planType !== "daily") return;
+    const current = toPrintableLesson(form.getValues());
+    const weekStart = current.weekStartDate || getWeekStartFromDate(current.date);
+    const weekEnd = current.weekEndDate || addBusinessWeekEnd(weekStart);
+    const matchingDailyPlans = lessonRepository
+      .list()
+      .filter((item) =>
+        item.planType === "daily" &&
+        item.ownerId === current.ownerId &&
+        item.subject === current.subject &&
+        item.gradeClass === current.gradeClass &&
+        sanitizeChapter(item.chapter) === sanitizeChapter(current.chapter) &&
+        item.date >= weekStart &&
+        item.date <= weekEnd
+      )
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    const basePlan = normalizeEditableWeeklyPlan(current.weeklyPlan, current.subject, current.gradeClass, sanitizeChapter(current.chapter));
+    const combinedPlan = basePlan.map((baseDay, index) => {
+      const date = addDaysToIso(weekStart, index);
+      const daily = matchingDailyPlans.find((item) => item.date === date) || (index === 0 ? current : undefined);
+      const dailyDay = daily ? normalizeEditableWeeklyPlan(daily.weeklyPlan, daily.subject, daily.gradeClass, sanitizeChapter(daily.chapter))[0] : undefined;
+      return dailyDay ? { ...dailyDay, day: baseDay.day } : baseDay;
+    });
+
+    const now = new Date().toISOString();
+    const weekly = prepareNewLessonForUser({
+      ...current,
+      id: crypto.randomUUID(),
+      lessonNumber: `LP-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}`,
+      planType: "weekly",
+      status: "draft",
+      date: weekStart,
+      weekStartDate: weekStart,
+      weekEndDate: weekEnd,
+      topic: buildAutomaticTitle({ ...current, planType: "weekly" }),
+      weeklyPlan: combinedPlan,
+      createdAt: now,
+      updatedAt: now,
+      activityLogs: [],
+      revisionNotes: [],
+      reviewerComments: [],
+      revisionRequests: [],
+      approvalHistory: [],
+      workflowHistory: [],
+      versions: []
+    }, currentUser);
+    lessonRepository.save(weekly, currentUser, `Weekly lesson built from ${matchingDailyPlans.length || 1} daily lesson plan${matchingDailyPlans.length === 1 ? "" : "s"}`);
+    notify(`Weekly lesson plan created from ${matchingDailyPlans.length || 1} daily plan${matchingDailyPlans.length === 1 ? "" : "s"}`);
+    navigate(`/editor/${weekly.id}`);
   };
 
   const generateWeek = () => {
@@ -482,6 +567,8 @@ export const Editor = () => {
         </div>
         <div className="flex min-w-0 flex-wrap gap-2">
           {canEditCurrent && <Button variant="outline" onClick={() => save(true)}><Save size={17} /> Save</Button>}
+          {canEditCurrent && planType === "weekly" && <Button variant="outline" onClick={splitWeeklyIntoDailyPlans}><Copy size={17} /> Split daily</Button>}
+          {canEditCurrent && planType === "daily" && <Button variant="outline" onClick={buildWeeklyFromDailyPlans}><Layers3 size={17} /> Build weekly</Button>}
           {can("lesson:create") && <Button variant="outline" onClick={duplicate}><Copy size={17} /> Duplicate</Button>}
           <Button variant="outline" onClick={() => setPreview(true)}><Printer size={17} /> Preview</Button>
           <Button variant="outline" disabled={Boolean(exporting)} onClick={() => exportDocument("pdf")}>{exporting === "pdf" ? <Loader2 className="animate-spin" size={17} /> : <FileDown size={17} />} {exporting === "pdf" ? "PDF..." : "PDF"}</Button>
@@ -521,6 +608,8 @@ export const Editor = () => {
               </div>
               <div className="flex gap-2">
                 <Button type="button" variant="secondary" onClick={generateWeek}><Sparkles size={17} /> {planType === "daily" ? "Generate day" : "Generate week"}</Button>
+                {planType === "weekly" && <Button type="button" variant="outline" onClick={splitWeeklyIntoDailyPlans}><Copy size={17} /> Split daily</Button>}
+                {planType === "daily" && <Button type="button" variant="outline" onClick={buildWeeklyFromDailyPlans}><Layers3 size={17} /> Build weekly</Button>}
               </div>
             </div>
             <div className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -904,6 +993,13 @@ const addBusinessWeekEnd = (value?: string) => {
   const date = new Date(`${value}T00:00:00`);
   if (Number.isNaN(date.getTime())) return "";
   date.setDate(date.getDate() + 4);
+  return toIsoDate(date);
+};
+
+const addDaysToIso = (value: string | undefined, days: number) => {
+  const date = value ? new Date(`${value}T00:00:00`) : new Date();
+  if (Number.isNaN(date.getTime())) return "";
+  date.setDate(date.getDate() + days);
   return toIsoDate(date);
 };
 

@@ -43,6 +43,7 @@ type DashboardContext = {
   lessons: LessonPlan[];
   users: UserProfile[];
   currentUser: UserProfile;
+  updateProfile: (profile: UserProfile) => Promise<void>;
   navigate: ReturnType<typeof useNavigate>;
   createLesson: ReturnType<typeof useLessons>["createLesson"];
   stats: ReturnType<typeof buildStats>;
@@ -57,7 +58,7 @@ const rejectedStatuses: LessonStatus[] = ["rejected", "revision-requested"];
 
 export const Dashboard = () => {
   const { imageUrl } = useApp();
-  const { currentUser, users } = useAuth();
+  const { currentUser, users, updateProfile } = useAuth();
   const { lessons, createLesson } = useLessons();
   const navigate = useNavigate();
   if (!currentUser) return null;
@@ -66,7 +67,7 @@ export const Dashboard = () => {
   const recentActivity = useMemo(() => buildRecentActivity(lessons), [lessons]);
   const upcoming = useMemo(() => buildUpcomingLessons(lessons), [lessons]);
   const calendar = useMemo(() => buildCalendar(new Date(), lessons), [lessons]);
-  const context: DashboardContext = { lessons, users, currentUser, navigate, createLesson, stats, recentActivity, upcoming, calendar };
+  const context: DashboardContext = { lessons, users, currentUser, updateProfile, navigate, createLesson, stats, recentActivity, upcoming, calendar };
 
   const roleTitle = currentUser.role === "head-of-department" ? "HOD Dashboard" : `${roleLabels[currentUser.role]} Dashboard`;
 
@@ -206,9 +207,10 @@ const PrincipalDashboard = ({ context }: { context: DashboardContext }) => {
 };
 
 const AdministratorDashboard = ({ context }: { context: DashboardContext }) => {
-  const { lessons, users, stats, recentActivity, navigate } = context;
+  const { lessons, users, stats, recentActivity, navigate, updateProfile } = context;
   const roles = Object.entries(groupCount(users, "role"));
   const storageKb = Math.max(1, Math.round(JSON.stringify({ lessons, users }).length / 1024));
+  const pendingUsers = users.filter((user) => user.status === "inactive");
 
   return (
     <>
@@ -220,6 +222,22 @@ const AdministratorDashboard = ({ context }: { context: DashboardContext }) => {
         <Metric icon={HardDrive} label="Storage Overview" value={`${storageKb} KB`} tone="slate" />
       </MetricGrid>
       <DashboardGrid>
+        <Panel title="Account Activation" icon={UserCheck}>
+          <CompactList
+            items={(pendingUsers.length ? pendingUsers : users.filter((user) => user.status === "active").slice(0, 5)).map((user) => ({
+              title: user.name,
+              detail: `${roleLabels[user.role]} - ${user.email} - ${user.status}`
+            }))}
+            empty="No user accounts."
+          />
+          <div className="mt-3 grid gap-2">
+            {pendingUsers.map((user) => (
+              <Button key={user.id} variant="secondary" onClick={() => updateProfile({ ...user, status: "active" })}>
+                <UserCheck size={16} /> Activate {user.name}
+              </Button>
+            ))}
+          </div>
+        </Panel>
         <Panel title="Users & Roles" icon={Users}>
           <CompactList items={roles.map(([role, count]) => ({ title: roleLabels[role as keyof typeof roleLabels], detail: `${count} active profile${count > 1 ? "s" : ""}` }))} />
         </Panel>
