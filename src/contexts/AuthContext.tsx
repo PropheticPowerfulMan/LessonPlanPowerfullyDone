@@ -16,7 +16,10 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [users, setUsers] = useState(() => mockAuthService.listUsers());
-  const [currentUser, setCurrentUser] = useState(() => mockAuthService.getCurrentUser());
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(() => {
+    mockAuthService.signOut();
+    return null;
+  });
 
   const signIn = (email: string, password: string) => {
     const user = mockAuthService.signIn(email, password);
