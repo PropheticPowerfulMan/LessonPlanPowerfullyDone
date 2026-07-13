@@ -8,6 +8,7 @@ import { Label } from "../components/ui/label";
 import { useAuth } from "../contexts/AuthContext";
 import { schoolDisplayName, schoolImage } from "../data/defaults";
 import { cloudAuthService } from "../services/cloudAuthService";
+import { mockAuthService } from "../services/mockAuthService";
 import { roleLabels, SignUpProfileInput, UserRole } from "../types/user";
 
 type AuthPanel = "signin" | "signup" | "reset" | "new-password";
@@ -34,7 +35,7 @@ export const Login = () => {
   const recoveryToken = getRecoveryAccessToken();
   const [panel, setPanel] = useState<AuthPanel>(recoveryToken ? "new-password" : "signin");
   const [email, setEmail] = useState(activeUsers[0]?.email || "");
-  const [password, setPassword] = useState("");
+  const [password, setPassword] = useState(authMode === "local" ? mockAuthService.demoPassword : "");
   const [signup, setSignup] = useState(emptySignup);
   const [resetEmail, setResetEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -170,7 +171,7 @@ export const Login = () => {
                 </button>
               </AuthField>
 
-              {authMode === "local" && !cloudAuthService.required && <p className="text-xs text-cyan-100/80">Local fallback mode is for offline development only.</p>}
+              {authMode === "local" && <p className="text-xs text-cyan-100/80">Temporary local access: demo password {mockAuthService.demoPassword}</p>}
               {selectedUser && <AccountSummary user={selectedUser} />}
               <Button className="w-full" type="submit" disabled={busy || loading}><UserRoundCheck size={18} /> Sign in</Button>
             </form>

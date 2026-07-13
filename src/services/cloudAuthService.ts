@@ -23,7 +23,6 @@ const hasUsableCloudConfig = Boolean(
   !supabaseAnonKey.includes("your-supabase-anon-public-key")
 );
 const enabled = hasUsableCloudConfig;
-const required = import.meta.env.PROD;
 
 const authUrl = (path: string) => `${supabaseUrl}/auth/v1/${path}`;
 const restUrl = (path: string) => `${supabaseUrl}/rest/v1/${path}`;
@@ -114,8 +113,8 @@ const fromProfile = (profile: UserProfile) => ({
 
 export const cloudAuthService = {
   enabled,
-  required,
-  configurationError: required && !enabled ? "Cloud database is not configured for this deployment. Supabase URL and anon key are required before accounts and lesson plans can sync across devices." : "",
+  required: false,
+  configurationError: "",
   getAccessToken() {
     const session = readSession();
     return session?.accessToken || supabaseAnonKey || "";
