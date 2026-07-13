@@ -74,7 +74,8 @@ export interface WeeklyPlanDay {
     guidedPractice?: number;
     exitTicket?: number;
   };
-  lockedFields?: Partial<Record<keyof Omit<WeeklyPlanDay, "day" | "activityDurations" | "lockedFields">, boolean>>;
+  lockedFields?: Partial<Record<keyof Omit<WeeklyPlanDay, "day" | "activityDurations" | "lockedFields" | "editedFields">, boolean>>;
+  editedFields?: Partial<Record<keyof Omit<WeeklyPlanDay, "day" | "activityDurations" | "lockedFields" | "editedFields">, boolean>>;
 }
 
 export interface BloomQuestions {

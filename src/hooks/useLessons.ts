@@ -13,6 +13,16 @@ export const useLessons = () => {
 
   useEffect(() => {
     refresh();
+    if (!currentUser) return;
+    let cancelled = false;
+    lessonRepository.syncFromCloud()
+      .then((synced) => {
+        if (!cancelled) setLessons(applyLessonVisibility(currentUser, synced));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
   }, [refresh]);
 
   const nextLessonNumber = useMemo(() => {

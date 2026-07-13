@@ -55,6 +55,16 @@ export const Plans = () => {
 
   useEffect(() => {
     refresh();
+    if (!currentUser) return;
+    let cancelled = false;
+    lessonRepository.syncFromCloud()
+      .then((synced) => {
+        if (!cancelled) setLessons(applyLessonVisibility(currentUser, showDeleted ? synced : synced.filter((lesson) => !lesson.deletedAt)));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
   }, [currentUser, showDeleted]);
 
   const duplicate = (lesson: LessonPlan) => {

@@ -34,7 +34,7 @@ export const analyzeWeeklyPlanQuality = (lesson: LessonPlan): QualityWarning[] =
   return warnings.slice(0, 8);
 };
 
-type TextWeeklyKey = keyof Omit<WeeklyPlanDay, "day" | "activityDurations" | "lockedFields">;
+type TextWeeklyKey = keyof Omit<WeeklyPlanDay, "day" | "activityDurations" | "lockedFields" | "editedFields">;
 
 const checkRepeated = (plan: WeeklyPlanDay[], key: TextWeeklyKey, warnings: QualityWarning[]) => {
   const normalized = plan.map((day) => day[key]?.trim().toLowerCase()).filter(Boolean);

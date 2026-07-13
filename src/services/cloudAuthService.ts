@@ -107,6 +107,12 @@ const fromProfile = (profile: UserProfile) => ({
 
 export const cloudAuthService = {
   enabled,
+  getAccessToken() {
+    const session = readSession();
+    return session?.accessToken || supabaseAnonKey || "";
+  },
+  restUrl,
+  baseHeaders,
   async listUsers() {
     if (!enabled) return [];
     const session = readSession();
