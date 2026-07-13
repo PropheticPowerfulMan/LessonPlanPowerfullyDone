@@ -254,11 +254,14 @@ export const Editor = () => {
     if (!canEditCurrent) return;
     const current = form.getValues();
     const now = new Date().toISOString();
+    const currentWeeklyPlan = normalizeEditableWeeklyPlan(current.weeklyPlan, current.subject, current.gradeClass, sanitizeChapter(current.chapter));
+    const persistedWeeklyPlan = currentWeeklyPlan.map((day) => ({ ...day }));
     const next: LessonPlan = {
       ...toPrintableLesson(current),
+      weeklyPlan: persistedWeeklyPlan,
       updatedAt: now,
       versions: withVersion
-        ? [{ id: crypto.randomUUID(), savedAt: now, summary: `Manual save: ${current.chapter || current.topic}`, snapshot: { ...current, versions: [] } }, ...(current.versions || [])].slice(0, 20)
+        ? [{ id: crypto.randomUUID(), savedAt: now, summary: `Manual save: ${current.chapter || current.topic}`, snapshot: { ...current, weeklyPlan: persistedWeeklyPlan, versions: [] } }, ...(current.versions || [])].slice(0, 20)
         : current.versions || []
     };
     lessonRepository.save(next, currentUser, withVersion ? "Manual save with revision snapshot" : "Autosaved lesson changes");

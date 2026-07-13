@@ -10,6 +10,8 @@ import {
   Clock3,
   Database,
   Edit3,
+  Eye,
+  EyeOff,
   FileCheck2,
   FileText,
   Gauge,
@@ -223,6 +225,7 @@ const AccountSecurityPanel = ({ currentUser, changePassword }: { currentUser: Us
   const [currentPassword, setCurrentPassword] = useState("");
   const [nextPassword, setNextPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [visible, setVisible] = useState({ current: false, next: false, confirm: false });
   const [notice, setNotice] = useState("");
 
   const submit = async () => {
@@ -259,9 +262,9 @@ const AccountSecurityPanel = ({ currentUser, changePassword }: { currentUser: Us
       {notice && <p className="mt-3 rounded-md border border-cyan-300/20 bg-cyan-500/10 px-3 py-2 text-sm font-bold text-cyan-50">{notice}</p>}
       {open && (
         <div className="mt-4 grid gap-3 md:grid-cols-3">
-          <Input type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} placeholder="Current password" />
-          <Input type="password" value={nextPassword} onChange={(event) => setNextPassword(event.target.value)} placeholder="New password" />
-          <Input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Confirm new password" />
+          <PasswordInput value={currentPassword} visible={visible.current} onToggle={() => setVisible((value) => ({ ...value, current: !value.current }))} onChange={setCurrentPassword} placeholder="Current password" />
+          <PasswordInput value={nextPassword} visible={visible.next} onToggle={() => setVisible((value) => ({ ...value, next: !value.next }))} onChange={setNextPassword} placeholder="New password" />
+          <PasswordInput value={confirmPassword} visible={visible.confirm} onToggle={() => setVisible((value) => ({ ...value, confirm: !value.confirm }))} onChange={setConfirmPassword} placeholder="Confirm new password" />
           <div className="flex gap-2 md:col-span-3">
             <Button type="button" onClick={submit}>Save new password</Button>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
@@ -271,6 +274,15 @@ const AccountSecurityPanel = ({ currentUser, changePassword }: { currentUser: Us
     </Card>
   );
 };
+
+const PasswordInput = ({ value, visible, placeholder, onToggle, onChange }: { value: string; visible: boolean; placeholder: string; onToggle: () => void; onChange: (value: string) => void }) => (
+  <div className="relative">
+    <Input type={visible ? "text" : "password"} className="pr-11" value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />
+    <button type="button" className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-cyan-200 hover:bg-cyan-500/15 hover:text-white" onClick={onToggle} aria-label={visible ? "Hide password" : "Show password"}>
+      {visible ? <EyeOff size={17} /> : <Eye size={17} />}
+    </button>
+  </div>
+);
 
 const AdministratorDashboard = ({ context }: { context: DashboardContext }) => {
   const { lessons, users, stats, recentActivity, navigate, updateProfile, deleteUser, resetPassword, setUserPassword } = context;

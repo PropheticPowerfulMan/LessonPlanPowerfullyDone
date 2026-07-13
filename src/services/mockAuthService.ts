@@ -115,7 +115,8 @@ export const mockAuthService = {
     return users.find((user) => user.id === currentUserId && user.status === "active") || null;
   },
   signIn(email: string, password: string) {
-    const user = readUsers().find((item) => item.email.toLowerCase() === email.trim().toLowerCase() && item.status === "active");
+    const user = readUsers().find((item) => item.email.toLowerCase() === email.trim().toLowerCase());
+    if (user && user.status !== "active") throw new Error("This account is waiting for activation by the school authority.");
     const passwords = readPasswords();
     const expectedPassword = passwords[user?.id || ""] || demoPassword;
     if (!user || password !== expectedPassword) throw new Error("Invalid email or password");
