@@ -414,7 +414,7 @@ const AdminUserManager = ({
 
   const recover = async (user: UserProfile) => {
     const temporary = authMode === "cloud" ? await resetPassword(user.email) : await setUserPassword(user.id);
-    setNotice(temporary ? `Temporary password for ${user.email}: ${temporary}` : `Recovery email sent to ${user.email}.`);
+    setNotice(temporary ? `New temporary password for ${user.email}: ${temporary}` : `Secure recovery link sent to ${user.email}.`);
   };
 
   const toggleStatus = async (user: UserProfile) => {
@@ -513,13 +513,13 @@ const PasswordRecoveryCenter = ({ users, authMode, resetPassword, setUserPasswor
   const sendRecovery = async () => {
     if (!selected) return;
     const temporary = await resetPassword(selected.email);
-    setNotice(temporary ? `Local recovery complete. Temporary password: ${temporary}` : `Recovery email sent to ${selected.email}.`);
+    setNotice(temporary ? `Local recovery complete. New temporary password: ${temporary}` : `Secure recovery link sent to ${selected.email}.`);
   };
 
   const setTemporary = async () => {
     if (!selected) return;
     const temporary = await setUserPassword(selected.id, customPassword || undefined);
-    setNotice(temporary ? `Temporary password for ${selected.email}: ${temporary}` : `Recovery email sent to ${selected.email}.`);
+    setNotice(temporary ? `New temporary password for ${selected.email}: ${temporary}` : `Secure recovery link sent to ${selected.email}.`);
     setCustomPassword("");
   };
 

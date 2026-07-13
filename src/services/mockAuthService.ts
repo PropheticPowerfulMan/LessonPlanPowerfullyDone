@@ -6,7 +6,6 @@ const passwordsKey = "powerful-lesson-planner:user-passwords";
 const usersVersionKey = "powerful-lesson-planner:users-version";
 const usersVersion = "2";
 const demoPassword = "kcs2026";
-const temporaryPassword = "kcs-reset-2026";
 const now = "2026-07-09T00:00:00.000Z";
 
 export const mockUsers: UserProfile[] = [
@@ -102,9 +101,15 @@ const readPasswords = (): Record<string, string> => {
 
 const writePasswords = (passwords: Record<string, string>) => localStorage.setItem(passwordsKey, JSON.stringify(passwords));
 
+const createTemporaryPassword = () => {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+  const bytes = new Uint8Array(10);
+  crypto.getRandomValues(bytes);
+  return `KCS-${Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join("")}`;
+};
+
 export const mockAuthService = {
   demoPassword,
-  temporaryPassword,
   listUsers() {
     return readUsers();
   },
@@ -150,6 +155,7 @@ export const mockAuthService = {
     if (!user) {
       throw new Error("No account found for this email.");
     }
+    const temporaryPassword = createTemporaryPassword();
     writePasswords({ ...readPasswords(), [user.id]: temporaryPassword });
     return temporaryPassword;
   },
@@ -159,9 +165,10 @@ export const mockAuthService = {
     if (currentPassword !== expectedPassword) throw new Error("Current password is incorrect.");
     writePasswords({ ...passwords, [userId]: nextPassword });
   },
-  setUserPassword(userId: string, nextPassword = temporaryPassword) {
-    writePasswords({ ...readPasswords(), [userId]: nextPassword });
-    return nextPassword;
+  setUserPassword(userId: string, nextPassword?: string) {
+    const temporaryPassword = nextPassword?.trim() || createTemporaryPassword();
+    writePasswords({ ...readPasswords(), [userId]: temporaryPassword });
+    return temporaryPassword;
   },
   signOut() {
     localStorage.removeItem(currentUserKey);

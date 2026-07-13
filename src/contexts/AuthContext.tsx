@@ -41,12 +41,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         mockAuthService.signOut();
         return;
       }
-      cloudAuthService.clearSession();
       setLoading(true);
       try {
-        const nextUsers = await cloudAuthService.listUsers().catch(() => []);
+        const [profile, nextUsers] = await Promise.all([
+          cloudAuthService.getCurrentUser().catch(() => null),
+          cloudAuthService.listUsers().catch(() => [])
+        ]);
         if (!mounted) return;
-        setCurrentUser(null);
+        setCurrentUser(profile?.status === "active" ? profile : null);
         setUsers(nextUsers);
       } finally {
         if (mounted) setLoading(false);
