@@ -196,5 +196,13 @@ export const cloudAuthService = {
       body: JSON.stringify(fromProfile(profile))
     });
     return rows[0] ? toProfile(rows[0]) : profile;
+  },
+  async deleteUser(id: string) {
+    const session = readSession();
+    const token = session?.accessToken || supabaseAnonKey;
+    await request(restUrl(`profiles?id=eq.${id}`), {
+      method: "DELETE",
+      headers: baseHeaders(token)
+    });
   }
 };

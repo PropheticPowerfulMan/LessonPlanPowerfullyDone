@@ -50,6 +50,17 @@ with check (
   )
 );
 
+create policy "profiles_delete_by_authority"
+on public.profiles for delete
+using (
+  exists (
+    select 1 from public.profiles authority
+    where authority.id = auth.uid()
+      and authority.status = 'active'
+      and authority.role in ('administrator', 'principal', 'vice-principal')
+  )
+);
+
 create index if not exists profiles_role_idx on public.profiles(role);
 create index if not exists profiles_status_idx on public.profiles(status);
 

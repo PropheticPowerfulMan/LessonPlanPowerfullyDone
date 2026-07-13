@@ -9,6 +9,7 @@ import {
   ClipboardCheck,
   Clock3,
   Database,
+  Edit3,
   FileCheck2,
   FileText,
   Gauge,
@@ -17,19 +18,23 @@ import {
   Layers3,
   type LucideIcon,
   Plus,
+  RotateCcw,
+  Search,
   Settings,
   ShieldCheck,
   Sparkles,
   TrendingUp,
+  Trash2,
   UserCheck,
   Users,
   XCircle
 } from "lucide-react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
+import { Input, Select } from "../components/ui/input";
 import { useApp } from "../contexts/AppContext";
 import { useAuth } from "../contexts/AuthContext";
 import { schoolDisplayName } from "../data/defaults";
@@ -44,6 +49,8 @@ type DashboardContext = {
   users: UserProfile[];
   currentUser: UserProfile;
   updateProfile: (profile: UserProfile) => Promise<void>;
+  deleteUser: (id: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   navigate: ReturnType<typeof useNavigate>;
   createLesson: ReturnType<typeof useLessons>["createLesson"];
   stats: ReturnType<typeof buildStats>;
@@ -58,7 +65,7 @@ const rejectedStatuses: LessonStatus[] = ["rejected", "revision-requested"];
 
 export const Dashboard = () => {
   const { imageUrl } = useApp();
-  const { currentUser, users, updateProfile } = useAuth();
+  const { currentUser, users, updateProfile, deleteUser, resetPassword } = useAuth();
   const { lessons, createLesson } = useLessons();
   const navigate = useNavigate();
   if (!currentUser) return null;
@@ -67,7 +74,7 @@ export const Dashboard = () => {
   const recentActivity = useMemo(() => buildRecentActivity(lessons), [lessons]);
   const upcoming = useMemo(() => buildUpcomingLessons(lessons), [lessons]);
   const calendar = useMemo(() => buildCalendar(new Date(), lessons), [lessons]);
-  const context: DashboardContext = { lessons, users, currentUser, updateProfile, navigate, createLesson, stats, recentActivity, upcoming, calendar };
+  const context: DashboardContext = { lessons, users, currentUser, updateProfile, deleteUser, resetPassword, navigate, createLesson, stats, recentActivity, upcoming, calendar };
 
   const roleTitle = currentUser.role === "head-of-department" ? "HOD Dashboard" : `${roleLabels[currentUser.role]} Dashboard`;
 
@@ -78,7 +85,8 @@ export const Dashboard = () => {
         <div className="relative grid gap-6 p-5 text-white md:grid-cols-[1.35fr_0.65fr] md:p-8">
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
             <span className="badge">Version 1.5 Enterprise Dashboard</span>
-            <h1 className="mt-4 max-w-3xl text-3xl font-black leading-tight text-[#f8fdff] drop-shadow-[0_2px_14px_rgba(0,0,0,0.55)] md:text-4xl xl:text-5xl">{roleTitle}</h1>
+            <p className="mt-4 text-sm font-black uppercase tracking-wide text-cyan-100">{timeGreeting(new Date())}, {currentUser.name}</p>
+            <h1 className="mt-2 max-w-3xl text-3xl font-black leading-tight text-[#f8fdff] drop-shadow-[0_2px_14px_rgba(0,0,0,0.55)] md:text-4xl xl:text-5xl">{roleTitle}</h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-cyan-50/80">
               Role-based operational command center for lesson planning, review workflows, curriculum progress, and school readiness at {schoolDisplayName}.
             </p>
@@ -207,7 +215,7 @@ const PrincipalDashboard = ({ context }: { context: DashboardContext }) => {
 };
 
 const AdministratorDashboard = ({ context }: { context: DashboardContext }) => {
-  const { lessons, users, stats, recentActivity, navigate, updateProfile } = context;
+  const { lessons, users, stats, recentActivity, navigate, updateProfile, deleteUser, resetPassword } = context;
   const roles = Object.entries(groupCount(users, "role"));
   const storageKb = Math.max(1, Math.round(JSON.stringify({ lessons, users }).length / 1024));
   const pendingUsers = users.filter((user) => user.status === "inactive");
@@ -221,6 +229,7 @@ const AdministratorDashboard = ({ context }: { context: DashboardContext }) => {
         <Metric icon={Database} label="Data Overview" value={lessons.length} tone="emerald" />
         <Metric icon={HardDrive} label="Storage Overview" value={`${storageKb} KB`} tone="slate" />
       </MetricGrid>
+      <AdminUserManager users={users} currentUser={context.currentUser} updateProfile={updateProfile} deleteUser={deleteUser} resetPassword={resetPassword} />
       <DashboardGrid>
         <Panel title="Account Activation" icon={UserCheck}>
           <CompactList
@@ -255,6 +264,127 @@ const AdministratorDashboard = ({ context }: { context: DashboardContext }) => {
         </Panel>
       </DashboardGrid>
     </>
+  );
+};
+
+const AdminUserManager = ({
+  users,
+  currentUser,
+  updateProfile,
+  deleteUser,
+  resetPassword
+}: {
+  users: UserProfile[];
+  currentUser: UserProfile;
+  updateProfile: (profile: UserProfile) => Promise<void>;
+  deleteUser: (id: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+}) => {
+  const [query, setQuery] = useState("");
+  const [editingId, setEditingId] = useState("");
+  const [draft, setDraft] = useState<UserProfile | null>(null);
+  const [notice, setNotice] = useState("");
+  const filtered = users.filter((user) =>
+    [user.name, user.email, user.department, roleLabels[user.role], user.subjects.join(" "), user.gradeClasses.join(" "), user.status]
+      .join(" ")
+      .toLowerCase()
+      .includes(query.toLowerCase())
+  );
+
+  const startEdit = (user: UserProfile) => {
+    setEditingId(user.id);
+    setDraft({ ...user, subjects: [...user.subjects], gradeClasses: [...user.gradeClasses] });
+    setNotice("");
+  };
+
+  const saveDraft = async () => {
+    if (!draft) return;
+    await updateProfile({
+      ...draft,
+      subjects: normalizeCsv(draft.subjects.join(",")),
+      gradeClasses: normalizeCsv(draft.gradeClasses.join(","))
+    });
+    setEditingId("");
+    setDraft(null);
+    setNotice("User profile updated.");
+  };
+
+  const recover = async (user: UserProfile) => {
+    await resetPassword(user.email);
+    setNotice(`Password recovery started for ${user.email}.`);
+  };
+
+  const remove = async (user: UserProfile) => {
+    if (user.id === currentUser.id) {
+      setNotice("You cannot delete your own active administrator profile.");
+      return;
+    }
+    if (!confirm(`Delete ${user.name}'s application profile?`)) return;
+    await deleteUser(user.id);
+    setNotice("User profile deleted.");
+  };
+
+  return (
+    <Card className="p-4 sm:p-5">
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <h2 className="flex items-center gap-2 text-xl font-black text-white"><Users className="text-cyan-300" size={20} /> User Administration</h2>
+          <p className="text-sm text-muted-foreground">View identities, correct profiles, activate access, send password recovery, or remove application profiles.</p>
+        </div>
+        <div className="relative w-full lg:max-w-sm">
+          <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-cyan-300" size={16} />
+          <Input className="pl-9" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search users" />
+        </div>
+      </div>
+      {notice && <p className="mb-3 rounded-md border border-cyan-300/20 bg-cyan-500/10 px-3 py-2 text-sm font-bold text-cyan-50">{notice}</p>}
+      <div className="grid gap-3">
+        {filtered.map((user) => {
+          const isEditing = editingId === user.id && draft;
+          return (
+            <div key={user.id} className="rounded-md border border-cyan-300/15 bg-white/[0.04] p-3">
+              {isEditing ? (
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  <Input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} />
+                  <Input type="email" value={draft.email} onChange={(event) => setDraft({ ...draft, email: event.target.value })} />
+                  <Select value={draft.role} onChange={(event) => setDraft({ ...draft, role: event.target.value as UserProfile["role"] })}>
+                    {Object.entries(roleLabels).map(([role, label]) => <option key={role} value={role}>{label}</option>)}
+                  </Select>
+                  <Input value={draft.department} onChange={(event) => setDraft({ ...draft, department: event.target.value })} placeholder="Department" />
+                  <Input value={draft.subjects.join(", ")} onChange={(event) => setDraft({ ...draft, subjects: normalizeCsv(event.target.value) })} placeholder="Subjects" />
+                  <Input value={draft.gradeClasses.join(", ")} onChange={(event) => setDraft({ ...draft, gradeClasses: normalizeCsv(event.target.value) })} placeholder="Grade classes" />
+                  <Select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as UserProfile["status"] })}>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </Select>
+                  <div className="flex flex-wrap gap-2 md:col-span-2 xl:col-span-3">
+                    <Button type="button" onClick={saveDraft}><UserCheck size={16} /> Save profile</Button>
+                    <Button type="button" variant="outline" onClick={() => { setEditingId(""); setDraft(null); }}>Cancel</Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+                  <div className="min-w-0">
+                    <p className="font-black text-white">{user.name}</p>
+                    <p className="break-words text-sm text-muted-foreground">{user.email} - {roleLabels[user.role]} - {user.status}</p>
+                    <p className="mt-1 text-xs text-cyan-100/80">{user.department || "No department"} | {user.subjects.join(", ") || "No subjects"} | {user.gradeClasses.join(", ") || "No classes"}</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">Created {formatDate(user.createdAt)} | Updated {formatDate(user.updatedAt)}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="outline" onClick={() => startEdit(user)}><Edit3 size={15} /> Edit</Button>
+                    <Button type="button" variant="outline" onClick={() => updateProfile({ ...user, status: user.status === "active" ? "inactive" : "active" })}>
+                      <UserCheck size={15} /> {user.status === "active" ? "Disable" : "Activate"}
+                    </Button>
+                    <Button type="button" variant="outline" onClick={() => recover(user)}><RotateCcw size={15} /> Recover</Button>
+                    <Button type="button" variant="danger" onClick={() => remove(user)}><Trash2 size={15} /> Delete</Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {filtered.length === 0 && <p className="py-8 text-sm text-muted-foreground">No users match this search.</p>}
+      </div>
+    </Card>
   );
 };
 
@@ -464,6 +594,16 @@ const groupCount = <T, K extends keyof T>(items: T[], key: K) =>
     groups[value] = (groups[value] || 0) + 1;
     return groups;
   }, {});
+
+const normalizeCsv = (value: string) => value.split(",").map((item) => item.trim()).filter(Boolean);
+
+const timeGreeting = (date: Date) => {
+  const hour = date.getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 18) return "Good afternoon";
+  if (hour < 21) return "Good evening";
+  return "Good night";
+};
 
 const formatDate = (value?: string) => {
   if (!value) return "No date";

@@ -2,6 +2,7 @@ import { SignUpProfileInput, UserProfile } from "../types/user";
 
 const currentUserKey = "powerful-lesson-planner:current-user-id";
 const usersKey = "powerful-lesson-planner:users";
+const passwordsKey = "powerful-lesson-planner:user-passwords";
 const usersVersionKey = "powerful-lesson-planner:users-version";
 const usersVersion = "2";
 const demoPassword = "kcs2026";
@@ -90,6 +91,16 @@ const readCurrentUserId = () => localStorage.getItem(currentUserKey);
 
 const parseList = (items: string[]) => items.map((item) => item.trim()).filter(Boolean);
 
+const readPasswords = (): Record<string, string> => {
+  try {
+    return JSON.parse(localStorage.getItem(passwordsKey) || "{}") as Record<string, string>;
+  } catch {
+    return {};
+  }
+};
+
+const writePasswords = (passwords: Record<string, string>) => localStorage.setItem(passwordsKey, JSON.stringify(passwords));
+
 export const mockAuthService = {
   demoPassword,
   listUsers() {
@@ -103,7 +114,9 @@ export const mockAuthService = {
   },
   signIn(email: string, password: string) {
     const user = readUsers().find((item) => item.email.toLowerCase() === email.trim().toLowerCase() && item.status === "active");
-    if (!user || password !== demoPassword) throw new Error("Invalid email or password");
+    const passwords = readPasswords();
+    const expectedPassword = passwords[user?.id || ""] || demoPassword;
+    if (!user || password !== expectedPassword) throw new Error("Invalid email or password");
     localStorage.setItem(currentUserKey, user.id);
     return user;
   },
@@ -126,6 +139,7 @@ export const mockAuthService = {
       updatedAt: now
     };
     localStorage.setItem(usersKey, JSON.stringify([profile, ...users]));
+    writePasswords({ ...readPasswords(), [profile.id]: input.password });
     return profile;
   },
   resetPassword(email: string) {
@@ -140,5 +154,13 @@ export const mockAuthService = {
     const users = readUsers().map((user) => (user.id === profile.id ? { ...profile, updatedAt: new Date().toISOString() } : user));
     localStorage.setItem(usersKey, JSON.stringify(users));
     return users.find((user) => user.id === profile.id) || profile;
+  },
+  deleteUser(id: string) {
+    const users = readUsers().filter((user) => user.id !== id);
+    const passwords = readPasswords();
+    delete passwords[id];
+    localStorage.setItem(usersKey, JSON.stringify(users));
+    writePasswords(passwords);
+    return users;
   }
 };

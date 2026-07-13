@@ -14,6 +14,7 @@ interface AuthContextValue {
   resetPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
   updateProfile: (profile: UserProfile) => Promise<void>;
+  deleteUser: (id: string) => Promise<void>;
   can: (permission: Permission) => boolean;
 }
 
@@ -93,6 +94,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setCurrentUser((current) => (current?.id === next.id ? next : current));
   };
 
+  const deleteUser = async (id: string) => {
+    if (cloudAuthService.enabled) {
+      await cloudAuthService.deleteUser(id);
+    } else {
+      mockAuthService.deleteUser(id);
+    }
+    await refreshUsers();
+  };
+
   const value = useMemo<AuthContextValue>(
     () => ({
       currentUser,
@@ -104,6 +114,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       resetPassword,
       signOut,
       updateProfile,
+      deleteUser,
       can: (permission) => hasPermission(currentUser, permission)
     }),
     [currentUser, users, loading]

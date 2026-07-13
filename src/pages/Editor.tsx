@@ -21,6 +21,7 @@ import {
   schoolImage
 } from "../data/defaults";
 import { useDebouncedEffect } from "../hooks/useDebouncedEffect";
+import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 import { LessonPrint } from "../print/LessonPrint";
 import { curriculumRepository, findCurriculumSuggestions } from "../services/curriculumRepository";
 import { lessonRepository } from "../services/lessonRepository";
@@ -273,6 +274,11 @@ export const Editor = () => {
 
   const printTitle = printableLesson.topic || printableLesson.chapter || "lesson-plan";
   const print = useReactToPrint({ contentRef: printRef, documentTitle: printTitle });
+
+  useKeyboardShortcuts({
+    save: () => save(true),
+    print
+  });
 
   const exportDocument = async (type: "pdf" | "docx") => {
     if (!printRef.current || exporting) return;
@@ -566,7 +572,7 @@ export const Editor = () => {
           </p>
         </div>
         <div className="flex min-w-0 flex-wrap gap-2">
-          {canEditCurrent && <Button variant="outline" onClick={() => save(true)}><Save size={17} /> Save</Button>}
+          {canEditCurrent && <Button variant="outline" onClick={() => save(true)} title="Ctrl+S"><Save size={17} /> Save</Button>}
           {canEditCurrent && planType === "weekly" && <Button variant="outline" onClick={splitWeeklyIntoDailyPlans}><Copy size={17} /> Split daily</Button>}
           {canEditCurrent && planType === "daily" && <Button variant="outline" onClick={buildWeeklyFromDailyPlans}><Layers3 size={17} /> Build weekly</Button>}
           {can("lesson:create") && <Button variant="outline" onClick={duplicate}><Copy size={17} /> Duplicate</Button>}
