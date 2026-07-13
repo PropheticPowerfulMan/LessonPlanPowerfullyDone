@@ -51,8 +51,8 @@ const PrintPage = ({
   children: React.ReactNode;
 }) => (
   <section className={`print-page print-density-${density} mx-auto flex flex-col bg-white p-[5mm] font-serif text-black shadow-fluent`}>
-    <Watermark status={lesson.status} planType={lesson.planType} />
-    <header className="print-header relative rounded-sm border border-slate-300">
+    <Watermark status={lesson.status} />
+    <header className="print-header relative z-10 rounded-sm border border-slate-300">
       <div className="grid grid-cols-[48px_1fr_86px] items-center gap-2 border-b-2 border-slate-800 bg-slate-50 px-2 py-1 text-slate-950">
         <span className="grid h-[44px] w-[44px] place-items-center rounded-sm border border-slate-300 bg-white p-1">
           <img src={schoolImage} alt="KCS logo" className="h-full w-full object-contain" />
@@ -77,8 +77,8 @@ const PrintPage = ({
       </p>
     )}
 
-    <main className="relative mt-1.5 flex min-h-0 flex-1 flex-col">{children}</main>
-    <footer className="mt-1 flex justify-between border-t border-slate-200 pt-1 text-[7.2px] font-semibold uppercase tracking-wide text-slate-500">
+    <main className="relative z-10 mt-1.5 flex min-h-0 flex-1 flex-col">{children}</main>
+    <footer className="relative z-10 mt-1 flex justify-between border-t border-slate-200 pt-1 text-[7.2px] font-semibold uppercase tracking-wide text-slate-500">
       <span>KCS Lesson Planner</span>
       <span>Generated on {generatedAt}</span>
       <span>{safeText(lesson.status, "draft")} | Modified {formatGeneratedAt(new Date(lesson.updatedAt || Date.now()))}</span>
@@ -180,18 +180,16 @@ const DurationBadge = ({ rowKey, day, index }: { rowKey: RowKey; day: WeeklyPlan
   );
 };
 
-const Watermark = ({ status, planType }: { status: LessonPlan["status"]; planType: LessonPlan["planType"] }) => {
-  if (planType === "daily") {
-    return <img src={schoolImage} alt="" className="pointer-events-none absolute left-1/2 top-1/2 h-[360px] w-[360px] -translate-x-1/2 -translate-y-1/2 object-contain opacity-[0.035]" />;
-  }
-
+const Watermark = ({ status }: { status: LessonPlan["status"] }) => {
   const label = status === "approved" || status === "final-approved" ? "Approved" : status === "submitted" ? "Submitted" : status === "under-review" ? "Under Review" : status === "draft" ? "Draft" : "";
-  if (!label) {
-    return <img src={schoolImage} alt="" className="pointer-events-none absolute left-1/2 top-1/2 h-[360px] w-[360px] -translate-x-1/2 -translate-y-1/2 object-contain opacity-[0.035]" />;
-  }
   return (
-    <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rotate-[-18deg] text-[48px] font-black uppercase tracking-[0.28em] text-slate-900 opacity-[0.035]">
-      {label}
+    <div className="pointer-events-none absolute inset-0 z-0">
+      <img src={schoolImage} alt="" className="absolute left-1/2 top-1/2 h-[360px] w-[360px] -translate-x-1/2 -translate-y-1/2 object-contain opacity-[0.04]" />
+      {label && (
+        <div className="absolute left-1/2 top-1/2 mt-[43mm] -translate-x-1/2 -translate-y-1/2 rotate-[-18deg] text-[34px] font-black uppercase tracking-[0.22em] text-slate-900 opacity-[0.03]">
+          {label}
+        </div>
+      )}
     </div>
   );
 };
