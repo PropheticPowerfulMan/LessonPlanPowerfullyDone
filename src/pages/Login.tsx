@@ -35,7 +35,7 @@ export const Login = () => {
   };
 
   return (
-    <main className="theme-dark-panel grid min-h-screen place-items-center overflow-hidden bg-[#030d14] px-4 py-8 text-[#e7faff]">
+    <main className="login-edupay theme-dark-panel grid min-h-screen place-items-center overflow-hidden bg-[#030d14] px-4 py-8 text-[#e7faff]">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(20,184,222,0.20),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.14),transparent_30%),linear-gradient(180deg,#031b34_0%,#04141f_42%,#030d14_100%)]" />
       <Card className="relative w-full max-w-lg overflow-hidden border-cyan-300/20 bg-[#071824]/95 p-0 text-[#e7faff]">
         <div className="border-b border-cyan-300/20 bg-slate-950 px-6 py-5 text-white sm:px-7">
@@ -44,8 +44,8 @@ export const Login = () => {
               <img src={schoolImage} alt="KCS" className="h-full w-full rounded-sm object-cover" />
             </span>
             <div className="min-w-0">
-              <p className="text-xs font-black uppercase tracking-wide text-cyan-200">EduPlanner KCS</p>
-              <h1 className="truncate text-3xl font-black text-white">Login</h1>
+              <p className="font-mono text-xs font-black uppercase tracking-[0.22em] text-cyan-200">EduPlanner KCS</p>
+              <h1 className="font-display truncate text-3xl font-bold text-white">Login</h1>
               <p className="text-sm text-slate-300">{schoolDisplayName}</p>
             </div>
           </div>
@@ -56,7 +56,7 @@ export const Login = () => {
 
         <form className="space-y-4 p-6 sm:p-7" onSubmit={submit}>
           <div className="space-y-1">
-            <Label className="text-cyan-50">User account</Label>
+            <Label className="font-mono text-cyan-50">User account</Label>
             <div className="relative">
               <span className="pointer-events-none absolute left-2.5 top-1/2 z-10 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-sm bg-cyan-300/10 text-[#9cecff] shadow-[0_0_12px_rgba(156,236,255,0.22)]">
                 <Mail size={16} strokeWidth={2.5} />
@@ -72,7 +72,7 @@ export const Login = () => {
           </div>
 
           <div className="space-y-1">
-            <Label className="text-cyan-50">Password</Label>
+            <Label className="font-mono text-cyan-50">Password</Label>
             <div className="relative">
               <span className="pointer-events-none absolute left-2.5 top-1/2 z-10 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-sm bg-cyan-300/10 text-[#9cecff] shadow-[0_0_12px_rgba(156,236,255,0.22)]">
                 <LockKeyhole size={16} strokeWidth={2.5} />
@@ -92,7 +92,7 @@ export const Login = () => {
 
           {selectedUser && (
             <div className="rounded-md border border-cyan-300/20 bg-cyan-500/10 px-3 py-3 text-sm">
-              <p className="flex items-center gap-2 font-bold text-cyan-50"><ShieldCheck size={16} /> {roleLabels[selectedUser.role]}</p>
+              <p className="font-display flex items-center gap-2 font-bold text-cyan-50"><ShieldCheck size={16} /> {roleLabels[selectedUser.role]}</p>
               <p className="mt-1 text-cyan-100/80">
                 {selectedUser.department} - {selectedUser.subjects.length ? selectedUser.subjects.join(", ") : "Institutional access"}
               </p>
