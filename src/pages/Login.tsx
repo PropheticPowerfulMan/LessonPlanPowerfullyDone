@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, LockKeyhole, Mail, RotateCcw, ShieldCheck, UserPlus, UserRoundCheck } from "lucide-react";
 import { Button } from "../components/ui/button";
@@ -8,7 +8,6 @@ import { Label } from "../components/ui/label";
 import { useAuth } from "../contexts/AuthContext";
 import { schoolDisplayName, schoolImage } from "../data/defaults";
 import { cloudAuthService } from "../services/cloudAuthService";
-import { mockAuthService } from "../services/mockAuthService";
 import { roleLabels, SignUpProfileInput, UserRole } from "../types/user";
 
 type AuthPanel = "signin" | "signup" | "reset" | "new-password";
@@ -35,7 +34,7 @@ export const Login = () => {
   const recoveryToken = getRecoveryAccessToken();
   const [panel, setPanel] = useState<AuthPanel>(recoveryToken ? "new-password" : "signin");
   const [email, setEmail] = useState(activeUsers[0]?.email || "");
-  const [password, setPassword] = useState(authMode === "local" ? mockAuthService.demoPassword : "");
+  const [password, setPassword] = useState("");
   const [signup, setSignup] = useState(emptySignup);
   const [resetEmail, setResetEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -45,6 +44,10 @@ export const Login = () => {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (authMode === "local" && !email && activeUsers[0]?.email) setEmail(activeUsers[0].email);
+  }, [activeUsers, authMode, email]);
 
   if (currentUser) return <Navigate to="/" replace />;
 
@@ -142,6 +145,7 @@ export const Login = () => {
 
         <div className="p-6 sm:p-7">
           {loading && <p className="rounded-md border border-cyan-300/20 bg-cyan-500/10 px-3 py-2 text-sm font-bold text-cyan-50">Loading secure session...</p>}
+          {cloudAuthService.configurationError && <p className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-bold text-destructive">{cloudAuthService.configurationError}</p>}
           {message && <p className="mb-4 rounded-md border border-emerald-300/30 bg-emerald-500/10 px-3 py-2 text-sm font-bold text-emerald-100">{message}</p>}
           {error && <p className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-bold text-destructive">{error}</p>}
 
@@ -166,7 +170,7 @@ export const Login = () => {
                 </button>
               </AuthField>
 
-              {authMode === "local" && <p className="text-xs text-cyan-100/80">Local fallback mode: demo password {mockAuthService.demoPassword}</p>}
+              {authMode === "local" && !cloudAuthService.required && <p className="text-xs text-cyan-100/80">Local fallback mode is for offline development only.</p>}
               {selectedUser && <AccountSummary user={selectedUser} />}
               <Button className="w-full" type="submit" disabled={busy || loading}><UserRoundCheck size={18} /> Sign in</Button>
             </form>

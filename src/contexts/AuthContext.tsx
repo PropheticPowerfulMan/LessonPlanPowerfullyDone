@@ -23,12 +23,16 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [users, setUsers] = useState(() => mockAuthService.listUsers());
+  const [users, setUsers] = useState(() => (cloudAuthService.required ? [] : mockAuthService.listUsers()));
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(cloudAuthService.enabled);
   const authMode: AuthMode = cloudAuthService.enabled ? "cloud" : "local";
 
   const refreshUsers = async () => {
+    if (cloudAuthService.required && !cloudAuthService.enabled) {
+      setUsers([]);
+      return [];
+    }
     const nextUsers = cloudAuthService.enabled ? await cloudAuthService.listUsers().catch(() => []) : mockAuthService.listUsers();
     setUsers(nextUsers);
     return nextUsers;
@@ -38,6 +42,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     let mounted = true;
     const load = async () => {
       if (!cloudAuthService.enabled) {
+        if (cloudAuthService.required) {
+          setUsers([]);
+          setCurrentUser(null);
+          setLoading(false);
+          return;
+        }
         mockAuthService.signOut();
         return;
       }
@@ -61,12 +71,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    if (cloudAuthService.required && !cloudAuthService.enabled) throw new Error(cloudAuthService.configurationError);
     const user = cloudAuthService.enabled ? await cloudAuthService.signIn(email, password) : mockAuthService.signIn(email, password);
     setCurrentUser(user);
     await refreshUsers();
   };
 
   const signUp = async (profile: SignUpProfileInput) => {
+    if (cloudAuthService.required && !cloudAuthService.enabled) throw new Error(cloudAuthService.configurationError);
     if (cloudAuthService.enabled) {
       await cloudAuthService.signUp(profile);
     } else {
@@ -76,6 +88,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const resetPassword = async (email: string) => {
+    if (cloudAuthService.required && !cloudAuthService.enabled) throw new Error(cloudAuthService.configurationError);
     if (cloudAuthService.enabled) {
       await cloudAuthService.resetPassword(email);
       return;
@@ -84,6 +97,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const changePassword = async (currentPassword: string, nextPassword: string) => {
+    if (cloudAuthService.required && !cloudAuthService.enabled) throw new Error(cloudAuthService.configurationError);
     if (cloudAuthService.enabled) {
       await cloudAuthService.changePassword(currentPassword, nextPassword);
       return;
@@ -93,6 +107,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const setUserPassword = async (id: string, nextPassword?: string) => {
+    if (cloudAuthService.required && !cloudAuthService.enabled) throw new Error(cloudAuthService.configurationError);
     if (cloudAuthService.enabled) {
       const user = users.find((item) => item.id === id);
       if (!user) throw new Error("User profile not found.");
@@ -112,12 +127,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateProfile = async (profile: UserProfile) => {
+    if (cloudAuthService.required && !cloudAuthService.enabled) throw new Error(cloudAuthService.configurationError);
     const next = cloudAuthService.enabled ? await cloudAuthService.updateProfile(profile) : mockAuthService.updateProfile(profile);
     await refreshUsers();
     setCurrentUser((current) => (current?.id === next.id ? next : current));
   };
 
   const deleteUser = async (id: string) => {
+    if (cloudAuthService.required && !cloudAuthService.enabled) throw new Error(cloudAuthService.configurationError);
     if (cloudAuthService.enabled) {
       await cloudAuthService.deleteUser(id);
     } else {
