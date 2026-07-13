@@ -434,7 +434,20 @@ export const Editor = () => {
     const chapter = sanitizeChapter(current.chapter);
     const grade = current.gradeClass || "";
     const generated: WeeklyPlanDay[] = createVariedWeeklyPlan({ ...current, subject, gradeClass: grade, chapter });
-    form.setValue("weeklyPlan", generated, { shouldDirty: true });
+    if (planType === "daily") {
+      const dayIndex = getBusinessDayIndex(current.date);
+      const currentPlan = normalizeEditableWeeklyPlan(current.weeklyPlan, subject, grade, chapter);
+      const daily = {
+        ...generated[dayIndex],
+        day: currentPlan[0]?.day || generated[dayIndex].day,
+        lockedFields: currentPlan[0]?.lockedFields,
+        activityDurations: currentPlan[0]?.activityDurations,
+        editedFields: {}
+      };
+      form.setValue("weeklyPlan", [daily, ...currentPlan.slice(1)], { shouldDirty: true, shouldValidate: false });
+    } else {
+      form.setValue("weeklyPlan", generated, { shouldDirty: true, shouldValidate: false });
+    }
     const generatedTitle = buildAutomaticTitle({ ...current, subject, gradeClass: grade, chapter, planType });
     form.setValue("topic", generatedTitle, { shouldDirty: true });
     notify(planType === "daily" ? "Daily lesson generated automatically" : "Week generated automatically");
@@ -1036,6 +1049,12 @@ const addDaysToIso = (value: string | undefined, days: number) => {
   if (Number.isNaN(date.getTime())) return "";
   date.setDate(date.getDate() + days);
   return toIsoDate(date);
+};
+
+const getBusinessDayIndex = (value?: string) => {
+  const date = value ? new Date(`${value}T00:00:00`) : new Date();
+  if (Number.isNaN(date.getTime())) return 0;
+  return Math.min(4, Math.max(0, (date.getDay() + 6) % 7));
 };
 
 const toIsoDate = (date: Date) => {

@@ -42,7 +42,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { schoolDisplayName } from "../data/defaults";
 import { useLessons } from "../hooks/useLessons";
 import { LessonPlan, LessonStatus } from "../types/lesson";
-import { roleLabels, UserProfile } from "../types/user";
+import { AuthMode, roleLabels, UserProfile } from "../types/user";
 
 type MetricTone = "cyan" | "emerald" | "amber" | "rose" | "violet" | "slate";
 type ActivityItem = { id: string; title: string; detail: string; timestamp: string };
@@ -55,6 +55,7 @@ type DashboardContext = {
   resetPassword: (email: string) => Promise<string | void>;
   changePassword: (currentPassword: string, nextPassword: string) => Promise<void>;
   setUserPassword: (id: string, nextPassword?: string) => Promise<string | void>;
+  authMode: AuthMode;
   navigate: ReturnType<typeof useNavigate>;
   createLesson: ReturnType<typeof useLessons>["createLesson"];
   stats: ReturnType<typeof buildStats>;
@@ -69,7 +70,7 @@ const rejectedStatuses: LessonStatus[] = ["rejected", "revision-requested"];
 
 export const Dashboard = () => {
   const { imageUrl } = useApp();
-  const { currentUser, users, updateProfile, deleteUser, resetPassword, changePassword, setUserPassword } = useAuth();
+  const { currentUser, users, authMode, updateProfile, deleteUser, resetPassword, changePassword, setUserPassword } = useAuth();
   const { lessons, createLesson } = useLessons();
   const navigate = useNavigate();
   if (!currentUser) return null;
@@ -78,7 +79,7 @@ export const Dashboard = () => {
   const recentActivity = useMemo(() => buildRecentActivity(lessons), [lessons]);
   const upcoming = useMemo(() => buildUpcomingLessons(lessons), [lessons]);
   const calendar = useMemo(() => buildCalendar(new Date(), lessons), [lessons]);
-  const context: DashboardContext = { lessons, users, currentUser, updateProfile, deleteUser, resetPassword, changePassword, setUserPassword, navigate, createLesson, stats, recentActivity, upcoming, calendar };
+  const context: DashboardContext = { lessons, users, currentUser, authMode, updateProfile, deleteUser, resetPassword, changePassword, setUserPassword, navigate, createLesson, stats, recentActivity, upcoming, calendar };
 
   const roleTitle = currentUser.role === "head-of-department" ? "HOD Dashboard" : `${roleLabels[currentUser.role]} Dashboard`;
 
@@ -285,7 +286,7 @@ const PasswordInput = ({ value, visible, placeholder, onToggle, onChange }: { va
 );
 
 const AdministratorDashboard = ({ context }: { context: DashboardContext }) => {
-  const { lessons, users, stats, recentActivity, navigate, updateProfile, deleteUser, resetPassword, setUserPassword } = context;
+  const { lessons, users, authMode, stats, recentActivity, navigate, updateProfile, deleteUser, resetPassword, setUserPassword } = context;
   const [window, setWindow] = useState<"overview" | "users" | "security" | "system">("overview");
   const roles = Object.entries(groupCount(users, "role"));
   const storageKb = Math.max(1, Math.round(JSON.stringify({ lessons, users }).length / 1024));
@@ -325,11 +326,11 @@ const AdministratorDashboard = ({ context }: { context: DashboardContext }) => {
         </>
       )}
 
-      {window === "users" && <AdminUserManager users={users} currentUser={context.currentUser} updateProfile={updateProfile} deleteUser={deleteUser} resetPassword={resetPassword} setUserPassword={setUserPassword} />}
+      {window === "users" && <AdminUserManager users={users} currentUser={context.currentUser} authMode={authMode} updateProfile={updateProfile} deleteUser={deleteUser} resetPassword={resetPassword} setUserPassword={setUserPassword} />}
 
       {window === "security" && (
         <DashboardGrid>
-          <PasswordRecoveryCenter users={users} resetPassword={resetPassword} setUserPassword={setUserPassword} />
+          <PasswordRecoveryCenter users={users} authMode={authMode} resetPassword={resetPassword} setUserPassword={setUserPassword} />
           <Panel title="Administrator Authority" icon={ShieldCheck}>
             <CompactList
               items={users.filter((user) => ["administrator", "principal", "vice-principal"].includes(user.role)).map((user) => ({
@@ -364,6 +365,7 @@ const AdministratorDashboard = ({ context }: { context: DashboardContext }) => {
 const AdminUserManager = ({
   users,
   currentUser,
+  authMode,
   updateProfile,
   deleteUser,
   resetPassword,
@@ -371,6 +373,7 @@ const AdminUserManager = ({
 }: {
   users: UserProfile[];
   currentUser: UserProfile;
+  authMode: AuthMode;
   updateProfile: (profile: UserProfile) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
   resetPassword: (email: string) => Promise<string | void>;
@@ -395,6 +398,10 @@ const AdminUserManager = ({
 
   const saveDraft = async () => {
     if (!draft) return;
+    if (!keepsActiveAuthority(users, draft)) {
+      setNotice("Keep at least one active administrator, principal, or vice-principal profile.");
+      return;
+    }
     await updateProfile({
       ...draft,
       subjects: normalizeCsv(draft.subjects.join(",")),
@@ -406,13 +413,26 @@ const AdminUserManager = ({
   };
 
   const recover = async (user: UserProfile) => {
-    const temporary = await setUserPassword(user.id);
+    const temporary = authMode === "cloud" ? await resetPassword(user.email) : await setUserPassword(user.id);
     setNotice(temporary ? `Temporary password for ${user.email}: ${temporary}` : `Recovery email sent to ${user.email}.`);
+  };
+
+  const toggleStatus = async (user: UserProfile) => {
+    const next = { ...user, status: user.status === "active" ? "inactive" : "active" } as UserProfile;
+    if (!keepsActiveAuthority(users, next)) {
+      setNotice("Keep at least one active administrator, principal, or vice-principal profile.");
+      return;
+    }
+    await updateProfile(next);
   };
 
   const remove = async (user: UserProfile) => {
     if (user.id === currentUser.id) {
       setNotice("You cannot delete your own active administrator profile.");
+      return;
+    }
+    if (!keepsActiveAuthority(users.filter((item) => item.id !== user.id))) {
+      setNotice("Keep at least one active administrator, principal, or vice-principal profile.");
       return;
     }
     if (!confirm(`Delete ${user.name}'s application profile?`)) return;
@@ -467,7 +487,7 @@ const AdminUserManager = ({
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button type="button" variant="outline" onClick={() => startEdit(user)}><Edit3 size={15} /> Edit</Button>
-                    <Button type="button" variant="outline" onClick={() => updateProfile({ ...user, status: user.status === "active" ? "inactive" : "active" })}>
+                    <Button type="button" variant="outline" onClick={() => toggleStatus(user)}>
                       <UserCheck size={15} /> {user.status === "active" ? "Disable" : "Activate"}
                     </Button>
                     <Button type="button" variant="outline" onClick={() => recover(user)}><RotateCcw size={15} /> Recover</Button>
@@ -484,7 +504,7 @@ const AdminUserManager = ({
   );
 };
 
-const PasswordRecoveryCenter = ({ users, resetPassword, setUserPassword }: { users: UserProfile[]; resetPassword: (email: string) => Promise<string | void>; setUserPassword: (id: string, nextPassword?: string) => Promise<string | void> }) => {
+const PasswordRecoveryCenter = ({ users, authMode, resetPassword, setUserPassword }: { users: UserProfile[]; authMode: AuthMode; resetPassword: (email: string) => Promise<string | void>; setUserPassword: (id: string, nextPassword?: string) => Promise<string | void> }) => {
   const [selectedId, setSelectedId] = useState(users[0]?.id || "");
   const [customPassword, setCustomPassword] = useState("");
   const [notice, setNotice] = useState("");
@@ -506,20 +526,26 @@ const PasswordRecoveryCenter = ({ users, resetPassword, setUserPassword }: { use
   return (
     <Panel title="Password Recovery Center" icon={RotateCcw}>
       <div className="space-y-3">
-        <p className="text-sm text-muted-foreground">Choose a user, then send a recovery email in cloud mode or set a temporary password in local mode.</p>
+        <p className="text-sm text-muted-foreground">{authMode === "cloud" ? "Choose a user and send a secure password recovery email to the address on the profile." : "Choose a user and set a temporary password for local fallback mode."}</p>
         <Select value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
           {users.map((user) => <option key={user.id} value={user.id}>{user.name} - {user.email}</option>)}
         </Select>
-        <Input value={customPassword} onChange={(event) => setCustomPassword(event.target.value)} placeholder="Optional temporary password" />
+        {authMode === "local" && <Input value={customPassword} onChange={(event) => setCustomPassword(event.target.value)} placeholder="Optional temporary password" />}
         <div className="flex flex-wrap gap-2">
           <Button type="button" onClick={sendRecovery}><RotateCcw size={16} /> Send recovery</Button>
-          <Button type="button" variant="outline" onClick={setTemporary}><RotateCcw size={16} /> Set temporary password</Button>
+          {authMode === "local" && <Button type="button" variant="outline" onClick={setTemporary}><RotateCcw size={16} /> Set temporary password</Button>}
         </div>
         {notice && <p className="rounded-md border border-cyan-300/20 bg-cyan-500/10 px-3 py-2 text-sm font-bold text-cyan-50">{notice}</p>}
       </div>
     </Panel>
   );
 };
+
+const authorityRoles = ["administrator", "principal", "vice-principal"];
+const keepsActiveAuthority = (users: UserProfile[], draft?: UserProfile) =>
+  users
+    .map((user) => (draft && user.id === draft.id ? draft : user))
+    .some((user) => user.status === "active" && authorityRoles.includes(user.role));
 
 const MetricGrid = ({ children }: { children: ReactNode }) => <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">{children}</div>;
 
