@@ -2,7 +2,7 @@
 -- Run this once in Supabase SQL Editor, then ask each user to change password after first access.
 -- Shared temporary password for all accounts: KCS-Temp-2026!
 
-create extension if not exists pgcrypto;
+create extension if not exists pgcrypto with schema extensions;
 
 create or replace function public.upsert_temporary_auth_user(
   user_email text,
@@ -27,7 +27,7 @@ begin
   where email = lower(user_email)
   limit 1;
 
-  next_user_id := coalesce(existing_user_id, gen_random_uuid());
+  next_user_id := coalesce(existing_user_id, extensions.gen_random_uuid());
 
   insert into auth.users (
     instance_id,
@@ -70,7 +70,7 @@ begin
     'authenticated',
     'authenticated',
     lower(user_email),
-    crypt(user_password, gen_salt('bf')),
+    extensions.crypt(user_password, extensions.gen_salt('bf')),
     now(),
     null,
     '',
@@ -130,7 +130,7 @@ begin
     null,
     now(),
     now(),
-    gen_random_uuid()
+    extensions.gen_random_uuid()
   )
   on conflict (provider, provider_id) do update set
     user_id = excluded.user_id,
