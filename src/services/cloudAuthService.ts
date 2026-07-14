@@ -54,7 +54,7 @@ const request = async <T>(url: string, options: RequestInit = {}) => {
   const data = text ? JSON.parse(text) : null;
   if (!response.ok) {
     if (response.status === 429) {
-      throw new Error("Supabase is temporarily limiting account requests. Please wait a few minutes, then try again.");
+      throw new Error("Too many account requests were sent in a short time. Please wait a few minutes before trying again, or ask a school authority to create or activate the account.");
     }
     const message = data?.msg || data?.message || data?.error_description || "Cloud request failed";
     throw new Error(message);

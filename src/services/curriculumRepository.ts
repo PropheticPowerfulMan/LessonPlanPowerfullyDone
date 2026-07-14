@@ -4,55 +4,9 @@ import { uid } from "../utils/id";
 
 const key = "powerful-lesson-planner:curriculum";
 const versionKey = "powerful-lesson-planner:curriculum-version";
-const version = "1";
+const version = "2-final-empty";
 
-const seedItems: CurriculumInput[] = [
-  {
-    academicYear: "2026-2027",
-    term: "1st Quarter",
-    grade: "Grade 4",
-    subject: "English",
-    unit: "Grammar Foundations",
-    topic: "Types of Sentences",
-    subtopic: "Subjects and Predicates",
-    competencies: ["Communicates using complete sentences", "Identifies sentence purpose and structure"],
-    learningObjectives: ["Identify declarative, interrogative, imperative, and exclamatory sentences.", "Underline subjects and circle predicates in model sentences."],
-    learningOutcomes: ["Learners classify sentence types accurately.", "Learners write complete sentences with clear subjects and predicates."],
-    references: ["KCS English Scope and Sequence", "Grammar workbook chapter 1"],
-    skills: ["Writing", "Grammar analysis", "Oral response"],
-    curriculumStandards: ["ENG-G4-L1", "ENG-G4-W2"]
-  },
-  {
-    academicYear: "2026-2027",
-    term: "1st Quarter",
-    grade: "Grade 5",
-    subject: "Mathematics",
-    unit: "Number Sense",
-    topic: "Fractions",
-    subtopic: "Equivalent Fractions",
-    competencies: ["Models fractions visually", "Explains equivalence using multiplication and division"],
-    learningObjectives: ["Generate equivalent fractions using models and number patterns.", "Compare fractions with related denominators."],
-    learningOutcomes: ["Learners create equivalent fractions correctly.", "Learners justify fraction comparisons using evidence."],
-    references: ["KCS Math Curriculum Map", "Math textbook unit 2"],
-    skills: ["Reasoning", "Problem solving", "Mathematical communication"],
-    curriculumStandards: ["MATH-G5-NF1", "MATH-G5-NF2"]
-  },
-  {
-    academicYear: "2026-2027",
-    term: "1st Quarter",
-    grade: "K5",
-    subject: "Science",
-    unit: "Living Things",
-    topic: "Plants",
-    subtopic: "Parts of a Plant",
-    competencies: ["Observes and names plant parts", "Connects plant parts to their functions"],
-    learningObjectives: ["Identify roots, stems, leaves, flowers, and seeds.", "Explain one function of each main plant part."],
-    learningOutcomes: ["Learners label a simple plant diagram.", "Learners describe how plants grow and survive."],
-    references: ["KCS Early Years Science Guide", "Teacher picture cards"],
-    skills: ["Observation", "Classification", "Speaking"],
-    curriculumStandards: ["SCI-K5-LS1"]
-  }
-];
+const seedItems: CurriculumInput[] = [];
 
 const now = () => new Date().toISOString();
 
@@ -80,8 +34,24 @@ const read = (): CurriculumItem[] => {
 
 const write = (items: CurriculumItem[]) => localStorage.setItem(key, JSON.stringify(items.map(normalizeItem)));
 
+const blankCurriculumInput = (): CurriculumInput => ({
+  academicYear: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
+  term: "",
+  grade: "",
+  subject: "",
+  unit: "",
+  topic: "",
+  subtopic: "",
+  competencies: [],
+  learningObjectives: [],
+  learningOutcomes: [],
+  references: [],
+  skills: [],
+  curriculumStandards: []
+});
+
 const normalizeItem = (item: Partial<CurriculumItem>): CurriculumItem => {
-  const fallback = createItem(seedItems[0]);
+  const fallback = createItem(blankCurriculumInput());
   return {
     ...fallback,
     ...item,

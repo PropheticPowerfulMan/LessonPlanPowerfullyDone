@@ -5,8 +5,10 @@ import { AppProvider } from "./contexts/AppContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import "./index.css";
 import { App } from "./App";
+import { applyFinalProductionReset } from "./services/finalResetService";
 import { registerPwaServiceWorker } from "./services/pwaService";
 
+applyFinalProductionReset();
 registerPwaServiceWorker();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(

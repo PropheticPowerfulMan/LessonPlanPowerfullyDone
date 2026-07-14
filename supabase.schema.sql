@@ -134,6 +134,31 @@ create trigger create_profile_after_auth_signup
 after insert on auth.users
 for each row execute function public.create_profile_for_new_user();
 
+create or replace function public.confirm_auth_user_when_profile_activated()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+begin
+  if new.status = 'active' and old.status is distinct from 'active' then
+    update auth.users
+    set
+      email_confirmed_at = coalesce(email_confirmed_at, now()),
+      updated_at = now()
+    where id = new.id;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists confirm_auth_user_after_profile_activation on public.profiles;
+
+create trigger confirm_auth_user_after_profile_activation
+after update of status on public.profiles
+for each row execute function public.confirm_auth_user_when_profile_activated();
+
 create table if not exists public.lesson_plans (
   id text primary key,
   owner_id uuid not null references public.profiles(id) on delete cascade,

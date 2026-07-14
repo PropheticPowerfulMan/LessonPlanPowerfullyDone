@@ -56,6 +56,7 @@ export const Login = () => {
 
   const submitSignin = async (event: FormEvent) => {
     event.preventDefault();
+    if (busy) return;
     setError("");
     setMessage("");
     setBusy(true);
@@ -71,6 +72,7 @@ export const Login = () => {
 
   const submitSignup = async (event: FormEvent) => {
     event.preventDefault();
+    if (busy) return;
     setError("");
     setMessage("");
     setBusy(true);
@@ -80,7 +82,11 @@ export const Login = () => {
       setPanel("signin");
       setMessage("Account created. A school authority must activate it before first login.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to create this account.");
+      const message = err instanceof Error ? err.message : "Unable to create this account.";
+      setError(message);
+      if (authMode === "cloud" && message.toLowerCase().includes("too many account requests")) {
+        setMessage("If this is urgent, ask an administrator, principal, or vice principal to create or activate the account from the authority portal.");
+      }
     } finally {
       setBusy(false);
     }
@@ -178,17 +184,20 @@ export const Login = () => {
 
               {authMode === "local" && <p className="text-xs text-cyan-100/80">Temporary local access: demo password {mockAuthService.demoPassword}</p>}
               {selectedUser && <AccountSummary user={selectedUser} />}
-              <Button className="w-full" type="submit" disabled={busy || loading}><UserRoundCheck size={18} /> Sign in</Button>
+              <Button className="w-full" type="submit" disabled={busy || loading}>
+                {busy ? <LoadingSpinner /> : <UserRoundCheck size={18} />}
+                {busy ? "Signing in..." : "Sign in"}
+              </Button>
             </form>
           )}
 
           {panel === "signup" && (
-            <form className="grid grid-cols-1 gap-4 md:grid-cols-2" onSubmit={submitSignup}>
-              <Field label="Full name"><Input required value={signup.name} onChange={(event) => patchSignup("name", event.target.value)} /></Field>
-              <Field label="Email"><Input required type="email" value={signup.email} onChange={(event) => patchSignup("email", event.target.value)} /></Field>
+            <form className="grid grid-cols-1 gap-4 md:grid-cols-2" onSubmit={submitSignup} autoComplete="off">
+              <Field label="Full name"><Input required autoComplete="new-password" value={signup.name} onChange={(event) => patchSignup("name", event.target.value)} /></Field>
+              <Field label="Email"><Input required autoComplete="new-password" type="email" value={signup.email} onChange={(event) => patchSignup("email", event.target.value)} /></Field>
               <Field label="Password">
                 <div className="relative">
-                  <Input required minLength={6} className="pr-11" type={showSignupPassword ? "text" : "password"} value={signup.password} onChange={(event) => patchSignup("password", event.target.value)} />
+                  <Input required minLength={6} autoComplete="new-password" className="pr-11" type={showSignupPassword ? "text" : "password"} value={signup.password} onChange={(event) => patchSignup("password", event.target.value)} />
                   <button type="button" className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-cyan-200 hover:bg-cyan-500/15 hover:text-white" onClick={() => setShowSignupPassword((value) => !value)} aria-label={showSignupPassword ? "Hide password" : "Show password"}>
                     {showSignupPassword ? <EyeOff size={17} /> : <Eye size={17} />}
                   </button>
@@ -208,9 +217,14 @@ export const Login = () => {
               <ChoiceField label="Subjects" options={subjectOptions} values={signup.subjects} onChange={(subjects) => patchSignup("subjects", subjects)} />
               <ChoiceField label="Grade classes" options={gradeOptions} values={signup.gradeClasses} onChange={(gradeClasses) => patchSignup("gradeClasses", gradeClasses)} />
               <div className="flex items-end">
-                <Button className="w-full" type="submit" disabled={busy}><UserPlus size={18} /> Create account</Button>
+                <Button className="w-full" type="submit" disabled={busy || loading}>
+                  {busy ? <LoadingSpinner /> : <UserPlus size={18} />}
+                  {busy ? "Creating account..." : "Create account"}
+                </Button>
               </div>
-              <p className="md:col-span-2 text-sm text-cyan-100/80">New accounts start inactive. An administrator or authority activates the profile before access.</p>
+              <p className="md:col-span-2 text-sm text-cyan-100/80">
+                New accounts start inactive. An administrator, principal, or vice principal activates the profile before access. If online signup is temporarily limited, ask a school authority to create or activate the account.
+              </p>
             </form>
           )}
 
@@ -219,7 +233,10 @@ export const Login = () => {
               <AuthField label="Account email" icon={<Mail size={16} strokeWidth={2.5} />}>
                 <Input required className="border-cyan-300/20 bg-[#030d14]/85 pl-10 text-cyan-50" type="email" value={resetEmail} onChange={(event) => setResetEmail(event.target.value)} />
               </AuthField>
-              <Button className="w-full" type="submit" disabled={busy}><RotateCcw size={18} /> Recover password</Button>
+              <Button className="w-full" type="submit" disabled={busy}>
+                {busy ? <LoadingSpinner /> : <RotateCcw size={18} />}
+                {busy ? "Sending recovery..." : "Recover password"}
+              </Button>
             </form>
           )}
 
@@ -231,7 +248,10 @@ export const Login = () => {
                   {showNewPassword ? <EyeOff size={17} /> : <Eye size={17} />}
                 </button>
               </AuthField>
-              <Button className="w-full" type="submit" disabled={busy}><RotateCcw size={18} /> Set new password</Button>
+              <Button className="w-full" type="submit" disabled={busy}>
+                {busy ? <LoadingSpinner /> : <RotateCcw size={18} />}
+                {busy ? "Updating password..." : "Set new password"}
+              </Button>
             </form>
           )}
 
@@ -298,6 +318,10 @@ const ChoiceField = ({ label, options, values, onChange }: { label: string; opti
       })}
     </div>
   </div>
+);
+
+const LoadingSpinner = () => (
+  <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden="true" />
 );
 
 const AccountSummary = ({ user }: { user: { role: UserRole; department: string; subjects: string[] } }) => (
