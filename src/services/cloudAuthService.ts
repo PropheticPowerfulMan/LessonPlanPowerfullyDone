@@ -205,7 +205,7 @@ export const cloudAuthService = {
       method: "POST",
       body: JSON.stringify({
         email: email.trim().toLowerCase(),
-        redirect_to: `${window.location.origin}${import.meta.env.BASE_URL}login`
+        redirect_to: `${window.location.origin}${import.meta.env.BASE_URL}#/login`
       })
     });
   },

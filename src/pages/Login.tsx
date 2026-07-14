@@ -109,7 +109,7 @@ export const Login = () => {
     try {
       if (!recoveryToken || authMode !== "cloud") throw new Error("Recovery link is missing or expired.");
       await cloudAuthService.updatePasswordFromRecovery(recoveryToken, newPassword);
-      window.history.replaceState(null, "", `${import.meta.env.BASE_URL}login`);
+      window.history.replaceState(null, "", `${import.meta.env.BASE_URL}#/login`);
       setNewPassword("");
       setPanel("signin");
       setMessage("Password updated. You can sign in with your new password.");

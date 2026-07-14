@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { createBrowserRouter, Navigate, RouterProvider } from "react-router-dom";
+import { createHashRouter, Navigate, RouterProvider } from "react-router-dom";
 import { AppLayout } from "./layouts/AppLayout";
 import { useAuth } from "./contexts/AuthContext";
 import { Dashboard } from "./pages/Dashboard";
@@ -25,7 +25,7 @@ const ProtectedRoute = ({ children }: { children: ReactNode }) => {
   return currentUser?.status === "active" ? children : <Navigate to="/login" replace />;
 };
 
-const router = createBrowserRouter(
+const router = createHashRouter(
   [
     { path: "/login", element: <Login />, errorElement: <ErrorPage /> },
     {
@@ -40,9 +40,6 @@ const router = createBrowserRouter(
       ]
     }
   ],
-  {
-    basename: import.meta.env.BASE_URL
-  }
 );
 
 export const App = () => <RouterProvider router={router} />;
