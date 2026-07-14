@@ -37,6 +37,7 @@ export const Plans = () => {
   const { currentUser, can } = useAuth();
   const [lessons, setLessons] = useState(() => applyLessonVisibility(currentUser, lessonRepository.list()));
   const [showDeleted, setShowDeleted] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [searchParams] = useSearchParams();
   const [filters, setFilters] = useState<LessonFilters>({ ...initialFilters, query: searchParams.get("q") || "" });
   const navigate = useNavigate();
@@ -46,12 +47,19 @@ export const Plans = () => {
   const subjectOptions = useMemo(() => unique([...defaultSubjectOptions, ...lessons.map((lesson) => lesson.subject).filter(Boolean)]), [lessons]);
   const gradeOptions = useMemo(() => unique([...defaultGradeOptions, ...lessons.map((lesson) => lesson.gradeClass).filter(Boolean)]), [lessons]);
   const yearOptions = useMemo(() => unique(lessons.map((lesson) => lesson.date?.slice(0, 4)).filter(Boolean)), [lessons]);
+  const selectableLessons = useMemo(() => filtered.filter((lesson) => canDeleteLesson(currentUser, lesson)), [currentUser, filtered]);
+  const selectedLessons = useMemo(() => filtered.filter((lesson) => selectedIds.includes(lesson.id)), [filtered, selectedIds]);
+  const allSelectableSelected = selectableLessons.length > 0 && selectableLessons.every((lesson) => selectedIds.includes(lesson.id));
 
   const patch = (key: keyof LessonFilters, value: string) => setFilters((current) => ({ ...current, [key]: value }));
   const refresh = () => {
     const source = showDeleted ? lessonRepository.listAll() : lessonRepository.list();
     setLessons(applyLessonVisibility(currentUser, source));
   };
+
+  useEffect(() => {
+    setSelectedIds((current) => current.filter((id) => filtered.some((lesson) => lesson.id === id)));
+  }, [filtered]);
 
   useEffect(() => {
     refresh();
@@ -102,6 +110,37 @@ export const Plans = () => {
     lessonRepository.restore(lesson.id, currentUser);
     refresh();
     notify("Lesson plan restored");
+  };
+
+  const toggleSelected = (id: string, checked: boolean) => {
+    setSelectedIds((current) => checked ? Array.from(new Set([...current, id])) : current.filter((item) => item !== id));
+  };
+
+  const toggleSelectAll = () => {
+    if (allSelectableSelected) {
+      setSelectedIds((current) => current.filter((id) => !selectableLessons.some((lesson) => lesson.id === id)));
+      return;
+    }
+    setSelectedIds((current) => Array.from(new Set([...current, ...selectableLessons.map((lesson) => lesson.id)])));
+  };
+
+  const deleteSelected = () => {
+    const targets = selectedLessons.filter((lesson) => !lesson.deletedAt && canDeleteLesson(currentUser, lesson));
+    if (!targets.length) return;
+    if (!confirm(`Move ${targets.length} selected lesson plan${targets.length > 1 ? "s" : ""} to deleted items?`)) return;
+    targets.forEach((lesson) => lessonRepository.softDelete(lesson.id, currentUser));
+    setSelectedIds((current) => current.filter((id) => !targets.some((lesson) => lesson.id === id)));
+    refresh();
+    notify(`${targets.length} lesson plan${targets.length > 1 ? "s" : ""} moved to deleted items`);
+  };
+
+  const restoreSelected = () => {
+    const targets = selectedLessons.filter((lesson) => lesson.deletedAt && canDeleteLesson(currentUser, lesson));
+    if (!targets.length) return;
+    targets.forEach((lesson) => lessonRepository.restore(lesson.id, currentUser));
+    setSelectedIds((current) => current.filter((id) => !targets.some((lesson) => lesson.id === id)));
+    refresh();
+    notify(`${targets.length} lesson plan${targets.length > 1 ? "s" : ""} restored`);
   };
 
   const downloadBackup = () => {
@@ -196,12 +235,43 @@ export const Plans = () => {
         </datalist>
       </Card>
 
+      <Card className="flex flex-wrap items-center justify-between gap-3 p-3">
+        <label className="flex items-center gap-2 text-sm font-bold text-foreground">
+          <input type="checkbox" checked={allSelectableSelected} onChange={toggleSelectAll} disabled={!selectableLessons.length} />
+          Select all visible deletable plans
+        </label>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-bold text-muted-foreground">{selectedLessons.length} selected</span>
+          <Button variant="danger" onClick={deleteSelected} disabled={!selectedLessons.some((lesson) => !lesson.deletedAt && canDeleteLesson(currentUser, lesson))}>
+            <Trash2 size={16} /> Delete Selected
+          </Button>
+          {showDeleted && (
+            <Button variant="outline" onClick={restoreSelected} disabled={!selectedLessons.some((lesson) => lesson.deletedAt && canDeleteLesson(currentUser, lesson))}>
+              <RefreshCcw size={16} /> Restore Selected
+            </Button>
+          )}
+        </div>
+      </Card>
+
       <div className="grid gap-3">
         {filtered.map((lesson) => (
           <Card key={lesson.id} className="grid min-w-0 gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_auto]">
             <div className="min-w-0">
-              <p className="font-bold text-white">{lesson.topic || "Untitled Lesson"}</p>
-              <p className="text-sm text-muted-foreground">{lesson.lessonNumber} - {lesson.subject || "Subject"} - {lesson.gradeClass || "Grade"} - {lesson.date}</p>
+              <div className="flex items-start gap-3">
+                {canDeleteLesson(currentUser, lesson) && (
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 accent-cyan-300"
+                    checked={selectedIds.includes(lesson.id)}
+                    onChange={(event) => toggleSelected(lesson.id, event.target.checked)}
+                    aria-label={`Select ${lesson.topic || lesson.lessonNumber}`}
+                  />
+                )}
+                <div className="min-w-0">
+                  <p className="font-bold text-white">{lesson.topic || "Untitled Lesson"}</p>
+                  <p className="text-sm text-muted-foreground">{lesson.lessonNumber} - {lesson.subject || "Subject"} - {lesson.gradeClass || "Grade"} - {lesson.date}</p>
+                </div>
+              </div>
               <div className="mt-2 flex flex-wrap gap-2">
                 <StatusBadge status={lesson.status} />
                 {lesson.deletedAt && <span className="rounded-full border border-red-400/35 bg-red-500/15 px-2 py-1 text-xs font-bold text-red-100">Deleted</span>}

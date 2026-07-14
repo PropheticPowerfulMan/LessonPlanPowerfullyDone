@@ -13,7 +13,9 @@ interface SupabaseSession {
 interface SupabaseSignUpResponse {
   access_token?: string;
   refresh_token?: string;
-  user: { id: string; email?: string };
+  id?: string;
+  email?: string;
+  user?: { id?: string; email?: string };
 }
 
 interface StoredSession {
@@ -51,6 +53,9 @@ const request = async <T>(url: string, options: RequestInit = {}) => {
   const text = await response.text();
   const data = text ? JSON.parse(text) : null;
   if (!response.ok) {
+    if (response.status === 429) {
+      throw new Error("Supabase is temporarily limiting account requests. Please wait a few minutes, then try again.");
+    }
     const message = data?.msg || data?.message || data?.error_description || "Cloud request failed";
     throw new Error(message);
   }
@@ -190,7 +195,11 @@ export const cloudAuthService = {
         }
       })
     });
-    const profile = defaultProfile(input, signUpResponse.user.id);
+    const userId = signUpResponse.user?.id || signUpResponse.id;
+    if (!userId) {
+      throw new Error("Account creation started, but Supabase did not return a user id. Please check whether email confirmation is required, then try signing in after confirmation.");
+    }
+    const profile = defaultProfile(input, userId);
     if (signUpResponse.access_token) {
       await request(restUrl("profiles?on_conflict=id"), {
         method: "POST",
