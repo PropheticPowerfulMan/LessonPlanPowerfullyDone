@@ -277,6 +277,11 @@ export const Plans = () => {
                 {lesson.deletedAt && <span className="rounded-full border border-red-400/35 bg-red-500/15 px-2 py-1 text-xs font-bold text-red-100">Deleted</span>}
                 {lesson.tags.map((tag) => <span key={tag} className="rounded-full border border-cyan-300/20 bg-cyan-500/10 px-2 py-1 text-xs font-semibold text-cyan-100">{tag}</span>)}
               </div>
+              {lesson.status !== "draft" && (
+                <p className="mt-2 text-xs font-semibold text-foreground">
+                  Submitted by {getSubmitterName(lesson)}{lesson.ownerName && getSubmitterName(lesson) !== lesson.ownerName ? ` for ${lesson.ownerName}` : ""}
+                </p>
+              )}
               <p className="mt-2 text-xs text-muted-foreground">Last update: {new Date(lesson.updatedAt).toLocaleString()} - {lesson.activityLogs?.[0]?.description || "No activity yet"}</p>
             </div>
             <div className="flex min-w-0 flex-wrap items-center gap-2 lg:justify-end">
@@ -337,3 +342,10 @@ const StatusBadge = ({ status }: { status: LessonStatus }) => {
 };
 
 const unique = (values: string[]) => Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+
+const getSubmitterName = (lesson: LessonPlan) =>
+  lesson.workflowHistory?.find((event) => event.action === "submitted")?.userName ||
+  lesson.activityLogs?.find((log) => log.action === "submitted")?.userName ||
+  lesson.ownerName ||
+  lesson.teachers ||
+  "Unknown user";

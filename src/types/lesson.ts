@@ -71,6 +71,7 @@ export interface WeeklyPlanDay {
   assessment: string;
   homework: string;
   activityDurations?: {
+    introduction?: number;
     presentation?: number;
     guidedPractice?: number;
     exitTicket?: number;

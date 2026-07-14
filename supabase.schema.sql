@@ -57,7 +57,11 @@ using (
 drop policy if exists "profiles_insert_own" on public.profiles;
 create policy "profiles_insert_own"
 on public.profiles for insert
-with check (auth.uid() = id and status = 'inactive');
+with check (
+  auth.uid() = id
+  and status = 'inactive'
+  and role in ('administrator', 'principal', 'vice-principal', 'head-of-department', 'teacher')
+);
 
 drop policy if exists "profiles_update_self_or_authority" on public.profiles;
 create policy "profiles_update_self_or_authority"

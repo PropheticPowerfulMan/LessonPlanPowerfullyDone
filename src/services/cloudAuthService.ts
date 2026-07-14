@@ -2,6 +2,7 @@ import { SignUpProfileInput, UserProfile, UserRole } from "../types/user";
 
 const configuredSupabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+const configuredPublicAppUrl = import.meta.env.VITE_PUBLIC_APP_URL as string | undefined;
 const sessionKey = "powerful-lesson-planner:supabase-session";
 
 interface SupabaseSession {
@@ -41,7 +42,7 @@ const supabaseUrl = (configuredSupabaseUrl || "").replace(/\/rest\/v1\/?$/, "").
 
 const authUrl = (path: string) => `${supabaseUrl}/auth/v1/${path}`;
 const restUrl = (path: string) => `${supabaseUrl}/rest/v1/${path}`;
-const productionAppUrl = "https://propheticpowerfulman.github.io/LessonPlanPowerfullyDone/";
+const productionAppUrl = configuredPublicAppUrl || "https://propheticpowerfulman.github.io/LessonPlanPowerfullyDone/";
 
 const baseHeaders = (token = supabaseAnonKey) => ({
   apikey: supabaseAnonKey || "",
@@ -138,9 +139,10 @@ const fetchCurrentProfile = async (userId: string, accessToken: string) => {
 };
 
 const getPublicAppLoginUrl = () => {
-  if (typeof window === "undefined") return `${productionAppUrl}#/login`;
+  const normalizedProductionUrl = productionAppUrl.endsWith("/") ? productionAppUrl : `${productionAppUrl}/`;
+  if (typeof window === "undefined") return `${normalizedProductionUrl}#/login`;
   const isLocalHost = ["localhost", "127.0.0.1", "0.0.0.0", "::1"].includes(window.location.hostname);
-  if (isLocalHost) return `${productionAppUrl}#/login`;
+  if (isLocalHost) return `${normalizedProductionUrl}#/login`;
   return `${window.location.origin}${import.meta.env.BASE_URL}#/login`;
 };
 
@@ -214,13 +216,6 @@ export const cloudAuthService = {
       throw new Error("Account creation started, but Supabase did not return a user id. Please check whether email confirmation is required, then try signing in after confirmation.");
     }
     const profile = defaultProfile(input, userId);
-    if (signUpResponse.access_token) {
-      await request(restUrl("profiles?on_conflict=id"), {
-        method: "POST",
-        headers: { ...baseHeaders(signUpResponse.access_token), Prefer: "resolution=merge-duplicates" },
-        body: JSON.stringify(fromProfile(profile))
-      });
-    }
     return profile;
   },
   async resetPassword(email: string) {

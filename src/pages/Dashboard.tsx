@@ -376,7 +376,7 @@ const AdminUserManager = ({
       <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h2 className="flex items-center gap-2 text-xl font-black text-white"><Users className="text-cyan-300" size={20} /> User Administration</h2>
-          <p className="text-sm text-muted-foreground">View identities, correct profiles, activate access, send password recovery, or remove application profiles.</p>
+          <p className="text-sm text-slate-700 dark:text-muted-foreground">View identities, correct profiles, activate access, send password recovery, or remove application profiles.</p>
         </div>
         <div className="relative w-full lg:max-w-sm">
           <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-cyan-300" size={16} />
@@ -412,9 +412,9 @@ const AdminUserManager = ({
                 <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
                   <div className="min-w-0">
                     <p className="font-black text-white">{user.name}</p>
-                    <p className="break-words text-sm text-muted-foreground">{user.email} - {roleLabels[user.role]} - {user.status}</p>
-                    <p className="mt-1 text-xs text-cyan-100/80">{user.department || "No department"} | {user.subjects.join(", ") || "No subjects"} | {user.gradeClasses.join(", ") || "No classes"}</p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">Created {formatDate(user.createdAt)} | Updated {formatDate(user.updatedAt)}</p>
+                    <p className="break-words text-sm text-slate-700 dark:text-muted-foreground">{user.email} - {roleLabels[user.role]} - {user.status}</p>
+                    <p className="mt-1 text-xs font-semibold text-slate-700 dark:text-cyan-100/80">{user.department || "No department"} | {user.subjects.join(", ") || "No subjects"} | {user.gradeClasses.join(", ") || "No classes"}</p>
+                    <p className="mt-1 text-[11px] font-semibold text-slate-600 dark:text-muted-foreground">Created {formatDate(user.createdAt)} | Updated {formatDate(user.updatedAt)}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <Button type="button" variant="outline" onClick={() => startEdit(user)}><Edit3 size={15} /> Edit</Button>
@@ -457,7 +457,7 @@ const PasswordRecoveryCenter = ({ users, authMode, resetPassword, setUserPasswor
   return (
     <Panel title="Password Recovery Center" icon={RotateCcw}>
       <div className="space-y-3">
-        <p className="text-sm text-muted-foreground">{authMode === "cloud" ? "Choose a user and send a secure password recovery email to the address on the profile." : "Choose a user and set a temporary password for local fallback mode."}</p>
+        <p className="text-sm text-slate-700 dark:text-muted-foreground">{authMode === "cloud" ? "Choose a user and send a secure password recovery email to the address on the profile." : "Choose a user and set a temporary password for local fallback mode."}</p>
         <Select value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
           {users.map((user) => <option key={user.id} value={user.id}>{user.name} - {user.email}</option>)}
         </Select>

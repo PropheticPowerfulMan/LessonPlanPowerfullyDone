@@ -175,9 +175,14 @@ const formatPlanCell = (day: WeeklyPlanDay, rowKey: RowKey) => {
 };
 
 const DurationBadge = ({ rowKey, day, index }: { rowKey: RowKey; day: WeeklyPlanDay; index: number }) => {
-  if (!["presentationGuidedPractice", "exitTicketAssessment"].includes(rowKey)) return null;
+  if (!["introduction", "presentationGuidedPractice", "exitTicketAssessment"].includes(rowKey)) return null;
   const durations = getActivityDurations(day, index);
-  const value = rowKey === "presentationGuidedPractice" ? durations.presentation + durations.guidedPractice : durations.exitTicket;
+  const value =
+    rowKey === "introduction"
+      ? durations.introduction
+      : rowKey === "presentationGuidedPractice"
+        ? durations.presentation + durations.guidedPractice
+        : durations.exitTicket;
   return (
     <span className="duration-badge mb-0.5 mr-1 inline-block rounded-full border border-slate-300 bg-slate-100 font-black text-slate-700">
       <span className="duration-badge-text">{value} min</span>
