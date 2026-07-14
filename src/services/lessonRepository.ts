@@ -182,7 +182,7 @@ const normalizeWeeklyPlan = (weeklyPlan: Partial<WeeklyPlanDay>[] | undefined, s
   const base = createFlexibleWeeklyPlan(subject, gradeClass, chapter);
   const hasManualWeeklyEdits = Boolean(weeklyPlan?.some((day) => day?.editedFields && Object.values(day.editedFields).some(Boolean)));
   const hasSavedWeeklyContent = Boolean(weeklyPlan?.some((day) =>
-    ["lesson", "objectives", "presentation", "guidedPractice", "exitTicket", "assessment", "homework"].some((key) => {
+    ["lesson", "objectives", "introduction", "presentation", "guidedPractice", "exitTicket", "assessment", "homework"].some((key) => {
       const value = day?.[key as keyof WeeklyPlanDay];
       return typeof value === "string" && value.trim();
     })
@@ -196,6 +196,7 @@ const normalizeWeeklyPlan = (weeklyPlan: Partial<WeeklyPlanDay>[] | undefined, s
     day: weeklyPlan?.[index]?.day || day.day,
     lesson: weeklyPlan?.[index]?.lesson ?? day.lesson,
     objectives: weeklyPlan?.[index]?.objectives ?? day.objectives,
+    introduction: weeklyPlan?.[index]?.introduction ?? day.introduction ?? "",
     presentation: weeklyPlan?.[index]?.presentation ?? day.presentation,
     guidedPractice: weeklyPlan?.[index]?.guidedPractice ?? day.guidedPractice,
     exitTicket: weeklyPlan?.[index]?.exitTicket ?? day.exitTicket,

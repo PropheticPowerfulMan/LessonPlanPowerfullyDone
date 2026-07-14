@@ -159,6 +159,29 @@ create trigger confirm_auth_user_after_profile_activation
 after update of status on public.profiles
 for each row execute function public.confirm_auth_user_when_profile_activated();
 
+create or replace function public.sync_profile_email_from_auth_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.email is distinct from old.email then
+    update public.profiles
+    set email = lower(new.email), updated_at = now()
+    where id = new.id;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists sync_profile_email_after_auth_update on auth.users;
+
+create trigger sync_profile_email_after_auth_update
+after update of email on auth.users
+for each row execute function public.sync_profile_email_from_auth_user();
+
 create table if not exists public.lesson_plans (
   id text primary key,
   owner_id uuid not null references public.profiles(id) on delete cascade,

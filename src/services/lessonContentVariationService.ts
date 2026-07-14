@@ -31,6 +31,7 @@ export const createVariedWeeklyPlan = (context: WeeklyGenerationContext = {}): W
       day: day as WeeklyPlanDay["day"],
       lesson: `${concept} - ${progression.instructionalPurpose}`,
       objectives: objectiveForDay(index, grade, verb, secondVerb, concept, subject),
+      introduction: `Begin with a short question, example, or review link that connects learners' prior knowledge to ${concept}.`,
       presentation: `Use ${presentationMethod} to connect ${concept} to ${subject}; refer to ${materials}${vocabulary ? ` and key vocabulary (${vocabulary})` : ""}.`,
       guidedPractice: `Learners complete a ${practiceMethod} task on ${concept}; the teacher prompts, checks ${strategy.evidence}, and gives immediate corrective feedback.`,
       exitTicket: exitTicketForDay(index, concept, verb),

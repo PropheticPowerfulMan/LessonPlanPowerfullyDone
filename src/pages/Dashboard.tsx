@@ -10,8 +10,6 @@ import {
   Clock3,
   Database,
   Edit3,
-  Eye,
-  EyeOff,
   FileCheck2,
   FileText,
   Gauge,
@@ -53,7 +51,6 @@ type DashboardContext = {
   updateProfile: (profile: UserProfile) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
   resetPassword: (email: string) => Promise<string | void>;
-  changePassword: (currentPassword: string, nextPassword: string) => Promise<void>;
   setUserPassword: (id: string, nextPassword?: string) => Promise<string | void>;
   authMode: AuthMode;
   navigate: ReturnType<typeof useNavigate>;
@@ -70,7 +67,7 @@ const rejectedStatuses: LessonStatus[] = ["rejected", "revision-requested"];
 
 export const Dashboard = () => {
   const { imageUrl } = useApp();
-  const { currentUser, users, authMode, updateProfile, deleteUser, resetPassword, changePassword, setUserPassword } = useAuth();
+  const { currentUser, users, authMode, updateProfile, deleteUser, resetPassword, setUserPassword } = useAuth();
   const { lessons, createLesson } = useLessons();
   const navigate = useNavigate();
   if (!currentUser) return null;
@@ -79,7 +76,7 @@ export const Dashboard = () => {
   const recentActivity = useMemo(() => buildRecentActivity(lessons), [lessons]);
   const upcoming = useMemo(() => buildUpcomingLessons(lessons), [lessons]);
   const calendar = useMemo(() => buildCalendar(new Date(), lessons), [lessons]);
-  const context: DashboardContext = { lessons, users, currentUser, authMode, updateProfile, deleteUser, resetPassword, changePassword, setUserPassword, navigate, createLesson, stats, recentActivity, upcoming, calendar };
+  const context: DashboardContext = { lessons, users, currentUser, authMode, updateProfile, deleteUser, resetPassword, setUserPassword, navigate, createLesson, stats, recentActivity, upcoming, calendar };
 
   const roleTitle = currentUser.role === "head-of-department" ? "HOD Dashboard" : `${roleLabels[currentUser.role]} Dashboard`;
 
@@ -115,8 +112,6 @@ export const Dashboard = () => {
           </div>
         </div>
       </section>
-
-      <AccountSecurityPanel currentUser={currentUser} changePassword={changePassword} />
 
       {currentUser.role === "teacher" && <TeacherDashboard context={context} />}
       {currentUser.role === "head-of-department" && <HodDashboard context={context} />}
@@ -220,70 +215,6 @@ const PrincipalDashboard = ({ context }: { context: DashboardContext }) => {
     </>
   );
 };
-
-const AccountSecurityPanel = ({ currentUser, changePassword }: { currentUser: UserProfile; changePassword: (currentPassword: string, nextPassword: string) => Promise<void> }) => {
-  const [open, setOpen] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [nextPassword, setNextPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [visible, setVisible] = useState({ current: false, next: false, confirm: false });
-  const [notice, setNotice] = useState("");
-
-  const submit = async () => {
-    setNotice("");
-    if (nextPassword.length < 6) {
-      setNotice("New password must contain at least 6 characters.");
-      return;
-    }
-    if (nextPassword !== confirmPassword) {
-      setNotice("The new password confirmation does not match.");
-      return;
-    }
-    try {
-      await changePassword(currentPassword, nextPassword);
-      setCurrentPassword("");
-      setNextPassword("");
-      setConfirmPassword("");
-      setOpen(false);
-      setNotice("Password changed successfully.");
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Unable to change password.");
-    }
-  };
-
-  return (
-    <Card className="p-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-lg font-black text-white">My Account Security</h2>
-          <p className="text-sm text-muted-foreground">{currentUser.email} - change your own password whenever needed.</p>
-        </div>
-        <Button type="button" variant="outline" onClick={() => setOpen((value) => !value)}><RotateCcw size={16} /> Change password</Button>
-      </div>
-      {notice && <p className="mt-3 rounded-md border border-cyan-300/20 bg-cyan-500/10 px-3 py-2 text-sm font-bold text-cyan-50">{notice}</p>}
-      {open && (
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          <PasswordInput value={currentPassword} visible={visible.current} onToggle={() => setVisible((value) => ({ ...value, current: !value.current }))} onChange={setCurrentPassword} placeholder="Current password" />
-          <PasswordInput value={nextPassword} visible={visible.next} onToggle={() => setVisible((value) => ({ ...value, next: !value.next }))} onChange={setNextPassword} placeholder="New password" />
-          <PasswordInput value={confirmPassword} visible={visible.confirm} onToggle={() => setVisible((value) => ({ ...value, confirm: !value.confirm }))} onChange={setConfirmPassword} placeholder="Confirm new password" />
-          <div className="flex gap-2 md:col-span-3">
-            <Button type="button" onClick={submit}>Save new password</Button>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-          </div>
-        </div>
-      )}
-    </Card>
-  );
-};
-
-const PasswordInput = ({ value, visible, placeholder, onToggle, onChange }: { value: string; visible: boolean; placeholder: string; onToggle: () => void; onChange: (value: string) => void }) => (
-  <div className="relative">
-    <Input type={visible ? "text" : "password"} className="pr-11" value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />
-    <button type="button" className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-md text-cyan-200 hover:bg-cyan-500/15 hover:text-white" onClick={onToggle} aria-label={visible ? "Hide password" : "Show password"}>
-      {visible ? <EyeOff size={17} /> : <Eye size={17} />}
-    </button>
-  </div>
-);
 
 const AdministratorDashboard = ({ context }: { context: DashboardContext }) => {
   const { lessons, users, authMode, stats, recentActivity, navigate, updateProfile, deleteUser, resetPassword, setUserPassword } = context;

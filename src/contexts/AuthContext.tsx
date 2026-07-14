@@ -13,6 +13,7 @@ interface AuthContextValue {
   signUp: (profile: SignUpProfileInput) => Promise<void>;
   resetPassword: (email: string) => Promise<string | void>;
   changePassword: (currentPassword: string, nextPassword: string) => Promise<void>;
+  changeEmail: (nextEmail: string, currentPassword: string) => Promise<void>;
   setUserPassword: (id: string, nextPassword?: string) => Promise<string | void>;
   signOut: () => Promise<void>;
   updateProfile: (profile: UserProfile) => Promise<void>;
@@ -90,6 +91,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     mockAuthService.changePassword(currentUser.id, currentPassword, nextPassword);
   };
 
+  const changeEmail = async (nextEmail: string, currentPassword: string) => {
+    if (cloudAuthService.enabled) {
+      await cloudAuthService.changeEmail(nextEmail, currentPassword);
+      await signOut();
+      return;
+    }
+    if (!currentUser) throw new Error("A signed-in user is required.");
+    mockAuthService.updateProfile({ ...currentUser, email: nextEmail.trim().toLowerCase() });
+    await signOut();
+  };
+
   const setUserPassword = async (id: string, nextPassword?: string) => {
     if (cloudAuthService.enabled) {
       const user = users.find((item) => item.id === id);
@@ -134,6 +146,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       signUp,
       resetPassword,
       changePassword,
+      changeEmail,
       setUserPassword,
       signOut,
       updateProfile,

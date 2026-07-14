@@ -64,6 +64,7 @@ export interface WeeklyPlanDay {
   day: WeeklyDayName;
   lesson: string;
   objectives: string;
+  introduction: string;
   presentation: string;
   guidedPractice: string;
   exitTicket: string;

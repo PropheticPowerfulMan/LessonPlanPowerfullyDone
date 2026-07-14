@@ -801,29 +801,27 @@ export const Editor = () => {
                     <WeeklyField label="Objectives" locked={Boolean(day.lockedFields?.objectives)} onRegenerate={() => regenerateCell(index, "objectives")} onToggleLock={() => toggleCellLock(index, "objectives")}>
                       <Textarea className="min-h-20" value={day.objectives} onChange={(event) => updateWeeklyDay(index, "objectives", event.target.value)} />
                     </WeeklyField>
-                    <WeeklyField label={`Presentation (${durations.presentation} min)`} locked={Boolean(day.lockedFields?.presentation)} onRegenerate={() => regenerateCell(index, "presentation")} onToggleLock={() => toggleCellLock(index, "presentation")}>
-                      <Textarea className="min-h-20" value={day.presentation} onChange={(event) => updateWeeklyDay(index, "presentation", event.target.value)} />
-                      <Input type="number" min="0" className="mt-1 h-8" value={durations.presentation} onChange={(event) => updateActivityDuration(index, "presentation", event.target.value)} />
+                    <WeeklyField label="Introduction" locked={Boolean(day.lockedFields?.introduction)} onRegenerate={() => regenerateCell(index, "introduction")} onToggleLock={() => toggleCellLock(index, "introduction")}>
+                      <Textarea className="min-h-16" value={day.introduction} onChange={(event) => updateWeeklyDay(index, "introduction", event.target.value)} />
                     </WeeklyField>
-                    <details>
-                      <summary className="cursor-pointer rounded-md border border-cyan-300/15 px-3 py-2 text-xs font-bold text-cyan-100">More for this day</summary>
-                      <div className="mt-2 space-y-2">
-                        <WeeklyField label={`Guided Practice (${durations.guidedPractice} min)`} locked={Boolean(day.lockedFields?.guidedPractice)} onRegenerate={() => regenerateCell(index, "guidedPractice")} onToggleLock={() => toggleCellLock(index, "guidedPractice")}>
-                          <Textarea className="min-h-16" value={day.guidedPractice} onChange={(event) => updateWeeklyDay(index, "guidedPractice", event.target.value)} />
-                          <Input type="number" min="0" className="mt-1 h-8" value={durations.guidedPractice} onChange={(event) => updateActivityDuration(index, "guidedPractice", event.target.value)} />
-                        </WeeklyField>
-                        <WeeklyField label={`Exit Ticket (${durations.exitTicket} min)`} locked={Boolean(day.lockedFields?.exitTicket)} onRegenerate={() => regenerateCell(index, "exitTicket")} onToggleLock={() => toggleCellLock(index, "exitTicket")}>
-                          <Textarea className="min-h-16" value={day.exitTicket} onChange={(event) => updateWeeklyDay(index, "exitTicket", event.target.value)} />
-                          <Input type="number" min="0" className="mt-1 h-8" value={durations.exitTicket} onChange={(event) => updateActivityDuration(index, "exitTicket", event.target.value)} />
-                        </WeeklyField>
-                        <WeeklyField label="Assessment" locked={Boolean(day.lockedFields?.assessment)} onRegenerate={() => regenerateCell(index, "assessment")} onToggleLock={() => toggleCellLock(index, "assessment")}>
-                          <Textarea className="min-h-16" value={day.assessment} onChange={(event) => updateWeeklyDay(index, "assessment", event.target.value)} />
-                        </WeeklyField>
-                        <WeeklyField label="Homework" locked={Boolean(day.lockedFields?.homework)} onRegenerate={() => regenerateCell(index, "homework")} onToggleLock={() => toggleCellLock(index, "homework")}>
-                          <Textarea className="min-h-16" value={day.homework} onChange={(event) => updateWeeklyDay(index, "homework", event.target.value)} />
-                        </WeeklyField>
-                      </div>
-                    </details>
+                    <WeeklyField label={`Presentation / Guided Practice (${durations.presentation + durations.guidedPractice} min)`} locked={Boolean(day.lockedFields?.presentation || day.lockedFields?.guidedPractice)} onRegenerate={() => { regenerateCell(index, "presentation"); regenerateCell(index, "guidedPractice"); }} onToggleLock={() => { toggleCellLock(index, "presentation"); toggleCellLock(index, "guidedPractice"); }}>
+                      <Label className="text-xs text-cyan-100">Presentation ({durations.presentation} min)</Label>
+                      <Textarea className="min-h-16" value={day.presentation} onChange={(event) => updateWeeklyDay(index, "presentation", event.target.value)} />
+                      <Input type="number" min="0" className="mt-1 h-8" value={durations.presentation} onChange={(event) => updateActivityDuration(index, "presentation", event.target.value)} />
+                      <Label className="mt-2 text-xs text-cyan-100">Guided Practice ({durations.guidedPractice} min)</Label>
+                      <Textarea className="min-h-16" value={day.guidedPractice} onChange={(event) => updateWeeklyDay(index, "guidedPractice", event.target.value)} />
+                      <Input type="number" min="0" className="mt-1 h-8" value={durations.guidedPractice} onChange={(event) => updateActivityDuration(index, "guidedPractice", event.target.value)} />
+                    </WeeklyField>
+                    <WeeklyField label={`Exit Ticket / Assessment (${durations.exitTicket} min)`} locked={Boolean(day.lockedFields?.exitTicket || day.lockedFields?.assessment)} onRegenerate={() => { regenerateCell(index, "exitTicket"); regenerateCell(index, "assessment"); }} onToggleLock={() => { toggleCellLock(index, "exitTicket"); toggleCellLock(index, "assessment"); }}>
+                      <Label className="text-xs text-cyan-100">Exit Ticket ({durations.exitTicket} min)</Label>
+                      <Textarea className="min-h-16" value={day.exitTicket} onChange={(event) => updateWeeklyDay(index, "exitTicket", event.target.value)} />
+                      <Input type="number" min="0" className="mt-1 h-8" value={durations.exitTicket} onChange={(event) => updateActivityDuration(index, "exitTicket", event.target.value)} />
+                      <Label className="mt-2 text-xs text-cyan-100">Assessment</Label>
+                      <Textarea className="min-h-16" value={day.assessment} onChange={(event) => updateWeeklyDay(index, "assessment", event.target.value)} />
+                    </WeeklyField>
+                    <WeeklyField label="Homework" locked={Boolean(day.lockedFields?.homework)} onRegenerate={() => regenerateCell(index, "homework")} onToggleLock={() => toggleCellLock(index, "homework")}>
+                      <Textarea className="min-h-16" value={day.homework} onChange={(event) => updateWeeklyDay(index, "homework", event.target.value)} />
+                    </WeeklyField>
                   </div>
                 </div>
               );})}
@@ -980,6 +978,7 @@ const normalizeEditableWeeklyPlan = (weeklyPlan: Partial<WeeklyPlanDay>[] | unde
     day: weeklyPlan?.[index]?.day || day.day,
     lesson: weeklyPlan?.[index]?.lesson ?? day.lesson,
     objectives: weeklyPlan?.[index]?.objectives ?? day.objectives,
+    introduction: weeklyPlan?.[index]?.introduction ?? day.introduction ?? "",
     presentation: weeklyPlan?.[index]?.presentation ?? day.presentation,
     guidedPractice: weeklyPlan?.[index]?.guidedPractice ?? day.guidedPractice,
     exitTicket: weeklyPlan?.[index]?.exitTicket ?? day.exitTicket,

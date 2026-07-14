@@ -4,15 +4,14 @@ import { getActivityDurations } from "../services/durationValidationService";
 import { getPrintDensity, isLikelyOversizedForOnePage } from "../services/printDensityService";
 import { LessonPlan, WeeklyPlanDay } from "../types/lesson";
 
-type RowKey = keyof Pick<WeeklyPlanDay, "lesson" | "objectives" | "presentation" | "guidedPractice" | "exitTicket" | "assessment" | "homework">;
+type RowKey = "lesson" | "objectives" | "introduction" | "presentationGuidedPractice" | "exitTicketAssessment" | "homework";
 
 const planRows: [RowKey, string][] = [
   ["lesson", "Lesson"],
   ["objectives", "Objectives"],
-  ["presentation", "Presentation"],
-  ["guidedPractice", "Guided Practice"],
-  ["exitTicket", "Exit Ticket"],
-  ["assessment", "Assessment"],
+  ["introduction", "Introduction"],
+  ["presentationGuidedPractice", "Presentation / Guided Practice"],
+  ["exitTicketAssessment", "Exit Ticket / Assessment"],
   ["homework", "Homework"]
 ];
 
@@ -107,7 +106,7 @@ const LessonTable = ({ rows, weeklyPlan, isDaily }: { rows: [RowKey, string][]; 
               <td key={`${day.day}-${key}`} className="border border-slate-400 p-1 align-top">
                 <div className="whitespace-pre-line break-words">
                   <DurationBadge rowKey={key} day={day} index={index} />
-                  {safeText(day[key])}
+                  {formatPlanCell(day, key)}
                 </div>
               </td>
             ))}
@@ -169,10 +168,16 @@ const QrCodeBox = ({ lesson }: { lesson: LessonPlan }) => {
   );
 };
 
+const formatPlanCell = (day: WeeklyPlanDay, rowKey: RowKey) => {
+  if (rowKey === "presentationGuidedPractice") return safeText(`Presentation:\n${day.presentation}\n\nGuided Practice:\n${day.guidedPractice}`);
+  if (rowKey === "exitTicketAssessment") return safeText(`Exit Ticket:\n${day.exitTicket}\n\nAssessment:\n${day.assessment}`);
+  return safeText(day[rowKey]);
+};
+
 const DurationBadge = ({ rowKey, day, index }: { rowKey: RowKey; day: WeeklyPlanDay; index: number }) => {
-  if (!["presentation", "guidedPractice", "exitTicket"].includes(rowKey)) return null;
+  if (!["presentationGuidedPractice", "exitTicketAssessment"].includes(rowKey)) return null;
   const durations = getActivityDurations(day, index);
-  const value = durations[rowKey as keyof typeof durations];
+  const value = rowKey === "presentationGuidedPractice" ? durations.presentation + durations.guidedPractice : durations.exitTicket;
   return (
     <span className="duration-badge mb-0.5 mr-1 inline-block rounded-full border border-slate-300 bg-slate-100 font-black text-slate-700">
       <span className="duration-badge-text">{value} min</span>
@@ -217,6 +222,7 @@ const normalizeWeeklyPlan = (lesson: LessonPlan) => {
     day: weeklyPlan?.[index]?.day || day.day,
     lesson: weeklyPlan?.[index]?.lesson ?? day.lesson,
     objectives: weeklyPlan?.[index]?.objectives ?? day.objectives,
+    introduction: weeklyPlan?.[index]?.introduction ?? day.introduction ?? "",
     presentation: weeklyPlan?.[index]?.presentation ?? day.presentation,
     guidedPractice: weeklyPlan?.[index]?.guidedPractice ?? day.guidedPractice,
     exitTicket: weeklyPlan?.[index]?.exitTicket ?? day.exitTicket,

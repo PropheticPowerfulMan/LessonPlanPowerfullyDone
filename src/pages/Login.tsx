@@ -34,7 +34,7 @@ export const Login = () => {
   const pendingUsers = useMemo(() => users.filter((user) => user.status === "inactive"), [users]);
   const recoveryToken = getRecoveryAccessToken();
   const [panel, setPanel] = useState<AuthPanel>(recoveryToken ? "new-password" : "signin");
-  const [email, setEmail] = useState(activeUsers[0]?.email || "");
+  const [email, setEmail] = useState(authMode === "local" ? activeUsers[0]?.email || "" : "");
   const [password, setPassword] = useState(authMode === "local" ? mockAuthService.demoPassword : "");
   const [signup, setSignup] = useState(emptySignup);
   const [resetEmail, setResetEmail] = useState("");
@@ -171,7 +171,7 @@ export const Login = () => {
                     ))}
                   </Select>
                 ) : (
-                  <Input required className="border-cyan-300/20 bg-[#030d14]/85 pl-10 text-cyan-50" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+                  <Input required autoComplete="username" className="border-cyan-300/20 bg-[#030d14]/85 pl-10 text-cyan-50" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
                 )}
               </AuthField>
 

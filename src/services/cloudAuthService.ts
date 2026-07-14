@@ -18,6 +18,12 @@ interface SupabaseSignUpResponse {
   user?: { id?: string; email?: string };
 }
 
+interface SupabaseUserResponse {
+  id?: string;
+  email?: string;
+  user?: { id?: string; email?: string };
+}
+
 interface StoredSession {
   accessToken: string;
   refreshToken: string;
@@ -35,6 +41,7 @@ const supabaseUrl = (configuredSupabaseUrl || "").replace(/\/rest\/v1\/?$/, "").
 
 const authUrl = (path: string) => `${supabaseUrl}/auth/v1/${path}`;
 const restUrl = (path: string) => `${supabaseUrl}/rest/v1/${path}`;
+const productionAppUrl = "https://propheticpowerfulman.github.io/LessonPlanPowerfullyDone/";
 
 const baseHeaders = (token = supabaseAnonKey) => ({
   apikey: supabaseAnonKey || "",
@@ -130,6 +137,13 @@ const fetchCurrentProfile = async (userId: string, accessToken: string) => {
   return rows[0] ? toProfile(rows[0]) : null;
 };
 
+const getPublicAppLoginUrl = () => {
+  if (typeof window === "undefined") return `${productionAppUrl}#/login`;
+  const isLocalHost = ["localhost", "127.0.0.1", "0.0.0.0", "::1"].includes(window.location.hostname);
+  if (isLocalHost) return `${productionAppUrl}#/login`;
+  return `${window.location.origin}${import.meta.env.BASE_URL}#/login`;
+};
+
 export const cloudAuthService = {
   enabled,
   required: false,
@@ -214,7 +228,7 @@ export const cloudAuthService = {
       method: "POST",
       body: JSON.stringify({
         email: email.trim().toLowerCase(),
-        redirect_to: `${window.location.origin}${import.meta.env.BASE_URL}#/login`
+        redirect_to: getPublicAppLoginUrl()
       })
     });
   },
@@ -239,6 +253,41 @@ export const cloudAuthService = {
       headers: baseHeaders(session.accessToken),
       body: JSON.stringify({ password: nextPassword })
     });
+  },
+  async changeEmail(nextEmail: string, currentPassword: string) {
+    const session = readSession();
+    if (!session) throw new Error("Please sign in again before changing your email.");
+    const profile = await this.getCurrentUser();
+    if (!profile) throw new Error("Current user profile was not found.");
+    const email = nextEmail.trim().toLowerCase();
+    if (!email || email === profile.email.toLowerCase()) throw new Error("Enter a new email address.");
+    await request<SupabaseSession>(authUrl("token?grant_type=password"), {
+      method: "POST",
+      body: JSON.stringify({ email: profile.email, password: currentPassword })
+    });
+    const updated = await request<SupabaseUserResponse>(authUrl("user"), {
+      method: "PUT",
+      headers: baseHeaders(session.accessToken),
+      body: JSON.stringify({
+        email,
+        email_redirect_to: getPublicAppLoginUrl(),
+        data: {
+          name: profile.name,
+          role: profile.role,
+          department: profile.department,
+          subjects: profile.subjects,
+          grade_classes: profile.gradeClasses
+        }
+      })
+    });
+    const confirmedEmail = (updated.user?.email || updated.email || "").toLowerCase();
+    if (confirmedEmail === email) {
+      await request(restUrl(`profiles?id=eq.${profile.id}`), {
+        method: "PATCH",
+        headers: { ...baseHeaders(session.accessToken), Prefer: "return=minimal" },
+        body: JSON.stringify({ email, updated_at: new Date().toISOString() })
+      });
+    }
   },
   async signOut() {
     const session = readSession();
