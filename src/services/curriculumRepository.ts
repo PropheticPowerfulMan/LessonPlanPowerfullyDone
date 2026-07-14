@@ -1,4 +1,5 @@
 import { CurriculumFilters, CurriculumInput, CurriculumItem } from "../types/curriculum";
+import { cloudAuthService } from "./cloudAuthService";
 import { uid } from "../utils/id";
 
 const key = "powerful-lesson-planner:curriculum";
@@ -98,8 +99,86 @@ const normalizeItem = (item: Partial<CurriculumItem>): CurriculumItem => {
 
 const toList = (value: unknown) => Array.isArray(value) ? value.map(String).filter(Boolean) : [];
 
+const cloudHeaders = (extra: Record<string, string> = {}) => ({
+  ...cloudAuthService.baseHeaders(cloudAuthService.getAccessToken()),
+  ...extra
+});
+
+const toCloudRow = (item: CurriculumItem) => ({
+  id: item.id,
+  payload: item,
+  academic_year: item.academicYear,
+  term: item.term,
+  grade: item.grade,
+  subject: item.subject,
+  created_at: item.createdAt,
+  updated_at: item.updatedAt
+});
+
+const fromCloudRow = (row: Record<string, unknown>) => {
+  const payload = row.payload && typeof row.payload === "object" ? row.payload as Partial<CurriculumItem> : {};
+  return normalizeItem({
+    ...payload,
+    id: String(row.id || payload.id || ""),
+    academicYear: String(row.academic_year || payload.academicYear || ""),
+    term: String(row.term || payload.term || ""),
+    grade: String(row.grade || payload.grade || ""),
+    subject: String(row.subject || payload.subject || ""),
+    createdAt: String(row.created_at || payload.createdAt || now()),
+    updatedAt: String(row.updated_at || payload.updatedAt || now())
+  });
+};
+
+const cloudRequest = async <T>(path: string, options: RequestInit = {}) => {
+  const response = await fetch(cloudAuthService.restUrl(path), {
+    ...options,
+    headers: {
+      ...cloudHeaders(),
+      ...(options.headers || {})
+    }
+  });
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : null;
+  if (!response.ok) {
+    const message = data?.message || data?.msg || data?.error_description || "Curriculum cloud request failed";
+    throw new Error(message);
+  }
+  return data as T;
+};
+
+const mergeItems = (localItems: CurriculumItem[], cloudItems: CurriculumItem[]) => {
+  const byId = new Map<string, CurriculumItem>();
+  [...localItems, ...cloudItems].forEach((item) => {
+    const current = byId.get(item.id);
+    if (!current || new Date(item.updatedAt || 0).getTime() >= new Date(current.updatedAt || 0).getTime()) {
+      byId.set(item.id, item);
+    }
+  });
+  return [...byId.values()].sort((a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime());
+};
+
+const syncItemToCloud = (item: CurriculumItem) => {
+  if (!cloudAuthService.enabled) return;
+  cloudRequest("curriculum_items?on_conflict=id", {
+    method: "POST",
+    headers: cloudHeaders({ Prefer: "resolution=merge-duplicates" }),
+    body: JSON.stringify(toCloudRow(item))
+  }).catch((error) => console.warn("Curriculum cloud sync failed", error));
+};
+
+const syncItemsToCloud = (items: CurriculumItem[]) => items.forEach(syncItemToCloud);
+
 export const curriculumRepository = {
   list: read,
+  async syncFromCloud() {
+    if (!cloudAuthService.enabled) return read();
+    const rows = await cloudRequest<Record<string, unknown>[]>("curriculum_items?select=*&order=updated_at.desc");
+    const cloudItems = rows.map(fromCloudRow);
+    const merged = mergeItems(read(), cloudItems);
+    write(merged);
+    syncItemsToCloud(merged);
+    return merged;
+  },
   get(id: string) {
     return read().find((item) => item.id === id);
   },
@@ -113,13 +192,19 @@ export const curriculumRepository = {
       ? items.map((current) => (current.id === item.id ? item : current))
       : [item, ...items];
     write(next);
+    syncItemToCloud(item);
     return item;
   },
   remove(id: string) {
     write(read().filter((item) => item.id !== id));
+    if (cloudAuthService.enabled) {
+      cloudRequest(`curriculum_items?id=eq.${id}`, { method: "DELETE" }).catch((error) => console.warn("Curriculum cloud delete failed", error));
+    }
   },
   import(items: CurriculumItem[]) {
-    write(items.map(normalizeItem));
+    const normalized = items.map(normalizeItem);
+    write(normalized);
+    syncItemsToCloud(normalized);
   },
   exportJson() {
     return JSON.stringify(read(), null, 2);

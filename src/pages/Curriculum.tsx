@@ -1,4 +1,4 @@
-import { ChangeEvent, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { BookOpen, Download, Edit3, FileJson, Plus, Save, Trash2, Upload, X } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
@@ -52,6 +52,18 @@ export const Curriculum = () => {
   const subjects = useMemo(() => unique([...defaultSubjects, ...items.map((item) => item.subject)]), [items]);
 
   const refresh = () => setItems(curriculumRepository.list());
+
+  useEffect(() => {
+    let cancelled = false;
+    curriculumRepository.syncFromCloud()
+      .then((synced) => {
+        if (!cancelled) setItems(synced);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const patchFilter = (key: keyof CurriculumFilters, value: string) => setFilters((current) => ({ ...current, [key]: value }));
   const patchEditing = <K extends keyof CurriculumInput>(key: K, value: CurriculumInput[K]) => setEditing((current) => ({ ...current, [key]: value }));
 

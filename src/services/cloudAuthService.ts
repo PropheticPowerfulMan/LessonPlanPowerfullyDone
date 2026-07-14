@@ -1,12 +1,18 @@
 import { SignUpProfileInput, UserProfile, UserRole } from "../types/user";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const configuredSupabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 const sessionKey = "powerful-lesson-planner:supabase-session";
 
 interface SupabaseSession {
   access_token: string;
   refresh_token: string;
+  user: { id: string; email?: string };
+}
+
+interface SupabaseSignUpResponse {
+  access_token?: string;
+  refresh_token?: string;
   user: { id: string; email?: string };
 }
 
@@ -17,12 +23,13 @@ interface StoredSession {
 }
 
 const hasUsableCloudConfig = Boolean(
-  supabaseUrl &&
+  configuredSupabaseUrl &&
   supabaseAnonKey &&
-  !supabaseUrl.includes("your-project-ref") &&
+  !configuredSupabaseUrl.includes("your-project-ref") &&
   !supabaseAnonKey.includes("your-supabase-anon-public-key")
 );
 const enabled = hasUsableCloudConfig;
+const supabaseUrl = (configuredSupabaseUrl || "").replace(/\/rest\/v1\/?$/, "").replace(/\/$/, "");
 
 const authUrl = (path: string) => `${supabaseUrl}/auth/v1/${path}`;
 const restUrl = (path: string) => `${supabaseUrl}/rest/v1/${path}`;
@@ -111,6 +118,13 @@ const fromProfile = (profile: UserProfile) => ({
   updated_at: new Date().toISOString()
 });
 
+const fetchCurrentProfile = async (userId: string, accessToken: string) => {
+  const rows = await request<Record<string, unknown>[]>(restUrl(`profiles?id=eq.${userId}&select=*`), {
+    headers: baseHeaders(accessToken)
+  });
+  return rows[0] ? toProfile(rows[0]) : null;
+};
+
 export const cloudAuthService = {
   enabled,
   required: false,
@@ -136,10 +150,7 @@ export const cloudAuthService = {
     const session = readSession();
     if (!session) return null;
     try {
-      const rows = await request<Record<string, unknown>[]>(restUrl(`profiles?id=eq.${session.userId}&select=*`), {
-        headers: baseHeaders(session.accessToken)
-      });
-      return rows[0] ? toProfile(rows[0]) : null;
+      return await fetchCurrentProfile(session.userId, session.accessToken);
     } catch {
       localStorage.removeItem(sessionKey);
       return null;
@@ -151,7 +162,13 @@ export const cloudAuthService = {
       body: JSON.stringify({ email: email.trim().toLowerCase(), password })
     });
     writeSession(session);
-    const profile = await this.getCurrentUser();
+    let profile: UserProfile | null = null;
+    try {
+      profile = await fetchCurrentProfile(session.user.id, session.access_token);
+    } catch (error) {
+      localStorage.removeItem(sessionKey);
+      throw error;
+    }
     if (!profile || profile.status !== "active") {
       localStorage.removeItem(sessionKey);
       throw new Error("This account is waiting for activation by the school authority.");
@@ -159,20 +176,28 @@ export const cloudAuthService = {
     return profile;
   },
   async signUp(input: SignUpProfileInput) {
-    const session = await request<SupabaseSession>(authUrl("signup"), {
+    const signUpResponse = await request<SupabaseSignUpResponse>(authUrl("signup"), {
       method: "POST",
       body: JSON.stringify({
         email: input.email.trim().toLowerCase(),
         password: input.password,
-        data: { name: input.name.trim(), role: input.role }
+        data: {
+          name: input.name.trim(),
+          role: input.role,
+          department: input.department.trim() || (input.role === "teacher" ? "Teaching" : "Administration"),
+          subjects: parseList(input.subjects),
+          grade_classes: parseList(input.gradeClasses)
+        }
       })
     });
-    const profile = defaultProfile(input, session.user.id);
-    await request(restUrl("profiles"), {
-      method: "POST",
-      headers: { ...baseHeaders(session.access_token), Prefer: "resolution=merge-duplicates" },
-      body: JSON.stringify(fromProfile(profile))
-    });
+    const profile = defaultProfile(input, signUpResponse.user.id);
+    if (signUpResponse.access_token) {
+      await request(restUrl("profiles?on_conflict=id"), {
+        method: "POST",
+        headers: { ...baseHeaders(signUpResponse.access_token), Prefer: "resolution=merge-duplicates" },
+        body: JSON.stringify(fromProfile(profile))
+      });
+    }
     return profile;
   },
   async resetPassword(email: string) {

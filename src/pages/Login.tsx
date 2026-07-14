@@ -147,6 +147,11 @@ export const Login = () => {
         <div className="p-6 sm:p-7">
           {loading && <p className="rounded-md border border-cyan-300/20 bg-cyan-500/10 px-3 py-2 text-sm font-bold text-cyan-50">Loading secure session...</p>}
           {cloudAuthService.configurationError && <p className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-bold text-destructive">{cloudAuthService.configurationError}</p>}
+          {authMode === "cloud" && panel === "signin" && (
+            <p className="mb-4 rounded-md border border-cyan-300/20 bg-cyan-500/10 px-3 py-2 text-sm font-bold text-cyan-50">
+              Cloud mode active. Enter your account email and password to load your profile and lesson plans from Supabase.
+            </p>
+          )}
           {message && <p className="mb-4 rounded-md border border-emerald-300/30 bg-emerald-500/10 px-3 py-2 text-sm font-bold text-emerald-100">{message}</p>}
           {error && <p className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-bold text-destructive">{error}</p>}
 

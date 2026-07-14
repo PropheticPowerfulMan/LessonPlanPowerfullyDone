@@ -5,6 +5,9 @@ import { AppProvider } from "./contexts/AppContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import "./index.css";
 import { App } from "./App";
+import { registerPwaServiceWorker } from "./services/pwaService";
+
+registerPwaServiceWorker();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
