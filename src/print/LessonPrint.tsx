@@ -21,13 +21,15 @@ export const LessonPrint = forwardRef<HTMLDivElement, { lesson: LessonPlan }>(({
   const generatedAt = formatGeneratedAt(new Date());
   const density = getPrintDensity({ ...lesson, weeklyPlan });
   const oversized = isLikelyOversizedForOnePage({ ...lesson, weeklyPlan });
+  const extremelyOversized = isExtremelyOversized({ ...lesson, weeklyPlan });
 
   return (
     <div ref={ref} className="lesson-print-document bg-transparent text-black">
-      <PrintPage lesson={lesson} pageTitle={planLabel} generatedAt={generatedAt} density={density} oversized={oversized}>
+      <PrintPage lesson={lesson} pageTitle={planLabel} generatedAt={generatedAt} density={density} oversized={oversized} hasOverflowPage={extremelyOversized}>
         <LessonTable rows={planRows} weeklyPlan={weeklyPlan} isDaily={lesson.planType === "daily"} />
         <Signatures lesson={lesson} />
       </PrintPage>
+      {extremelyOversized && <OverflowPage lesson={{ ...lesson, weeklyPlan }} generatedAt={generatedAt} density={density} />}
     </div>
   );
 });
@@ -40,6 +42,7 @@ const PrintPage = ({
   generatedAt,
   density,
   oversized,
+  hasOverflowPage,
   children
 }: {
   lesson: LessonPlan;
@@ -47,6 +50,7 @@ const PrintPage = ({
   generatedAt: string;
   density: string;
   oversized: boolean;
+  hasOverflowPage: boolean;
   children: React.ReactNode;
 }) => (
   <section className={`print-page print-density-${density} mx-auto flex flex-col bg-white p-[5mm] font-serif text-black shadow-fluent`}>
@@ -61,8 +65,8 @@ const PrintPage = ({
           <h1 className="break-words text-[12.4px] font-black uppercase leading-tight tracking-wide text-slate-950">{safeText(lesson.topic, lesson.planType === "daily" ? "Daily Lesson Plan" : "Weekly Lesson Plan")}</h1>
           <p className="break-words text-[7.8px] font-black uppercase leading-tight tracking-wide text-slate-700">{pageTitle}</p>
         </div>
-        <div className="rounded-sm border border-slate-300 bg-white p-1 text-right text-[6.8px] font-black leading-tight text-slate-900">
-          <p>Page 1/1</p>
+        <div className="flex min-h-[44px] flex-col justify-start rounded-sm border border-slate-300 bg-white px-1 pb-0.5 pt-0.5 text-right text-[6.6px] font-black leading-[0.95] text-slate-900">
+          <p>Page 1/{hasOverflowPage ? "2" : "1"}</p>
           <p>{lesson.planType === "daily" ? safeText(lesson.date, "Daily") : formatWeek(lesson.week)}</p>
           {lesson.planType === "weekly" && <p className="text-[6.7px]">{formatWeekRange(lesson)}</p>}
           <p>{safeText(lesson.schoolYear, "2026-2027")}</p>
@@ -76,6 +80,33 @@ const PrintPage = ({
       <span>Generated on {generatedAt}</span>
       <span>{safeText(lesson.status, "draft")} | Modified {formatGeneratedAt(new Date(lesson.updatedAt || Date.now()))}</span>
     </footer>
+  </section>
+);
+
+const OverflowPage = ({ lesson, generatedAt, density }: { lesson: LessonPlan; generatedAt: string; density: string }) => (
+  <section className={`print-page print-density-${density} mx-auto mt-3 flex flex-col bg-white p-[6mm] font-serif text-black shadow-fluent`}>
+    <header className="relative z-10 border-b-2 border-slate-800 pb-2 text-slate-950">
+      <p className="text-[8px] font-black uppercase text-slate-700">{safeText(lesson.schoolName, schoolDisplayName)}</p>
+      <h2 className="text-[13px] font-black uppercase leading-tight">{safeText(lesson.topic, "Lesson Plan")} - Continuation</h2>
+      <p className="text-[7px] font-bold text-slate-600">Page 2/2 | Generated on {generatedAt}</p>
+    </header>
+    <main className="mt-3 grid flex-1 grid-cols-2 gap-2 overflow-hidden text-[7.1px] leading-tight text-slate-950">
+      {lesson.weeklyPlan.flatMap((day) => [
+        ["Lesson", day.lesson],
+        ["Objectives", day.objectives],
+        ["Introduction", day.introduction],
+        ["Presentation", day.presentation],
+        ["Guided Practice", day.guidedPractice],
+        ["Exit Ticket", day.exitTicket],
+        ["Assessment", day.assessment],
+        ["Homework", day.homework]
+      ].map(([label, value]) => (
+        <div key={`${day.day}-${label}`} className="break-words rounded-sm border border-slate-300 bg-slate-50 p-1">
+          <p className="font-black uppercase text-slate-700">{lesson.planType === "daily" ? label : `${day.day} - ${label}`}</p>
+          <p className="whitespace-pre-line">{safeText(value, "-")}</p>
+        </div>
+      )))}
+    </main>
   </section>
 );
 
@@ -166,6 +197,13 @@ const formatPlanCell = (day: WeeklyPlanDay, rowKey: RowKey) => {
   if (rowKey === "presentationGuidedPractice") return safeText(`Presentation:\n${day.presentation}\n\nGuided Practice:\n${day.guidedPractice}`);
   if (rowKey === "exitTicketAssessment") return safeText(`Exit Ticket:\n${day.exitTicket}\n\nAssessment:\n${day.assessment}`);
   return safeText(day[rowKey]);
+};
+
+const isExtremelyOversized = (lesson: LessonPlan) => {
+  const planText = lesson.weeklyPlan
+    .flatMap((day) => [day.lesson, day.objectives, day.introduction, day.presentation, day.guidedPractice, day.exitTicket, day.assessment, day.homework])
+    .join(" ");
+  return planText.length > 7600;
 };
 
 const DurationBadge = ({ rowKey, day, index }: { rowKey: RowKey; day: WeeklyPlanDay; index: number }) => {

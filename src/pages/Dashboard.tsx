@@ -257,7 +257,7 @@ const AdministratorDashboard = ({ context }: { context: DashboardContext }) => {
         </>
       )}
 
-      {window === "users" && <AdminUserManager users={users} currentUser={context.currentUser} authMode={authMode} updateProfile={updateProfile} deleteUser={deleteUser} resetPassword={resetPassword} setUserPassword={setUserPassword} />}
+      {window === "users" && <AdminUserManager users={users} lessons={lessons} currentUser={context.currentUser} authMode={authMode} updateProfile={updateProfile} deleteUser={deleteUser} resetPassword={resetPassword} setUserPassword={setUserPassword} />}
 
       {window === "security" && (
         <DashboardGrid>
@@ -295,6 +295,7 @@ const AdministratorDashboard = ({ context }: { context: DashboardContext }) => {
 
 const AdminUserManager = ({
   users,
+  lessons,
   currentUser,
   authMode,
   updateProfile,
@@ -303,6 +304,7 @@ const AdminUserManager = ({
   setUserPassword
 }: {
   users: UserProfile[];
+  lessons: LessonPlan[];
   currentUser: UserProfile;
   authMode: AuthMode;
   updateProfile: (profile: UserProfile) => Promise<void>;
@@ -311,15 +313,55 @@ const AdminUserManager = ({
   setUserPassword: (id: string, nextPassword?: string) => Promise<string | void>;
 }) => {
   const [query, setQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState("");
+  const [subjectFilter, setSubjectFilter] = useState("");
+  const [gradeFilter, setGradeFilter] = useState("");
+  const [lessonFilter, setLessonFilter] = useState("");
   const [editingId, setEditingId] = useState("");
   const [draft, setDraft] = useState<UserProfile | null>(null);
   const [notice, setNotice] = useState("");
-  const filtered = users.filter((user) =>
-    [user.name, user.email, user.department, roleLabels[user.role], user.subjects.join(" "), user.gradeClasses.join(" "), user.status]
+  const userLessons = useMemo(() => new Map(users.map((user) => [user.id, lessons.filter((lesson) => isUserLesson(user, lesson))])), [lessons, users]);
+  const departmentOptions = useMemo(() => unique(users.map((user) => user.department).filter(Boolean)), [users]);
+  const subjectOptions = useMemo(() => unique([...users.flatMap((user) => user.subjects), ...lessons.map((lesson) => lesson.subject)].filter(Boolean)), [lessons, users]);
+  const gradeOptions = useMemo(() => unique([...users.flatMap((user) => user.gradeClasses), ...lessons.map((lesson) => lesson.gradeClass)].filter(Boolean)), [lessons, users]);
+  const filtered = users.filter((user) => {
+    const relatedLessons = userLessons.get(user.id) || [];
+    const lessonStats = summarizeUserLessons(relatedLessons);
+    const haystack = [
+      user.name,
+      user.email,
+      user.department,
+      roleLabels[user.role],
+      user.subjects.join(" "),
+      user.gradeClasses.join(" "),
+      user.status,
+      ...relatedLessons.flatMap((lesson) => [lesson.lessonNumber, lesson.topic, lesson.subject, lesson.gradeClass, lesson.status, lesson.week])
+    ]
       .join(" ")
       .toLowerCase()
-      .includes(query.toLowerCase())
-  );
+      .includes(query.toLowerCase());
+    return (
+      haystack &&
+      (!roleFilter || user.role === roleFilter) &&
+      (!statusFilter || user.status === statusFilter) &&
+      (!departmentFilter || user.department === departmentFilter) &&
+      (!subjectFilter || user.subjects.includes(subjectFilter) || relatedLessons.some((lesson) => lesson.subject === subjectFilter)) &&
+      (!gradeFilter || user.gradeClasses.includes(gradeFilter) || relatedLessons.some((lesson) => lesson.gradeClass === gradeFilter)) &&
+      matchesLessonFilter(lessonFilter, lessonStats)
+    );
+  });
+
+  const resetFilters = () => {
+    setQuery("");
+    setRoleFilter("");
+    setStatusFilter("");
+    setDepartmentFilter("");
+    setSubjectFilter("");
+    setGradeFilter("");
+    setLessonFilter("");
+  };
 
   const startEdit = (user: UserProfile) => {
     setEditingId(user.id);
@@ -329,6 +371,7 @@ const AdminUserManager = ({
 
   const saveDraft = async () => {
     if (!draft) return;
+    const previous = users.find((user) => user.id === draft.id);
     if (!keepsActiveAuthority(users, draft)) {
       setNotice("Keep at least one active administrator, principal, or vice-principal profile.");
       return;
@@ -338,9 +381,12 @@ const AdminUserManager = ({
       subjects: normalizeCsv(draft.subjects.join(",")),
       gradeClasses: normalizeCsv(draft.gradeClasses.join(","))
     });
+    if (previous?.status !== "active" && draft.status === "active") {
+      await resetPassword(draft.email);
+    }
     setEditingId("");
     setDraft(null);
-    setNotice("User profile updated.");
+    setNotice(previous?.status !== "active" && draft.status === "active" ? "User profile activated and notification email sent." : "User profile updated.");
   };
 
   const recover = async (user: UserProfile) => {
@@ -355,6 +401,10 @@ const AdminUserManager = ({
       return;
     }
     await updateProfile(next);
+    if (next.status === "active") {
+      await resetPassword(next.email);
+      setNotice(`Account activated. Notification email sent to ${next.email}.`);
+    }
   };
 
   const remove = async (user: UserProfile) => {
@@ -383,10 +433,50 @@ const AdminUserManager = ({
           <Input className="pl-9" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search users" />
         </div>
       </div>
+      <div className="mb-4 grid gap-2 md:grid-cols-2 xl:grid-cols-6">
+        <Select value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
+          <option value="">Any role</option>
+          {Object.entries(roleLabels).map(([role, label]) => <option key={role} value={role}>{label}</option>)}
+        </Select>
+        <Select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+          <option value="">Any user status</option>
+          <option value="active">Active users</option>
+          <option value="inactive">Inactive users</option>
+        </Select>
+        <Select value={departmentFilter} onChange={(event) => setDepartmentFilter(event.target.value)}>
+          <option value="">Any department</option>
+          {departmentOptions.map((department) => <option key={department} value={department}>{department}</option>)}
+        </Select>
+        <Select value={subjectFilter} onChange={(event) => setSubjectFilter(event.target.value)}>
+          <option value="">Any course</option>
+          {subjectOptions.map((subject) => <option key={subject} value={subject}>{subject}</option>)}
+        </Select>
+        <Select value={gradeFilter} onChange={(event) => setGradeFilter(event.target.value)}>
+          <option value="">Any class</option>
+          {gradeOptions.map((grade) => <option key={grade} value={grade}>{grade}</option>)}
+        </Select>
+        <Select value={lessonFilter} onChange={(event) => setLessonFilter(event.target.value)}>
+          <option value="">Any lesson activity</option>
+          <option value="has-lessons">Has lesson plans</option>
+          <option value="no-lessons">No lesson plans</option>
+          <option value="draft">Has drafts</option>
+          <option value="submitted">Has submitted plans</option>
+          <option value="under-review">Under review</option>
+          <option value="approved">Approved/final/published</option>
+          <option value="needs-attention">Rejected/revision requested</option>
+        </Select>
+      </div>
+      {(query || roleFilter || statusFilter || departmentFilter || subjectFilter || gradeFilter || lessonFilter) && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-md border border-cyan-300/15 bg-cyan-500/10 px-3 py-2">
+          <p className="text-xs font-black uppercase text-cyan-100">{filtered.length} of {users.length} user profile{filtered.length === 1 ? "" : "s"} shown</p>
+          <Button type="button" variant="outline" className="h-8 px-3" onClick={resetFilters}>Clear filters</Button>
+        </div>
+      )}
       {notice && <p className="mb-3 rounded-md border border-cyan-300/20 bg-cyan-500/10 px-3 py-2 text-sm font-bold text-cyan-50">{notice}</p>}
       <div className="grid gap-3">
         {filtered.map((user) => {
           const isEditing = editingId === user.id && draft;
+          const stats = summarizeUserLessons(userLessons.get(user.id) || []);
           return (
             <div key={user.id} className="rounded-md border border-cyan-300/15 bg-white/[0.04] p-3">
               {isEditing ? (
@@ -414,6 +504,7 @@ const AdminUserManager = ({
                     <p className="font-black text-white">{user.name}</p>
                     <p className="break-words text-sm text-slate-700 dark:text-muted-foreground">{user.email} - {roleLabels[user.role]} - {user.status}</p>
                     <p className="mt-1 text-xs font-semibold text-slate-700 dark:text-cyan-100/80">{user.department || "No department"} | {user.subjects.join(", ") || "No subjects"} | {user.gradeClasses.join(", ") || "No classes"}</p>
+                    <p className="mt-1 text-[11px] font-bold text-cyan-100/85">Plans: {stats.total} total | {stats.draft} draft | {stats.submitted} submitted | {stats.underReview} review | {stats.approved} approved | {stats.needsAttention} attention</p>
                     <p className="mt-1 text-[11px] font-semibold text-slate-600 dark:text-muted-foreground">Created {formatDate(user.createdAt)} | Updated {formatDate(user.updatedAt)}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -470,6 +561,32 @@ const PasswordRecoveryCenter = ({ users, authMode, resetPassword, setUserPasswor
       </div>
     </Panel>
   );
+};
+
+const isUserLesson = (user: UserProfile, lesson: LessonPlan) => {
+  const teacherMatch = lesson.teachers?.trim().toLowerCase() === user.name.trim().toLowerCase();
+  return lesson.ownerId === user.id || teacherMatch;
+};
+
+const summarizeUserLessons = (lessons: LessonPlan[]) => ({
+  total: lessons.length,
+  draft: lessons.filter((lesson) => lesson.status === "draft").length,
+  submitted: lessons.filter((lesson) => lesson.status === "submitted").length,
+  underReview: lessons.filter((lesson) => lesson.status === "under-review").length,
+  approved: lessons.filter((lesson) => ["approved", "final-approved", "published"].includes(lesson.status)).length,
+  needsAttention: lessons.filter((lesson) => ["rejected", "revision-requested"].includes(lesson.status)).length
+});
+
+const matchesLessonFilter = (filter: string, stats: ReturnType<typeof summarizeUserLessons>) => {
+  if (!filter) return true;
+  if (filter === "has-lessons") return stats.total > 0;
+  if (filter === "no-lessons") return stats.total === 0;
+  if (filter === "draft") return stats.draft > 0;
+  if (filter === "submitted") return stats.submitted > 0;
+  if (filter === "under-review") return stats.underReview > 0;
+  if (filter === "approved") return stats.approved > 0;
+  if (filter === "needs-attention") return stats.needsAttention > 0;
+  return true;
 };
 
 const authorityRoles = ["administrator", "principal", "vice-principal"];
@@ -686,6 +803,8 @@ const groupCount = <T, K extends keyof T>(items: T[], key: K) =>
   }, {});
 
 const normalizeCsv = (value: string) => value.split(",").map((item) => item.trim()).filter(Boolean);
+
+const unique = (values: string[]) => Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
 
 const timeGreeting = (date: Date) => {
   const hour = date.getHours();

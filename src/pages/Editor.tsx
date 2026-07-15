@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Copy, Download, FileDown, Layers3, Loader2, Printer, Save, Sparkles, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, Download, FileDown, Layers3, Loader2, Printer, Save, Sparkles, Trash2 } from "lucide-react";
 import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useReactToPrint } from "react-to-print";
@@ -75,6 +75,7 @@ export const Editor = () => {
   const [preview, setPreview] = useState(false);
   const [exporting, setExporting] = useState<"pdf" | "docx" | null>(null);
   const [revisionNote, setRevisionNote] = useState("");
+  const [qualityChecksCollapsed, setQualityChecksCollapsed] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   const [lesson, setLesson] = useState<LessonPlan | undefined>(() => (id ? lessonRepository.get(id) : undefined));
   const fallback = useMemo(() => createBlankLesson(`LP-${new Date().getFullYear()}-0001`), []);
@@ -639,11 +640,17 @@ export const Editor = () => {
         <Card className="border-amber-500/45 bg-amber-100/80 p-4 dark:border-amber-400/35 dark:bg-amber-500/10">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs font-black uppercase text-amber-950 dark:text-amber-100">{planType === "daily" ? "Daily" : "Weekly"} plan quality checks</p>
-            <span className="rounded-sm border border-amber-500/40 bg-white/70 px-2 py-1 text-xs font-black text-amber-950 dark:bg-amber-950/30 dark:text-amber-50">
-              {qualityWarnings.length + durationWarnings.length} point{qualityWarnings.length + durationWarnings.length > 1 ? "s" : ""} to improve
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="rounded-sm border border-amber-500/40 bg-white/70 px-2 py-1 text-xs font-black text-amber-950 dark:bg-amber-950/30 dark:text-amber-50">
+                {qualityWarnings.length + durationWarnings.length} point{qualityWarnings.length + durationWarnings.length > 1 ? "s" : ""} to improve
+              </span>
+              <Button type="button" variant="outline" className="h-8 px-2 text-amber-950 dark:text-amber-50" onClick={() => setQualityChecksCollapsed((value) => !value)}>
+                {qualityChecksCollapsed ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
+                {qualityChecksCollapsed ? "Show" : "Hide"}
+              </Button>
+            </div>
           </div>
-          <div className="mt-3 grid gap-2 text-sm font-semibold text-amber-900 dark:text-amber-50 md:grid-cols-2">
+          {!qualityChecksCollapsed && <div className="mt-3 grid gap-2 text-sm font-semibold text-amber-900 dark:text-amber-50 md:grid-cols-2">
             {qualityWarnings.map((warning) => (
               <div key={warning.id} className="rounded-md border border-amber-500/25 bg-white/60 p-2 dark:bg-amber-950/20">
                 {warning.field && <p className="text-xs font-black uppercase text-amber-800 dark:text-amber-200">{warning.field}</p>}
@@ -657,7 +664,7 @@ export const Editor = () => {
                 <p className="mt-1 text-xs font-bold text-amber-800 dark:text-amber-100">Solution: adjust the activity minutes so the total matches the lesson duration.</p>
               </div>
             ))}
-          </div>
+          </div>}
         </Card>
       )}
 

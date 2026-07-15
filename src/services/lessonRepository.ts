@@ -4,6 +4,27 @@ import { LessonActivityAction, LessonFilters, LessonPlan, LessonStatus, LessonWo
 import { UserProfile } from "../types/user";
 
 const key = "powerful-lesson-planner:lessons";
+const tombstonesKey = "powerful-lesson-planner:lesson-tombstones";
+
+const readTombstones = (): Record<string, string> => {
+  try {
+    return JSON.parse(localStorage.getItem(tombstonesKey) || "{}") as Record<string, string>;
+  } catch {
+    return {};
+  }
+};
+
+const writeTombstones = (tombstones: Record<string, string>) => localStorage.setItem(tombstonesKey, JSON.stringify(tombstones));
+
+const markDeleted = (id: string, timestamp: string) => {
+  writeTombstones({ ...readTombstones(), [id]: timestamp });
+};
+
+const clearDeletedMark = (id: string) => {
+  const tombstones = readTombstones();
+  delete tombstones[id];
+  writeTombstones(tombstones);
+};
 
 const read = (options: { includeDeleted?: boolean } = {}): LessonPlan[] => {
   try {
@@ -156,7 +177,10 @@ const cloudRequest = async <T>(path: string, options: RequestInit = {}) => {
 
 const mergeLessons = (localLessons: LessonPlan[], cloudLessons: LessonPlan[]) => {
   const byId = new Map<string, LessonPlan>();
+  const tombstones = readTombstones();
   [...localLessons, ...cloudLessons].forEach((lesson) => {
+    const deletedAt = tombstones[lesson.id];
+    if (deletedAt && !lesson.deletedAt) lesson = { ...lesson, deletedAt, updatedAt: deletedAt };
     const current = byId.get(lesson.id);
     if (!current || new Date(lesson.updatedAt || 0).getTime() >= new Date(current.updatedAt || 0).getTime()) {
       byId.set(lesson.id, lesson);
@@ -356,6 +380,7 @@ export const lessonRepository = {
       "soft-deleted",
       "Lesson plan moved to deleted items"
     );
+    markDeleted(id, timestamp);
     write(lessons.map((item) => (item.id === id ? next : item)));
     syncLessonToCloud(next);
   },
@@ -369,6 +394,7 @@ export const lessonRepository = {
       "restored",
       "Lesson plan restored from deleted items"
     );
+    clearDeletedMark(id);
     write(lessons.map((item) => (item.id === id ? next : item)));
     syncLessonToCloud(next);
     return next;
@@ -385,6 +411,7 @@ export const lessonRepository = {
       "soft-deleted",
       "Lesson plan moved to deleted items"
     );
+    markDeleted(id, timestamp);
     write(lessons.map((item) => (item.id === id ? next : item)));
     syncLessonToCloud(next);
   },

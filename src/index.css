@@ -262,6 +262,11 @@ select option {
   overflow: hidden;
 }
 
+.lesson-print-document .print-page + .print-page {
+  page-break-before: always;
+  break-before: page;
+}
+
 .pdf-export-root .print-page {
   transform: none !important;
   opacity: 1 !important;

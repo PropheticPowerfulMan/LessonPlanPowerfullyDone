@@ -143,8 +143,10 @@ const getPublicAppLoginUrl = (temporaryPassword?: string) => {
   const normalizedProductionUrl = productionAppUrl.endsWith("/") ? productionAppUrl : `${productionAppUrl}/`;
   const temporaryQuery = temporaryPassword ? `?temporary_password=${encodeURIComponent(temporaryPassword)}` : "";
   if (typeof window === "undefined") return `${normalizedProductionUrl}${temporaryQuery}#/login`;
+  const isLocalHost = ["localhost", "127.0.0.1", "0.0.0.0", "::1"].includes(window.location.hostname);
   const currentAppUrl = `${window.location.origin}${import.meta.env.BASE_URL}`;
-  return `${currentAppUrl}${temporaryQuery}#/login`;
+  const appUrl = isLocalHost ? currentAppUrl : normalizedProductionUrl;
+  return `${appUrl}${temporaryQuery}#/login`;
 };
 
 export const cloudAuthService = {
@@ -198,11 +200,13 @@ export const cloudAuthService = {
     return profile;
   },
   async signUp(input: SignUpProfileInput) {
-    const signUpResponse = await request<SupabaseSignUpResponse>(authUrl("signup"), {
+    const redirectTo = getPublicAppLoginUrl();
+    const signUpResponse = await request<SupabaseSignUpResponse>(`${authUrl("signup")}?redirect_to=${encodeURIComponent(redirectTo)}`, {
       method: "POST",
       body: JSON.stringify({
         email: input.email.trim().toLowerCase(),
         password: input.password,
+        email_redirect_to: redirectTo,
         data: {
           name: input.name.trim(),
           role: input.role,
@@ -220,19 +224,33 @@ export const cloudAuthService = {
     return profile;
   },
   async resetPassword(email: string, temporaryPassword?: string) {
-    await request(authUrl("recover"), {
+    const redirectTo = getPublicAppLoginUrl(temporaryPassword);
+    await request(`${authUrl("recover")}?redirect_to=${encodeURIComponent(redirectTo)}`, {
       method: "POST",
       body: JSON.stringify({
         email: email.trim().toLowerCase(),
-        redirect_to: getPublicAppLoginUrl(temporaryPassword)
+        redirect_to: redirectTo
       })
     });
     return temporaryPassword;
   },
   async createRecoveryPassword(email: string) {
     const temporaryPassword = createTemporaryPassword();
+    await this.setUserPasswordByEmail(email, temporaryPassword);
     await this.resetPassword(email, temporaryPassword);
     return temporaryPassword;
+  },
+  async setUserPasswordByEmail(email: string, password: string) {
+    const session = readSession();
+    const token = session?.accessToken || supabaseAnonKey;
+    await request(restUrl("rpc/set_auth_user_password_by_authority"), {
+      method: "POST",
+      headers: baseHeaders(token),
+      body: JSON.stringify({
+        target_email: email.trim().toLowerCase(),
+        new_password: password
+      })
+    });
   },
   async updatePasswordFromRecovery(accessToken: string, password: string) {
     await request(authUrl("user"), {

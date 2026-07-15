@@ -214,6 +214,47 @@ $$;
 
 grant execute on function public.delete_auth_user_by_authority(uuid) to authenticated;
 
+create extension if not exists pgcrypto with schema extensions;
+
+create or replace function public.set_auth_user_password_by_authority(target_email text, new_password text)
+returns void
+language plpgsql
+security definer
+set search_path = public, auth, extensions
+as $$
+declare
+  actor_role text;
+  actor_status text;
+begin
+  select role, status into actor_role, actor_status
+  from public.profiles
+  where id = auth.uid();
+
+  if actor_status <> 'active' or actor_role not in ('administrator', 'principal', 'vice-principal') then
+    raise exception 'Only active school authorities can reset user passwords.';
+  end if;
+
+  if length(coalesce(new_password, '')) < 6 then
+    raise exception 'Temporary password must contain at least 6 characters.';
+  end if;
+
+  update auth.users
+  set
+    encrypted_password = crypt(new_password, gen_salt('bf')),
+    email_confirmed_at = coalesce(email_confirmed_at, now()),
+    recovery_token = null,
+    recovery_sent_at = now(),
+    updated_at = now()
+  where lower(email) = lower(target_email);
+
+  if not found then
+    raise exception 'User account was not found.';
+  end if;
+end;
+$$;
+
+grant execute on function public.set_auth_user_password_by_authority(text, text) to authenticated;
+
 create table if not exists public.lesson_plans (
   id text primary key,
   owner_id uuid not null references public.profiles(id) on delete cascade,
