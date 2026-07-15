@@ -186,6 +186,34 @@ create trigger sync_profile_email_after_auth_update
 after update of email on auth.users
 for each row execute function public.sync_profile_email_from_auth_user();
 
+create or replace function public.delete_auth_user_by_authority(target_user_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+declare
+  actor_role text;
+  actor_status text;
+begin
+  select role, status into actor_role, actor_status
+  from public.profiles
+  where id = auth.uid();
+
+  if actor_status <> 'active' or actor_role not in ('administrator', 'principal', 'vice-principal') then
+    raise exception 'Only active school authorities can delete user accounts.';
+  end if;
+
+  if target_user_id = auth.uid() then
+    raise exception 'You cannot delete your own signed-in account.';
+  end if;
+
+  delete from auth.users where id = target_user_id;
+end;
+$$;
+
+grant execute on function public.delete_auth_user_by_authority(uuid) to authenticated;
+
 create table if not exists public.lesson_plans (
   id text primary key,
   owner_id uuid not null references public.profiles(id) on delete cascade,

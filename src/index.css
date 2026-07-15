@@ -262,6 +262,11 @@ select option {
   overflow: hidden;
 }
 
+.pdf-export-root .print-page {
+  transform: none !important;
+  opacity: 1 !important;
+}
+
 .print-page table {
   height: auto;
 }
@@ -279,6 +284,27 @@ select option {
 
 .print-page .print-meta-table {
   height: auto;
+}
+
+.print-page .print-meta-table td,
+.print-page .print-meta-cell {
+  vertical-align: middle !important;
+}
+
+.print-page .print-meta-detail {
+  height: 5.8mm !important;
+}
+
+.print-page .print-meta-label,
+.print-page .print-meta-value {
+  display: block !important;
+  height: 5.8mm !important;
+  min-height: 5.8mm !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  line-height: 5.8mm !important;
+  text-align: center !important;
+  overflow: hidden !important;
 }
 
 .print-page tr,
@@ -308,6 +334,7 @@ select option {
 
 .print-page .duration-badge {
   position: relative;
+  display: inline-block;
   width: 13.5mm;
   height: 4.2mm;
   white-space: nowrap;
@@ -322,7 +349,7 @@ select option {
   position: absolute;
   left: 0;
   right: 0;
-  top: 18%;
+  top: 17%;
   display: block;
   transform: translateY(-50%);
   text-align: center;

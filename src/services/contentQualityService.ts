@@ -4,43 +4,97 @@ export interface QualityWarning {
   id: string;
   severity: "info" | "warning";
   message: string;
+  field?: string;
+  suggestion: string;
 }
 
 const measurableVerbs = ["identify", "define", "list", "label", "describe", "explain", "summarize", "compare", "classify", "demonstrate", "calculate", "solve", "apply", "investigate", "analyze", "distinguish", "interpret", "justify", "evaluate", "design", "construct", "formulate", "present", "reflect", "revise", "synthesize", "assess", "create"];
 const vagueWords = ["understand", "learn about", "know", "become familiar"];
 
-export const analyzeWeeklyPlanQuality = (lesson: LessonPlan): QualityWarning[] => {
-  const plan = lesson.weeklyPlan || [];
+export const analyzePlanQuality = (lesson: LessonPlan): QualityWarning[] => {
+  const isDaily = lesson.planType === "daily";
+  const plan = isDaily ? (lesson.weeklyPlan || []).slice(0, 1) : lesson.weeklyPlan || [];
   const warnings: QualityWarning[] = [];
-  checkRepeated(plan, "objectives", warnings);
-  checkRepeated(plan, "assessment", warnings);
-  checkRepeated(plan, "homework", warnings);
+  if (!isDaily) {
+    checkRepeated(plan, "objectives", warnings);
+    checkRepeated(plan, "assessment", warnings);
+    checkRepeated(plan, "homework", warnings);
+  }
+
+  if (!lesson.teachers?.trim()) {
+    warnings.push(createWarning("teacher-missing", "Setup", "Teacher is missing.", "Add the teacher name before submitting or printing the lesson plan."));
+  }
+  if (!lesson.subject?.trim()) {
+    warnings.push(createWarning("subject-missing", "Setup", "Subject is missing.", "Choose the subject so the objectives, activities, and assessment match the curriculum."));
+  }
+  if (!lesson.gradeClass?.trim()) {
+    warnings.push(createWarning("grade-missing", "Setup", "Grade/Class is missing.", "Choose the grade or class to keep the level of work appropriate."));
+  }
+  if (!lesson.chapter?.trim()) {
+    warnings.push(createWarning("unit-missing", "Unit", "Unit or chapter is missing.", "Add the unit/chapter so the lesson has a clear curriculum anchor."));
+  }
+
+  if (isDaily && !lesson.date?.trim()) {
+    warnings.push(createWarning("date-missing", "Date", "Daily lesson date is missing.", "Select the lesson date so the daily plan is properly scheduled."));
+  }
+  if (!isDaily && (!lesson.week?.trim() || !lesson.weekStartDate?.trim() || !lesson.weekEndDate?.trim())) {
+    warnings.push(createWarning("week-range-missing", "Week", "Weekly schedule is incomplete.", "Add the week number, start date, and end date for a complete weekly plan."));
+  }
 
   plan.forEach((day) => {
+    const dayLabel = isDaily ? "Daily lesson" : day.day;
     const objective = day.objectives.toLowerCase();
-    if (vagueWords.some((word) => objective.includes(word))) {
-      warnings.push({ id: `${day.day}-vague-objective`, severity: "warning", message: `${day.day} objective uses vague wording; choose measurable verbs such as explain, demonstrate, apply, or evaluate.` });
+    if (!day.lesson?.trim()) {
+      warnings.push(createWarning(`${day.day}-lesson-missing`, `${dayLabel} lesson`, `${dayLabel} has no lesson focus.`, "Write a short lesson focus that names the skill, concept, or task learners will work on."));
     }
-    if (!measurableVerbs.some((verb) => objective.includes(verb))) {
-      warnings.push({ id: `${day.day}-missing-verb`, severity: "warning", message: `${day.day} objective may be missing a measurable action verb.` });
+    if (!day.objectives?.trim()) {
+      warnings.push(createWarning(`${day.day}-objective-missing`, `${dayLabel} objectives`, `${dayLabel} has no objective.`, "Write one measurable objective that starts with a clear action verb."));
+    }
+    if (vagueWords.some((word) => objective.includes(word))) {
+      warnings.push(createWarning(`${day.day}-vague-objective`, `${dayLabel} objectives`, `${dayLabel} objective uses vague wording.`, "Replace words like understand/know with measurable verbs such as explain, demonstrate, apply, or evaluate."));
+    }
+    if (day.objectives?.trim() && !measurableVerbs.some((verb) => objective.includes(verb))) {
+      warnings.push(createWarning(`${day.day}-missing-verb`, `${dayLabel} objectives`, `${dayLabel} objective may be missing a measurable action verb.`, "Start the objective with an observable action such as identify, compare, solve, create, justify, or evaluate."));
+    }
+    if (!day.presentation?.trim() && !day.guidedPractice?.trim()) {
+      warnings.push(createWarning(`${day.day}-teaching-missing`, `${dayLabel} teaching`, `${dayLabel} needs a teaching and practice sequence.`, "Add how the teacher will introduce the concept and how learners will practice it with support."));
+    }
+    if (!day.assessment?.trim() && !day.exitTicket?.trim()) {
+      warnings.push(createWarning(`${day.day}-assessment-missing`, `${dayLabel} assessment`, `${dayLabel} has no visible evidence check.`, "Add an exit ticket, oral check, written task, rubric, or short assessment to confirm learning."));
     }
     Object.entries(day).forEach(([key, value]) => {
       if (key !== "day" && typeof value === "string" && value.length > 260) {
-        warnings.push({ id: `${day.day}-${key}-long`, severity: "info", message: `${day.day} ${label(key)} may be too long for a clean one-page print.` });
+        warnings.push({
+          id: `${day.day}-${key}-long`,
+          severity: "info",
+          field: `${dayLabel} ${label(key)}`,
+          message: `${dayLabel} ${label(key)} is long and may crowd the final PDF.`,
+          suggestion: "Shorten it to the essential teacher action, learner action, and expected evidence."
+        });
       }
     });
   });
 
-  return warnings.slice(0, 8);
+  return warnings.slice(0, 12);
 };
+
+export const analyzeWeeklyPlanQuality = analyzePlanQuality;
 
 type TextWeeklyKey = keyof Omit<WeeklyPlanDay, "day" | "activityDurations" | "lockedFields" | "editedFields">;
 
 const checkRepeated = (plan: WeeklyPlanDay[], key: TextWeeklyKey, warnings: QualityWarning[]) => {
   const normalized = plan.map((day) => day[key]?.trim().toLowerCase()).filter(Boolean);
   if (new Set(normalized).size < normalized.length) {
-    warnings.push({ id: `${key}-repeated`, severity: "warning", message: `Some ${label(key)} entries repeat across days; regenerate the row or edit the repeated cells.` });
+    warnings.push(createWarning(`${key}-repeated`, label(key), `Some ${label(key)} entries repeat across days.`, "Regenerate the row or edit repeated cells so each day shows real progression."));
   }
 };
 
 const label = (key: string) => key.replace(/([A-Z])/g, " $1").toLowerCase();
+
+const createWarning = (id: string, field: string, message: string, suggestion: string): QualityWarning => ({
+  id,
+  field,
+  message,
+  suggestion,
+  severity: "warning"
+});

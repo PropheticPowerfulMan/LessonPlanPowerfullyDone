@@ -1,4 +1,5 @@
 import { SignUpProfileInput, UserProfile, UserRole } from "../types/user";
+import { createTemporaryPassword } from "./passwordService";
 
 const configuredSupabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -138,12 +139,12 @@ const fetchCurrentProfile = async (userId: string, accessToken: string) => {
   return rows[0] ? toProfile(rows[0]) : null;
 };
 
-const getPublicAppLoginUrl = () => {
+const getPublicAppLoginUrl = (temporaryPassword?: string) => {
   const normalizedProductionUrl = productionAppUrl.endsWith("/") ? productionAppUrl : `${productionAppUrl}/`;
-  if (typeof window === "undefined") return `${normalizedProductionUrl}#/login`;
-  const isLocalHost = ["localhost", "127.0.0.1", "0.0.0.0", "::1"].includes(window.location.hostname);
-  if (isLocalHost) return `${normalizedProductionUrl}#/login`;
-  return `${window.location.origin}${import.meta.env.BASE_URL}#/login`;
+  const temporaryQuery = temporaryPassword ? `?temporary_password=${encodeURIComponent(temporaryPassword)}` : "";
+  if (typeof window === "undefined") return `${normalizedProductionUrl}${temporaryQuery}#/login`;
+  const currentAppUrl = `${window.location.origin}${import.meta.env.BASE_URL}`;
+  return `${currentAppUrl}${temporaryQuery}#/login`;
 };
 
 export const cloudAuthService = {
@@ -218,14 +219,20 @@ export const cloudAuthService = {
     const profile = defaultProfile(input, userId);
     return profile;
   },
-  async resetPassword(email: string) {
+  async resetPassword(email: string, temporaryPassword?: string) {
     await request(authUrl("recover"), {
       method: "POST",
       body: JSON.stringify({
         email: email.trim().toLowerCase(),
-        redirect_to: getPublicAppLoginUrl()
+        redirect_to: getPublicAppLoginUrl(temporaryPassword)
       })
     });
+    return temporaryPassword;
+  },
+  async createRecoveryPassword(email: string) {
+    const temporaryPassword = createTemporaryPassword();
+    await this.resetPassword(email, temporaryPassword);
+    return temporaryPassword;
   },
   async updatePasswordFromRecovery(accessToken: string, password: string) {
     await request(authUrl("user"), {
@@ -307,9 +314,20 @@ export const cloudAuthService = {
   async deleteUser(id: string) {
     const session = readSession();
     const token = session?.accessToken || supabaseAnonKey;
-    await request(restUrl(`profiles?id=eq.${id}`), {
-      method: "DELETE",
-      headers: baseHeaders(token)
+    await request(restUrl("rpc/delete_auth_user_by_authority"), {
+      method: "POST",
+      headers: baseHeaders(token),
+      body: JSON.stringify({ target_user_id: id })
+    }).catch(async () => {
+      await request(restUrl(`profiles?id=eq.${id}`), {
+        method: "PATCH",
+        headers: { ...baseHeaders(token), Prefer: "return=minimal" },
+        body: JSON.stringify({
+          email: `deleted-${id}-${Date.now()}@deleted.local`,
+          status: "inactive",
+          updated_at: new Date().toISOString()
+        })
+      });
     });
   }
 };

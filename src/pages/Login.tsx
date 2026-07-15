@@ -9,6 +9,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { schoolDisplayName, schoolImage } from "../data/defaults";
 import { cloudAuthService } from "../services/cloudAuthService";
 import { mockAuthService } from "../services/mockAuthService";
+import { getRecoveryParam } from "../services/urlRecoveryService";
 import { roleLabels, SignUpProfileInput, UserRole } from "../types/user";
 
 type AuthPanel = "signin" | "signup" | "reset" | "new-password";
@@ -33,6 +34,7 @@ export const Login = () => {
   const activeUsers = useMemo(() => users.filter((user) => user.status === "active"), [users]);
   const pendingUsers = useMemo(() => users.filter((user) => user.status === "inactive"), [users]);
   const recoveryToken = getRecoveryAccessToken();
+  const recoveryTemporaryPassword = getRecoveryTemporaryPassword();
   const [panel, setPanel] = useState<AuthPanel>(recoveryToken ? "new-password" : "signin");
   const [email, setEmail] = useState(authMode === "local" ? activeUsers[0]?.email || "" : "");
   const [password, setPassword] = useState(authMode === "local" ? mockAuthService.demoPassword : "");
@@ -106,6 +108,30 @@ export const Login = () => {
       setBusy(false);
     }
   };
+
+  useEffect(() => {
+    if (!recoveryToken || !recoveryTemporaryPassword || authMode !== "cloud") return;
+    let cancelled = false;
+    setBusy(true);
+    setError("");
+    setMessage("");
+    cloudAuthService.updatePasswordFromRecovery(recoveryToken, recoveryTemporaryPassword)
+      .then(() => {
+        if (cancelled) return;
+        window.history.replaceState(null, "", `${import.meta.env.BASE_URL}#/login`);
+        setPanel("signin");
+        setMessage("Temporary password activated. Sign in with the temporary password sent by the school authority, then change it from your profile.");
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err instanceof Error ? err.message : "Unable to activate the temporary password.");
+      })
+      .finally(() => {
+        if (!cancelled) setBusy(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [authMode, recoveryTemporaryPassword, recoveryToken]);
 
   const submitNewPassword = async (event: FormEvent) => {
     event.preventDefault();
@@ -267,10 +293,11 @@ export const Login = () => {
 };
 
 const getRecoveryAccessToken = () => {
-  if (typeof window === "undefined") return "";
-  const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-  const query = new URLSearchParams(window.location.search);
-  return hash.get("access_token") || query.get("access_token") || "";
+  return getRecoveryParam("access_token");
+};
+
+const getRecoveryTemporaryPassword = () => {
+  return getRecoveryParam("temporary_password");
 };
 
 const Tab = ({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) => (

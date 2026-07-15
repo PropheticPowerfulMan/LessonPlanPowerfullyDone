@@ -70,12 +70,6 @@ const PrintPage = ({
       </div>
       <HeaderDetails lesson={lesson} />
     </header>
-    {oversized && (
-      <p className="relative mt-1 border border-amber-400 bg-amber-50 px-2 py-1 text-[7.5px] font-bold text-amber-900">
-        One-page warning: this lesson contains dense content. Shorten oversized cells or use compact wording before final printing.
-      </p>
-    )}
-
     <main className="relative z-10 mt-1.5 flex min-h-0 flex-1 flex-col">{children}</main>
     <footer className="relative z-10 mt-1 flex justify-between border-t border-slate-200 pt-1 text-[7.2px] font-semibold uppercase tracking-wide text-slate-500">
       <span>KCS Lesson Planner</span>
@@ -136,10 +130,10 @@ const HeaderDetails = ({ lesson }: { lesson: LessonPlan }) => (
 );
 
 const Detail = ({ label, value, colSpan = 1 }: { label: string; value?: string; colSpan?: number }) => (
-  <td className="border border-slate-500 p-0 align-top" colSpan={colSpan}>
-    <div className="grid min-h-[4.2mm] grid-cols-[15mm_minmax(0,1fr)]">
-      <span className="border-r border-slate-500 bg-slate-200 px-1 py-0.5 font-black uppercase text-slate-950">{label}</span>
-      <span className="break-words bg-white px-1 py-0.5 font-black text-slate-950">{safeText(value, "-")}</span>
+  <td className="print-meta-cell border border-slate-500 p-0 align-middle" colSpan={colSpan} style={{ verticalAlign: "middle", height: "5.8mm" }}>
+    <div className="print-meta-detail grid h-[5.8mm] grid-cols-[15mm_minmax(0,1fr)]" style={{ display: "grid", gridTemplateColumns: "15mm minmax(0, 1fr)", height: "5.8mm" }}>
+      <span className="print-meta-label block h-full overflow-hidden border-r border-slate-500 bg-slate-200 px-1 py-0 text-center font-black uppercase text-slate-950" style={{ display: "block", height: "5.8mm", lineHeight: "5.8mm", paddingTop: 0, paddingBottom: 0 }}>{label}</span>
+      <span className="print-meta-value block h-full overflow-hidden break-words bg-white px-1 py-0 text-center font-black text-slate-950" style={{ display: "block", height: "5.8mm", lineHeight: "5.8mm", paddingTop: 0, paddingBottom: 0 }}>{safeText(value, "-")}</span>
     </div>
   </td>
 );

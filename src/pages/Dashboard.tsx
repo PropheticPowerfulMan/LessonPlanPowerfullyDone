@@ -344,7 +344,7 @@ const AdminUserManager = ({
   };
 
   const recover = async (user: UserProfile) => {
-    const temporary = authMode === "cloud" ? await resetPassword(user.email) : await setUserPassword(user.id);
+    const temporary = await setUserPassword(user.id);
     setNotice(temporary ? `New temporary password for ${user.email}: ${temporary}` : `Secure recovery link sent to ${user.email}.`);
   };
 
@@ -443,8 +443,8 @@ const PasswordRecoveryCenter = ({ users, authMode, resetPassword, setUserPasswor
 
   const sendRecovery = async () => {
     if (!selected) return;
-    const temporary = await resetPassword(selected.email);
-    setNotice(temporary ? `Local recovery complete. New temporary password: ${temporary}` : `Secure recovery link sent to ${selected.email}.`);
+    const temporary = await setUserPassword(selected.id);
+    setNotice(temporary ? `Recovery link sent to ${selected.email}. Temporary password: ${temporary}` : `Secure recovery link sent to ${selected.email}.`);
   };
 
   const setTemporary = async () => {

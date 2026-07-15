@@ -637,10 +637,26 @@ export const Editor = () => {
       )}
       {(qualityWarnings.length > 0 || durationWarnings.length > 0) && (
         <Card className="border-amber-500/45 bg-amber-100/80 p-4 dark:border-amber-400/35 dark:bg-amber-500/10">
-          <p className="text-xs font-black uppercase text-amber-950 dark:text-amber-100">Weekly plan quality checks</p>
-          <div className="mt-2 grid gap-2 text-sm font-semibold text-amber-900 dark:text-amber-50 md:grid-cols-2">
-            {qualityWarnings.map((warning) => <p key={warning.id}>{warning.message}</p>)}
-            {durationWarnings.map((warning) => <p key={warning.id}>{warning.message}</p>)}
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-black uppercase text-amber-950 dark:text-amber-100">{planType === "daily" ? "Daily" : "Weekly"} plan quality checks</p>
+            <span className="rounded-sm border border-amber-500/40 bg-white/70 px-2 py-1 text-xs font-black text-amber-950 dark:bg-amber-950/30 dark:text-amber-50">
+              {qualityWarnings.length + durationWarnings.length} point{qualityWarnings.length + durationWarnings.length > 1 ? "s" : ""} to improve
+            </span>
+          </div>
+          <div className="mt-3 grid gap-2 text-sm font-semibold text-amber-900 dark:text-amber-50 md:grid-cols-2">
+            {qualityWarnings.map((warning) => (
+              <div key={warning.id} className="rounded-md border border-amber-500/25 bg-white/60 p-2 dark:bg-amber-950/20">
+                {warning.field && <p className="text-xs font-black uppercase text-amber-800 dark:text-amber-200">{warning.field}</p>}
+                <p>{warning.message}</p>
+                <p className="mt-1 text-xs font-bold text-amber-800 dark:text-amber-100">Solution: {warning.suggestion}</p>
+              </div>
+            ))}
+            {durationWarnings.map((warning) => (
+              <div key={warning.id} className="rounded-md border border-amber-500/25 bg-white/60 p-2 dark:bg-amber-950/20">
+                <p>{warning.message}</p>
+                <p className="mt-1 text-xs font-bold text-amber-800 dark:text-amber-100">Solution: adjust the activity minutes so the total matches the lesson duration.</p>
+              </div>
+            ))}
           </div>
         </Card>
       )}
@@ -896,7 +912,7 @@ export const Editor = () => {
         </aside>
       </div>
 
-      <div aria-hidden className="fixed left-[-12000px] top-0">
+      <div aria-hidden className="pdf-export-root pointer-events-none fixed left-0 top-0 -z-10">
         <LessonPrint lesson={printableLesson} ref={printRef} />
       </div>
 
