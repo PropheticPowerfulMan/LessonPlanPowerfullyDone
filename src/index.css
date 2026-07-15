@@ -297,14 +297,15 @@ select option {
 
 .print-page .print-meta-label,
 .print-page .print-meta-value {
-  display: block !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   height: 5.8mm !important;
   min-height: 5.8mm !important;
   padding-top: 0 !important;
   padding-bottom: 0 !important;
-  line-height: 5.8mm !important;
+  line-height: 1 !important;
   text-align: center !important;
-  overflow: hidden !important;
 }
 
 .print-page tr,
