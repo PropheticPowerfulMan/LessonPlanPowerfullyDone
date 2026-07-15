@@ -286,28 +286,6 @@ select option {
   height: auto;
 }
 
-.print-page .print-meta-table td,
-.print-page .print-meta-cell {
-  vertical-align: middle !important;
-}
-
-.print-page .print-meta-detail {
-  height: 5.8mm !important;
-}
-
-.print-page .print-meta-label,
-.print-page .print-meta-value {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  height: 5.8mm !important;
-  min-height: 5.8mm !important;
-  padding-top: 0 !important;
-  padding-bottom: 0 !important;
-  line-height: 1 !important;
-  text-align: center !important;
-}
-
 .print-page tr,
 .print-page td,
 .print-page th {
@@ -350,7 +328,7 @@ select option {
   position: absolute;
   left: 0;
   right: 0;
-  top: 17%;
+  top: 18%;
   display: block;
   transform: translateY(-50%);
   text-align: center;

@@ -52,6 +52,15 @@ export const Login = () => {
     if (authMode === "local" && !email && activeUsers[0]?.email) setEmail(activeUsers[0].email);
   }, [activeUsers, authMode, email]);
 
+  useEffect(() => {
+    const root = document.documentElement;
+    const wasDark = root.classList.contains("dark");
+    root.classList.add("dark");
+    return () => {
+      if (!wasDark) root.classList.remove("dark");
+    };
+  }, []);
+
   if (currentUser) return <Navigate to="/" replace />;
 
   const selectedUser = activeUsers.find((user) => user.email === email);

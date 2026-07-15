@@ -912,7 +912,7 @@ export const Editor = () => {
         </aside>
       </div>
 
-      <div aria-hidden className="pdf-export-root pointer-events-none fixed left-0 top-0 -z-10 opacity-0">
+      <div aria-hidden className="fixed left-[-12000px] top-0">
         <LessonPrint lesson={printableLesson} ref={printRef} />
       </div>
 

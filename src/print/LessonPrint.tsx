@@ -130,10 +130,10 @@ const HeaderDetails = ({ lesson }: { lesson: LessonPlan }) => (
 );
 
 const Detail = ({ label, value, colSpan = 1 }: { label: string; value?: string; colSpan?: number }) => (
-  <td className="print-meta-cell border border-slate-500 p-0 align-middle" colSpan={colSpan} style={{ verticalAlign: "middle", height: "5.8mm" }}>
-    <div className="print-meta-detail grid h-[5.8mm] grid-cols-[15mm_minmax(0,1fr)]" style={{ display: "grid", gridTemplateColumns: "15mm minmax(0, 1fr)", height: "5.8mm" }}>
-      <span className="print-meta-label grid h-full place-items-center border-r border-slate-500 bg-slate-200 px-1 py-0 text-center font-black uppercase leading-none text-slate-950" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "5.8mm", lineHeight: 1, paddingTop: 0, paddingBottom: 0 }}>{label}</span>
-      <span className="print-meta-value grid h-full place-items-center break-words bg-white px-1 py-0 text-center font-black leading-none text-slate-950" style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "5.8mm", lineHeight: 1, paddingTop: 0, paddingBottom: 0 }}>{safeText(value, "-")}</span>
+  <td className="border border-slate-500 p-0 align-top" colSpan={colSpan}>
+    <div className="grid min-h-[4.2mm] grid-cols-[15mm_minmax(0,1fr)]">
+      <span className="border-r border-slate-500 bg-slate-200 px-1 py-0.5 font-black uppercase text-slate-950">{label}</span>
+      <span className="break-words bg-white px-1 py-0.5 font-black text-slate-950">{safeText(value, "-")}</span>
     </div>
   </td>
 );
