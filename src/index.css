@@ -310,7 +310,7 @@ select option {
   padding: 0 1mm;
   position: absolute;
   text-align: left;
-  top: 54%;
+  top: 40%;
   transform: translateY(-50%);
   width: 100%;
 }
@@ -343,7 +343,7 @@ select option {
   padding: 0 1mm !important;
   position: absolute !important;
   text-align: left !important;
-  top: 54% !important;
+  top: 40% !important;
   transform: translateY(-50%) !important;
   width: 100% !important;
 }

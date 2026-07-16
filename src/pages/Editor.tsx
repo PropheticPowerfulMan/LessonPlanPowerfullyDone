@@ -962,7 +962,7 @@ export const Editor = () => {
           <Button variant="outline" disabled={Boolean(exporting)} onClick={() => exportDocument("pdf")}>{exporting === "pdf" ? <Loader2 className="animate-spin" size={17} /> : <FileDown size={17} />} {exporting === "pdf" ? "PDF..." : "PDF"}</Button>
           <Button variant="outline" disabled={Boolean(exporting)} onClick={() => exportDocument("docx")}>{exporting === "docx" ? <Loader2 className="animate-spin" size={17} /> : <Download size={17} />} {exporting === "docx" ? "DOCX..." : "DOCX"}</Button>
         </div>
-        <PrintPreview lesson={printableLesson} zoom={0.68} />
+        <PrintPreview lesson={printableLesson} zoom={0.68} fitWindow />
       </Dialog>
     </div>
   );
@@ -1242,23 +1242,23 @@ const getTeacherFeedback = (lesson: LessonPlan) => {
   };
 };
 
-const PrintPreview = ({ lesson, zoom }: { lesson: LessonPlan; zoom: number }) => {
+const PrintPreview = ({ lesson, zoom, fitWindow = false }: { lesson: LessonPlan; zoom: number; fitWindow?: boolean }) => {
   const viewportZoom = typeof window === "undefined"
     ? zoom
-    : Math.max(
+    : fitWindow ? Math.max(
       0.22,
       Math.min(
         Math.max(zoom, 0.78),
-        (window.innerWidth * 0.78) / 1123,
-        (window.innerHeight * 0.74) / 794
+        (window.innerWidth * 0.8) / 1123,
+        (window.innerHeight * 0.8) / 794
       )
-    );
+    ) : Math.min(zoom, Math.max(0.22, (window.innerWidth - 48) / 1123));
   const width = `${297 * viewportZoom}mm`;
   const height = `${210 * viewportZoom}mm`;
   const style = { "--preview-scale": viewportZoom } as CSSProperties;
 
   return (
-    <div className="print-preview-shell flex h-[calc(100dvh-11rem)] max-h-[82dvh] min-h-[420px] max-w-full items-center justify-center overflow-auto rounded-lg border border-cyan-300/15 bg-slate-950/70 p-2 sm:p-3 lg:h-[calc(94dvh-7.5rem)] lg:max-h-none">
+    <div className={fitWindow ? "print-preview-shell flex h-[80dvh] max-h-[80dvh] min-h-[420px] max-w-full items-center justify-center overflow-auto rounded-lg border border-cyan-300/15 bg-slate-950/70 p-2 sm:p-3" : "print-preview-shell max-h-[72dvh] max-w-full overflow-auto rounded-lg border border-cyan-300/15 bg-slate-950/70 p-2 sm:p-3 lg:max-h-[62dvh]"}>
       <div style={{ width, height }} className="shrink-0 overflow-hidden">
         <div className="origin-top-left scale-[var(--preview-scale)]" style={{ ...style, width: "297mm", height: "210mm" }}>
           <LessonPrint lesson={lesson} />
