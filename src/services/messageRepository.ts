@@ -59,8 +59,7 @@ const toCloudRow = (message: AppMessage) => ({
   subject: message.subject,
   body: message.body,
   read_by: message.readBy,
-  created_at: message.createdAt,
-  updated_at: message.updatedAt || message.createdAt
+  created_at: message.createdAt
 });
 
 const fromCloudRow = (row: Record<string, unknown>): AppMessage => ({
@@ -151,34 +150,46 @@ export const messageRepository = {
   },
   async updateAsync(id: string, userId: string, input: { subject: string; body: string }) {
     const updatedAt = new Date().toISOString();
-    const messages = read().map((message) => {
+    const applyLocalUpdate = (messages: AppMessage[]) => messages.map((message) => {
       const normalized = normalizeMessage(message);
       return normalized.id === id && normalized.senderId === userId
         ? { ...normalized, subject: input.subject.trim(), body: input.body.trim(), updatedAt }
         : normalized;
     });
-    write(messages);
-    if (!cloudAuthService.enabled) return messages.find((message) => message.id === id);
+    if (!cloudAuthService.enabled) {
+      const messages = applyLocalUpdate(read());
+      write(messages);
+      return messages.find((message) => message.id === id);
+    }
     const rows = await cloudRequest<Record<string, unknown>[]>(`app_messages?id=eq.${id}&sender_id=eq.${userId}&select=*`, {
       method: "PATCH",
       headers: cloudHeaders({ Prefer: "return=representation" }),
       body: JSON.stringify({
         subject: input.subject.trim(),
-        body: input.body.trim(),
-        updated_at: updatedAt
+        body: input.body.trim()
       })
     });
-    const cloudMessage = rows[0] ? fromCloudRow(rows[0]) : messages.find((message) => message.id === id);
-    if (cloudMessage) write(read().map((message) => message.id === id ? cloudMessage : normalizeMessage(message)));
+    if (!rows[0]) throw new Error("This message could not be updated. It may have been deleted or you may not be the sender.");
+    const cloudMessage = { ...fromCloudRow(rows[0]), updatedAt };
+    write(read().map((message) => message.id === id ? cloudMessage : normalizeMessage(message)));
     return cloudMessage;
   },
   async deleteAsync(id: string, userId: string) {
-    write(read().filter((message) => !(message.id === id && message.senderId === userId)).map(normalizeMessage));
-    if (!cloudAuthService.enabled) return;
-    await cloudRequest(`app_messages?id=eq.${id}&sender_id=eq.${userId}`, {
+    if (!cloudAuthService.enabled) {
+      write(read().filter((message) => !(message.id === id && message.senderId === userId)).map(normalizeMessage));
+      return;
+    }
+    const rows = await cloudRequest<Record<string, unknown>[]>(`app_messages?id=eq.${id}&sender_id=eq.${userId}&select=id`, {
       method: "DELETE",
-      headers: cloudHeaders({ Prefer: "return=minimal" })
+      headers: cloudHeaders({ Prefer: "return=representation" })
     });
+    if (!rows[0]) throw new Error("This message could not be deleted. It may have been deleted already or you may not be the sender.");
+    write(read().filter((message) => message.id !== id).map(normalizeMessage));
+  },
+  async deleteManyAsync(ids: string[], userId: string) {
+    for (const id of ids) {
+      await this.deleteAsync(id, userId);
+    }
   },
   unreadCount(user: UserProfile) {
     return this.listForUser(user).filter((message) => !message.readBy.includes(user.id)).length;

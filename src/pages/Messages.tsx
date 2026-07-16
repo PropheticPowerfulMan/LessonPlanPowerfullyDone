@@ -28,8 +28,10 @@ export const Messages = () => {
   const [editSubject, setEditSubject] = useState("");
   const [editBody, setEditBody] = useState("");
   const [messages, setMessages] = useState<AppMessage[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [sending, setSending] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [version, setVersion] = useState(0);
 
   useEffect(() => {
@@ -71,6 +73,8 @@ export const Messages = () => {
   }, [audienceFilter, currentUser, dateFrom, dateTo, messages, query, readFilter, senderFilter]);
   const departments = useMemo(() => Array.from(new Set(users.map((user) => user.department).filter(Boolean))).sort(), [users]);
   const canBroadcast = Boolean(currentUser && (can("users:manage") || ["administrator", "principal", "vice-principal", "head-of-department"].includes(currentUser.role)));
+  const ownVisibleMessageIds = useMemo(() => currentUser ? filteredMessages.filter((message) => message.senderId === currentUser.id).map((message) => message.id) : [], [currentUser, filteredMessages]);
+  const selectedOwnMessageIds = useMemo(() => selectedIds.filter((id) => ownVisibleMessageIds.includes(id)), [ownVisibleMessageIds, selectedIds]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -123,17 +127,53 @@ export const Messages = () => {
   };
 
   const deleteMessage = async (message: AppMessage) => {
-    if (!currentUser || message.senderId !== currentUser.id) return;
+    if (!currentUser || message.senderId !== currentUser.id || deleting) return;
     const confirmed = window.confirm("Delete this message for everyone?");
     if (!confirmed) return;
+    setDeleting(true);
     try {
       await messageRepository.deleteAsync(message.id, currentUser.id);
       setOpenMessage((current) => current?.id === message.id ? null : current);
       setEditingMessage((current) => current?.id === message.id ? null : current);
+      setSelectedIds((ids) => ids.filter((id) => id !== message.id));
       setVersion((value) => value + 1);
       notify("Message deleted");
     } catch (error) {
       notify(error instanceof Error ? error.message : "Unable to delete message.");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const toggleSelection = (id: string) => {
+    setSelectedIds((ids) => ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id]);
+  };
+
+  const toggleAllOwnVisible = () => {
+    setSelectedIds((ids) => {
+      const allSelected = ownVisibleMessageIds.length > 0 && ownVisibleMessageIds.every((id) => ids.includes(id));
+      return allSelected
+        ? ids.filter((id) => !ownVisibleMessageIds.includes(id))
+        : Array.from(new Set([...ids, ...ownVisibleMessageIds]));
+    });
+  };
+
+  const deleteSelectedMessages = async () => {
+    if (!currentUser || selectedOwnMessageIds.length === 0 || deleting) return;
+    const confirmed = window.confirm(`Delete ${selectedOwnMessageIds.length} selected message${selectedOwnMessageIds.length === 1 ? "" : "s"} for everyone?`);
+    if (!confirmed) return;
+    setDeleting(true);
+    try {
+      await messageRepository.deleteManyAsync(selectedOwnMessageIds, currentUser.id);
+      setOpenMessage((message) => message && selectedOwnMessageIds.includes(message.id) ? null : message);
+      setEditingMessage((message) => message && selectedOwnMessageIds.includes(message.id) ? null : message);
+      setSelectedIds((ids) => ids.filter((id) => !selectedOwnMessageIds.includes(id)));
+      setVersion((value) => value + 1);
+      notify("Selected messages deleted");
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Unable to delete selected messages.");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -206,7 +246,19 @@ export const Messages = () => {
           </div>
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs font-bold text-muted-foreground">{filteredMessages.length} of {messages.length} message{messages.length === 1 ? "" : "s"} shown</p>
-            <Button variant="outline" className="h-8 px-3" onClick={() => { setQuery(""); setSenderFilter(""); setAudienceFilter(""); setReadFilter(""); setDateFrom(""); setDateTo(""); }}>Clear filters</Button>
+            <div className="flex flex-wrap gap-2">
+              {ownVisibleMessageIds.length > 0 && (
+                <>
+                  <Button variant="outline" className="h-8 px-3" onClick={toggleAllOwnVisible}>
+                    {ownVisibleMessageIds.every((id) => selectedIds.includes(id)) ? "Clear selection" : "Select sent"}
+                  </Button>
+                  <Button variant="outline" className="h-8 px-3" disabled={deleting || selectedOwnMessageIds.length === 0} onClick={deleteSelectedMessages}>
+                    <Trash2 size={14} /> Delete selected
+                  </Button>
+                </>
+              )}
+              <Button variant="outline" className="h-8 px-3" onClick={() => { setQuery(""); setSenderFilter(""); setAudienceFilter(""); setReadFilter(""); setDateFrom(""); setDateTo(""); }}>Clear filters</Button>
+            </div>
           </div>
         </Card>
         {filteredMessages.map((message) => (
@@ -220,9 +272,21 @@ export const Messages = () => {
             }}
           >
             <div className="flex flex-wrap items-start justify-between gap-2">
-              <div>
-                <p className="font-black text-white">{message.subject}</p>
-                <p className="text-xs font-bold text-cyan-100">{message.senderName} - {new Date(message.createdAt).toLocaleString()}{message.updatedAt && message.updatedAt !== message.createdAt ? " - edited" : ""}</p>
+              <div className="flex min-w-0 items-start gap-3">
+                {message.senderId === currentUser.id && (
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 shrink-0 accent-cyan-300"
+                    checked={selectedIds.includes(message.id)}
+                    aria-label="Select message"
+                    onClick={(event) => event.stopPropagation()}
+                    onChange={() => toggleSelection(message.id)}
+                  />
+                )}
+                <div className="min-w-0">
+                  <p className="break-words font-black text-white">{message.subject}</p>
+                  <p className="text-xs font-bold text-cyan-100">{message.senderName} - {new Date(message.createdAt).toLocaleString()}{message.updatedAt && message.updatedAt !== message.createdAt ? " - edited" : ""}</p>
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 {message.senderId === currentUser.id && (
@@ -241,6 +305,7 @@ export const Messages = () => {
                     <Button
                       variant="outline"
                       className="h-8 w-8 p-0"
+                      disabled={deleting}
                       title="Delete message"
                       onClick={(event) => {
                         event.stopPropagation();
