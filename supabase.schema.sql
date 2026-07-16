@@ -343,8 +343,11 @@ create table if not exists public.app_messages (
   subject text not null default '',
   body text not null default '',
   read_by uuid[] not null default '{}',
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
+
+alter table public.app_messages add column if not exists updated_at timestamptz not null default now();
 
 alter table public.app_messages enable row level security;
 
@@ -392,6 +395,14 @@ with check (
     or (audience = 'role' and target = public.current_profile_role())
     or (audience = 'department' and target = public.current_profile_department())
   )
+);
+
+drop policy if exists "app_messages_delete_by_sender" on public.app_messages;
+create policy "app_messages_delete_by_sender"
+on public.app_messages for delete
+using (
+  public.current_profile_status() = 'active'
+  and sender_id = auth.uid()
 );
 
 create index if not exists app_messages_sender_idx on public.app_messages(sender_id);

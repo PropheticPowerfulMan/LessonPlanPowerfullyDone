@@ -12,6 +12,7 @@ export interface AppMessage {
   subject: string;
   body: string;
   createdAt: string;
+  updatedAt?: string;
   readBy: string[];
 }
 
@@ -58,7 +59,8 @@ const toCloudRow = (message: AppMessage) => ({
   subject: message.subject,
   body: message.body,
   read_by: message.readBy,
-  created_at: message.createdAt
+  created_at: message.createdAt,
+  updated_at: message.updatedAt || message.createdAt
 });
 
 const fromCloudRow = (row: Record<string, unknown>): AppMessage => ({
@@ -70,8 +72,16 @@ const fromCloudRow = (row: Record<string, unknown>): AppMessage => ({
   subject: String(row.subject || ""),
   body: String(row.body || ""),
   createdAt: String(row.created_at || new Date().toISOString()),
+  updatedAt: String(row.updated_at || row.created_at || new Date().toISOString()),
   readBy: Array.isArray(row.read_by) ? row.read_by.map(String) : []
 });
+
+const normalizeMessage = (message: AppMessage): AppMessage => {
+  if (message.audience === "user" && message.target === "administrator") {
+    return { ...message, audience: "role", target: "administrator" };
+  }
+  return message;
+};
 
 const canReceive = (message: AppMessage, user: UserProfile) => {
   if (message.senderId === user.id) return true;
@@ -85,13 +95,14 @@ const canReceive = (message: AppMessage, user: UserProfile) => {
 export const messageRepository = {
   listForUser(user: UserProfile) {
     return read()
+      .map(normalizeMessage)
       .filter((message) => canReceive(message, user))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   },
   async listForUserAsync(user: UserProfile) {
     if (!cloudAuthService.enabled) return this.listForUser(user);
     const rows = await cloudRequest<Record<string, unknown>[]>("app_messages?select=*&order=created_at.desc");
-    const messages = rows.map(fromCloudRow);
+    const messages = rows.map(fromCloudRow).map(normalizeMessage);
     write(messages);
     return messages.filter((message) => canReceive(message, user));
   },
@@ -106,6 +117,7 @@ export const messageRepository = {
       subject: input.subject.trim(),
       body: input.body.trim(),
       createdAt: now,
+      updatedAt: now,
       readBy: [input.sender.id]
     };
     write([message, ...read()]);
@@ -124,7 +136,7 @@ export const messageRepository = {
     return cloudMessage;
   },
   markRead(id: string, userId: string) {
-    write(read().map((message) => message.id === id ? { ...message, readBy: Array.from(new Set([...message.readBy, userId])) } : message));
+    write(read().map((message) => message.id === id ? { ...normalizeMessage(message), readBy: Array.from(new Set([...message.readBy, userId])) } : normalizeMessage(message)));
   },
   async markReadAsync(id: string, userId: string) {
     const message = read().find((item) => item.id === id);
@@ -135,6 +147,37 @@ export const messageRepository = {
       method: "PATCH",
       headers: cloudHeaders({ Prefer: "return=minimal" }),
       body: JSON.stringify({ read_by: readBy })
+    });
+  },
+  async updateAsync(id: string, userId: string, input: { subject: string; body: string }) {
+    const updatedAt = new Date().toISOString();
+    const messages = read().map((message) => {
+      const normalized = normalizeMessage(message);
+      return normalized.id === id && normalized.senderId === userId
+        ? { ...normalized, subject: input.subject.trim(), body: input.body.trim(), updatedAt }
+        : normalized;
+    });
+    write(messages);
+    if (!cloudAuthService.enabled) return messages.find((message) => message.id === id);
+    const rows = await cloudRequest<Record<string, unknown>[]>(`app_messages?id=eq.${id}&sender_id=eq.${userId}&select=*`, {
+      method: "PATCH",
+      headers: cloudHeaders({ Prefer: "return=representation" }),
+      body: JSON.stringify({
+        subject: input.subject.trim(),
+        body: input.body.trim(),
+        updated_at: updatedAt
+      })
+    });
+    const cloudMessage = rows[0] ? fromCloudRow(rows[0]) : messages.find((message) => message.id === id);
+    if (cloudMessage) write(read().map((message) => message.id === id ? cloudMessage : normalizeMessage(message)));
+    return cloudMessage;
+  },
+  async deleteAsync(id: string, userId: string) {
+    write(read().filter((message) => !(message.id === id && message.senderId === userId)).map(normalizeMessage));
+    if (!cloudAuthService.enabled) return;
+    await cloudRequest(`app_messages?id=eq.${id}&sender_id=eq.${userId}`, {
+      method: "DELETE",
+      headers: cloudHeaders({ Prefer: "return=minimal" })
     });
   },
   unreadCount(user: UserProfile) {

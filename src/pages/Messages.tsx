@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Mail, Search, Send } from "lucide-react";
+import { Edit3, Mail, Search, Send, Trash2 } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Dialog } from "../components/ui/dialog";
@@ -24,8 +24,12 @@ export const Messages = () => {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [openMessage, setOpenMessage] = useState<AppMessage | null>(null);
+  const [editingMessage, setEditingMessage] = useState<AppMessage | null>(null);
+  const [editSubject, setEditSubject] = useState("");
+  const [editBody, setEditBody] = useState("");
   const [messages, setMessages] = useState<AppMessage[]>([]);
   const [sending, setSending] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
   const [version, setVersion] = useState(0);
 
   useEffect(() => {
@@ -75,11 +79,11 @@ export const Messages = () => {
     setSending(true);
     try {
       await messageRepository.sendAsync({
-      sender: currentUser,
-      audience: canBroadcast ? audience : "user",
-      target: canBroadcast ? target : "administrator",
-      subject,
-      body
+        sender: currentUser,
+        audience: canBroadcast ? audience : "role",
+        target: canBroadcast ? target : "administrator",
+        subject,
+        body
       });
       setSubject("");
       setBody("");
@@ -89,6 +93,47 @@ export const Messages = () => {
       notify(error instanceof Error ? error.message : "Unable to send message.");
     } finally {
       setSending(false);
+    }
+  };
+
+  const startEdit = (message: AppMessage) => {
+    setEditingMessage(message);
+    setEditSubject(message.subject);
+    setEditBody(message.body);
+  };
+
+  const saveEdit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!editingMessage || !currentUser || !editSubject.trim() || !editBody.trim() || savingEdit) return;
+    setSavingEdit(true);
+    try {
+      const updated = await messageRepository.updateAsync(editingMessage.id, currentUser.id, {
+        subject: editSubject,
+        body: editBody
+      });
+      setEditingMessage(null);
+      setOpenMessage((message) => message?.id === updated?.id ? updated || message : message);
+      setVersion((value) => value + 1);
+      notify("Message updated");
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Unable to update message.");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const deleteMessage = async (message: AppMessage) => {
+    if (!currentUser || message.senderId !== currentUser.id) return;
+    const confirmed = window.confirm("Delete this message for everyone?");
+    if (!confirmed) return;
+    try {
+      await messageRepository.deleteAsync(message.id, currentUser.id);
+      setOpenMessage((current) => current?.id === message.id ? null : current);
+      setEditingMessage((current) => current?.id === message.id ? null : current);
+      setVersion((value) => value + 1);
+      notify("Message deleted");
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Unable to delete message.");
     }
   };
 
@@ -177,9 +222,37 @@ export const Messages = () => {
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <p className="font-black text-white">{message.subject}</p>
-                <p className="text-xs font-bold text-cyan-100">{message.senderName} - {new Date(message.createdAt).toLocaleString()}</p>
+                <p className="text-xs font-bold text-cyan-100">{message.senderName} - {new Date(message.createdAt).toLocaleString()}{message.updatedAt && message.updatedAt !== message.createdAt ? " - edited" : ""}</p>
               </div>
-              {!message.readBy.includes(currentUser.id) && <span className="rounded-sm bg-amber-400 px-2 py-1 text-xs font-black text-slate-950">New</span>}
+              <div className="flex items-center gap-2">
+                {message.senderId === currentUser.id && (
+                  <>
+                    <Button
+                      variant="outline"
+                      className="h-8 w-8 p-0"
+                      title="Edit message"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        startEdit(message);
+                      }}
+                    >
+                      <Edit3 size={14} />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="h-8 w-8 p-0"
+                      title="Delete message"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        deleteMessage(message);
+                      }}
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </>
+                )}
+                {!message.readBy.includes(currentUser.id) && <span className="rounded-sm bg-amber-400 px-2 py-1 text-xs font-black text-slate-950">New</span>}
+              </div>
             </div>
             <p className="mt-3 whitespace-pre-line text-sm text-muted-foreground">{message.body}</p>
           </Card>
@@ -191,14 +264,30 @@ export const Messages = () => {
           <div className="space-y-4">
             <div className="rounded-md border border-cyan-300/15 bg-white/[0.04] p-3">
               <p className="text-sm font-black text-white">{openMessage.subject}</p>
-              <p className="mt-1 text-xs font-bold text-cyan-100">From {openMessage.senderName} - {new Date(openMessage.createdAt).toLocaleString()}</p>
+              <p className="mt-1 text-xs font-bold text-cyan-100">From {openMessage.senderName} - {new Date(openMessage.createdAt).toLocaleString()}{openMessage.updatedAt && openMessage.updatedAt !== openMessage.createdAt ? " - edited" : ""}</p>
               <p className="mt-1 text-xs text-muted-foreground">Audience: {audienceLabel(openMessage.audience)}{openMessage.target ? ` - ${resolveTargetLabel(openMessage, users)}` : ""}</p>
             </div>
             <div className="max-h-[58dvh] overflow-auto rounded-md border border-cyan-300/15 bg-card/80 p-4">
               <p className="whitespace-pre-line text-sm leading-6 text-foreground">{openMessage.body}</p>
             </div>
+            {openMessage.senderId === currentUser.id && (
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" onClick={() => startEdit(openMessage)}><Edit3 size={16} /> Edit</Button>
+                <Button variant="outline" onClick={() => deleteMessage(openMessage)}><Trash2 size={16} /> Delete</Button>
+              </div>
+            )}
           </div>
         )}
+      </Dialog>
+      <Dialog open={Boolean(editingMessage)} title="Edit message" onClose={() => setEditingMessage(null)}>
+        <form className="space-y-3" onSubmit={saveEdit}>
+          <Field label="Subject"><Input value={editSubject} onChange={(event) => setEditSubject(event.target.value)} /></Field>
+          <Field label="Message"><Textarea className="min-h-40" value={editBody} onChange={(event) => setEditBody(event.target.value)} /></Field>
+          <div className="flex flex-wrap gap-2">
+            <Button type="submit" disabled={savingEdit || !editSubject.trim() || !editBody.trim()}><Edit3 size={16} /> Save</Button>
+            <Button type="button" variant="outline" onClick={() => setEditingMessage(null)}>Cancel</Button>
+          </div>
+        </form>
       </Dialog>
     </div>
   );
