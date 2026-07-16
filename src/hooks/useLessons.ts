@@ -7,9 +7,13 @@ import { LessonPlan } from "../types/lesson";
 
 export const useLessons = () => {
   const { currentUser } = useAuth();
+  const activeVisibleLessons = useCallback(
+    (source: LessonPlan[]) => applyLessonVisibility(currentUser, source.filter((lesson) => !lesson.deletedAt)),
+    [currentUser]
+  );
   const [lessons, setLessons] = useState<LessonPlan[]>(() => applyLessonVisibility(currentUser, lessonRepository.list()));
 
-  const refresh = useCallback(() => setLessons(applyLessonVisibility(currentUser, lessonRepository.list())), [currentUser]);
+  const refresh = useCallback(() => setLessons(activeVisibleLessons(lessonRepository.list())), [activeVisibleLessons]);
 
   useEffect(() => {
     refresh();
@@ -17,7 +21,7 @@ export const useLessons = () => {
     let cancelled = false;
     lessonRepository.syncFromCloud()
       .then((synced) => {
-        if (!cancelled) setLessons(applyLessonVisibility(currentUser, synced));
+        if (!cancelled) setLessons(activeVisibleLessons(synced));
       })
       .catch(() => undefined);
     return () => {

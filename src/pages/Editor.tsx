@@ -157,6 +157,39 @@ export const Editor = () => {
         shouldValidate: false
       });
 
+    } else {
+      const previousGenerated = createVariedWeeklyPlan({
+        ...current,
+        subject: previousSetup.subject,
+        gradeClass: previousSetup.gradeClass,
+        chapter: previousSetup.chapter
+      });
+      const nextGenerated = createVariedWeeklyPlan({ ...current, chapter });
+      const currentPlan = normalizeEditableWeeklyPlan(current.weeklyPlan, current.subject, current.gradeClass, chapter);
+      let changed = false;
+      const nextPlan = currentPlan.map((day, index) => {
+        const generatedDay = nextGenerated[index];
+        const previousDay = previousGenerated[index];
+        const nextDay = { ...day };
+        (["lesson", "objectives", "introduction", "presentation", "guidedPractice", "exitTicket", "assessment", "homework"] as WeeklyEditableKey[]).forEach((key) => {
+          const locked = Boolean(day.lockedFields?.[key]);
+          const manuallyEdited = Boolean(day.editedFields?.[key]);
+          const currentValue = String(day[key] || "").trim();
+          const previousValue = String(previousDay?.[key] || "").trim();
+          const shouldSync = !locked && (!manuallyEdited || !currentValue || currentValue === previousValue || hasOldSetupText(currentValue, previousSetup));
+          if (shouldSync && generatedDay?.[key] && currentValue !== generatedDay[key]) {
+            nextDay[key] = generatedDay[key];
+            changed = true;
+          }
+        });
+        return nextDay;
+      });
+      if (changed) {
+        form.setValue("weeklyPlan", planType === "daily" ? [nextPlan[getBusinessDayIndex(current.date)] || nextPlan[0], ...nextPlan.slice(1)] : nextPlan, {
+          shouldDirty: true,
+          shouldValidate: false
+        });
+      }
     }
 
     const nextTitle = buildAutomaticTitle(current);
@@ -224,7 +257,7 @@ export const Editor = () => {
         shouldValidate: false
       });
     }
-  }, [form, values.subject, values.gradeClass, values.chapter, values.week, values.planType]);
+  }, [form, values.subject, values.gradeClass, values.chapter, values.week, values.weekStartDate, values.weekEndDate, values.date, values.planType]);
 
   useEffect(() => {
     const current = form.getValues();
@@ -644,7 +677,7 @@ export const Editor = () => {
               <span className="rounded-sm border border-amber-500/40 bg-white/70 px-2 py-1 text-xs font-black text-amber-950 dark:bg-amber-950/30 dark:text-amber-50">
                 {qualityWarnings.length + durationWarnings.length} point{qualityWarnings.length + durationWarnings.length > 1 ? "s" : ""} to improve
               </span>
-              <Button type="button" variant="outline" className="h-8 px-2 text-amber-950 dark:text-amber-50" onClick={() => setQualityChecksCollapsed((value) => !value)}>
+              <Button type="button" variant="outline" className="h-8 px-2 text-amber-950 dark:text-amber-50" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setQualityChecksCollapsed((value) => !value); }}>
                 {qualityChecksCollapsed ? <ChevronDown size={15} /> : <ChevronUp size={15} />}
                 {qualityChecksCollapsed ? "Show" : "Hide"}
               </Button>
@@ -923,13 +956,13 @@ export const Editor = () => {
         <LessonPrint lesson={printableLesson} ref={printRef} />
       </div>
 
-      <Dialog open={preview} title={`${planType === "daily" ? "Daily" : "Weekly"} Lesson Plan Preview`} onClose={() => setPreview(false)}>
+      <Dialog open={preview} title={`${planType === "daily" ? "Daily" : "Weekly"} Lesson Plan Preview`} onClose={() => setPreview(false)} size="preview">
         <div className="mb-4 flex justify-end gap-2">
           <Button onClick={print}><Printer size={17} /> Print</Button>
           <Button variant="outline" disabled={Boolean(exporting)} onClick={() => exportDocument("pdf")}>{exporting === "pdf" ? <Loader2 className="animate-spin" size={17} /> : <FileDown size={17} />} {exporting === "pdf" ? "PDF..." : "PDF"}</Button>
           <Button variant="outline" disabled={Boolean(exporting)} onClick={() => exportDocument("docx")}>{exporting === "docx" ? <Loader2 className="animate-spin" size={17} /> : <Download size={17} />} {exporting === "docx" ? "DOCX..." : "DOCX"}</Button>
         </div>
-        <PrintPreview lesson={printableLesson} zoom={0.42} />
+        <PrintPreview lesson={printableLesson} zoom={0.68} />
       </Dialog>
     </div>
   );
@@ -1030,12 +1063,12 @@ const buildAutomaticTitle = (lesson: Partial<LessonPlan>) => {
 
 const sanitizeChapter = (value?: string) => {
   const text = value?.trim() || "";
-  return text.toLowerCase().startsWith("weekly lesson plan") ? "" : text;
+  return stripPlanTitle(text);
 };
 
 const sanitizeTitlePart = (value?: string) => {
   const text = value?.trim() || "";
-  return text.toLowerCase().startsWith("weekly lesson plan") ? "" : text;
+  return stripPlanTitle(text);
 };
 
 const normalizeSchoolYear = (value?: string) => value?.replace(/\s+/g, "") || "";
@@ -1114,6 +1147,14 @@ const isGenericObjective = (objective: string, gradeClass = "", chapter = "") =>
   );
 };
 
+const hasOldSetupText = (value: string, setup: { subject: string; gradeClass: string; chapter: string }) => {
+  const text = value.toLowerCase();
+  return [setup.subject, setup.gradeClass, setup.chapter]
+    .map((item) => item.trim().toLowerCase())
+    .filter((item) => item.length > 2)
+    .some((item) => text.includes(item));
+};
+
 const hasFilledItems = (items?: { value?: string }[]) => Boolean(items?.some((item) => item.value?.trim()));
 const unique = (values: string[]) => Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
 
@@ -1187,30 +1228,49 @@ const statusLabel = (status: LessonPlan["status"]) => ({
 })[status];
 
 const getTeacherFeedback = (lesson: LessonPlan) => {
-  if (!["rejected", "revision-requested"].includes(lesson.status)) return null;
-  const source = lesson.status === "revision-requested" ? lesson.revisionRequests?.[0] : lesson.reviewerComments?.[0];
+  if (!["approved", "final-approved", "rejected", "revision-requested"].includes(lesson.status)) return null;
+  const source: { note?: string; comment?: string; userName: string; timestamp: string } | undefined =
+    lesson.status === "revision-requested"
+      ? lesson.revisionRequests?.[0]
+      : lesson.reviewerComments?.[0] || lesson.approvalHistory?.[0];
   if (!source) return null;
   return {
-    title: lesson.status === "revision-requested" ? "Revision requested" : "Lesson plan rejected",
-    message: source.note,
+    title: lesson.status === "revision-requested" ? "Revision requested" : lesson.status === "rejected" ? "Lesson plan rejected" : "Lesson plan approved",
+    message: source.note || source.comment || "No reviewer comment was written.",
     userName: source.userName,
     timestamp: source.timestamp
   };
 };
 
 const PrintPreview = ({ lesson, zoom }: { lesson: LessonPlan; zoom: number }) => {
-  const viewportZoom = typeof window === "undefined" ? zoom : Math.min(zoom, Math.max(0.22, (window.innerWidth - 48) / 1123));
+  const viewportZoom = typeof window === "undefined"
+    ? zoom
+    : Math.max(
+      0.22,
+      Math.min(
+        Math.max(zoom, 0.78),
+        (window.innerWidth * 0.78) / 1123,
+        (window.innerHeight * 0.74) / 794
+      )
+    );
   const width = `${297 * viewportZoom}mm`;
   const height = `${210 * viewportZoom}mm`;
   const style = { "--preview-scale": viewportZoom } as CSSProperties;
 
   return (
-    <div className="max-h-[72dvh] max-w-full overflow-auto rounded-lg border border-cyan-300/15 bg-slate-950/70 p-2 sm:p-3">
-      <div style={{ width, height }} className="mx-auto overflow-hidden">
+    <div className="print-preview-shell flex h-[calc(100dvh-11rem)] max-h-[82dvh] min-h-[420px] max-w-full items-center justify-center overflow-auto rounded-lg border border-cyan-300/15 bg-slate-950/70 p-2 sm:p-3 lg:h-[calc(94dvh-7.5rem)] lg:max-h-none">
+      <div style={{ width, height }} className="shrink-0 overflow-hidden">
         <div className="origin-top-left scale-[var(--preview-scale)]" style={{ ...style, width: "297mm", height: "210mm" }}>
           <LessonPrint lesson={lesson} />
         </div>
       </div>
     </div>
   );
+};
+
+const stripPlanTitle = (value?: string) => {
+  const text = value?.trim() || "";
+  const parts = text.split(/\s+-\s+/).map((part) => part.trim()).filter(Boolean);
+  if (/^(daily|weekly)\s+lesson\s+plan$/i.test(parts[0] || "")) return parts[parts.length - 1] || "";
+  return /^(daily|weekly)\s+lesson\s+plan/i.test(text) ? "" : text;
 };

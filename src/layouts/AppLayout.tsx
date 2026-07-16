@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { FormEvent, useState } from "react";
-import { CalendarDays, Eye, EyeOff, FileText, Languages, LogOut, Mail, Moon, Plus, Search, ShieldCheck, Sun, UserRound } from "lucide-react";
+import { CalendarDays, Eye, EyeOff, FileText, Languages, LogOut, Mail, MessageSquare, Moon, Plus, Search, ShieldCheck, Sun, UserRound } from "lucide-react";
 import { useApp } from "../contexts/AppContext";
 import { useAuth } from "../contexts/AuthContext";
 import { useLessons } from "../hooks/useLessons";
@@ -14,7 +14,7 @@ import { roleLabels } from "../types/user";
 
 export const AppLayout = () => {
   const { dark, toggleDark, language, setLanguage, imageUrl } = useApp();
-  const { currentUser, signOut, can, changePassword, changeEmail } = useAuth();
+  const { currentUser, signOut, can, changePassword, changeEmail, updateProfile } = useAuth();
   const { createLesson } = useLessons();
   const { notify } = useToast();
   const navigate = useNavigate();
@@ -117,10 +117,13 @@ export const AppLayout = () => {
                 Curriculum
               </NavLink>
             )}
+            <NavLink to="/messages" className={({ isActive }) => `rounded-md px-3 py-2 text-sm font-bold ${isActive ? "border border-primary/30 bg-primary/15 text-foreground dark:border-cyan-300/25 dark:bg-cyan-500/15 dark:text-cyan-100" : "text-muted-foreground hover:bg-primary/10 hover:text-foreground dark:hover:bg-white/10 dark:hover:text-white"}`}>
+              Communication
+            </NavLink>
           </nav>
           <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
             <div className="order-4 flex w-full min-w-0 items-center gap-2 rounded-md border border-border bg-card/90 px-3 py-2 shadow-sm dark:bg-[#061520]/90 sm:w-auto sm:min-w-[240px] lg:order-none">
-              <UserRound size={16} className="shrink-0 text-cyan-200" />
+              {currentUser.photoUrl ? <img src={currentUser.photoUrl} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" /> : <UserRound size={16} className="shrink-0 text-cyan-200" />}
               <div className="min-w-0">
                 <p className="truncate text-xs font-black text-foreground">{currentUser.name}</p>
                 <p className="truncate text-[11px] text-muted-foreground">{roleLabels[currentUser.role]} - {currentUser.email}</p>
@@ -168,6 +171,42 @@ export const AppLayout = () => {
       </footer>
       <Dialog open={accountOpen} title="Account Security" onClose={() => setAccountOpen(false)}>
         <div className="grid gap-4 lg:grid-cols-2">
+          <div className="rounded-md border border-cyan-300/20 bg-card/80 p-4 lg:col-span-2">
+            <h3 className="flex items-center gap-2 text-sm font-black text-foreground"><UserRound size={16} /> Profile Photo</h3>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              {currentUser.photoUrl ? <img src={currentUser.photoUrl} alt="" className="h-16 w-16 rounded-full object-cover" /> : <div className="grid h-16 w-16 place-items-center rounded-full border border-cyan-300/20 bg-white/[0.06]"><UserRound size={26} /></div>}
+              <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-md border border-cyan-300/25 bg-white/[0.06] px-4 text-sm font-bold text-foreground hover:bg-cyan-500/15">
+                <MessageSquare size={16} /> Choose photo
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    if (!file.type.startsWith("image/")) {
+                      setAccountError("Choose an image file.");
+                      return;
+                    }
+                    setAccountError("");
+                    resizeProfilePhoto(file).then(async (photoUrl) => {
+                      setAccountBusy(true);
+                      try {
+                        await updateProfile({ ...currentUser, photoUrl });
+                        notify("Profile photo updated");
+                      } catch (error) {
+                        setAccountError(error instanceof Error ? error.message : "Unable to update profile photo.");
+                      } finally {
+                        setAccountBusy(false);
+                        event.target.value = "";
+                      }
+                    }).catch(() => setAccountError("Unable to read this image."));
+                  }}
+                />
+              </label>
+              {currentUser.photoUrl && <Button variant="outline" onClick={() => updateProfile({ ...currentUser, photoUrl: "" })}>Remove photo</Button>}
+            </div>
+          </div>
           <div className="rounded-md border border-cyan-300/20 bg-card/80 p-4">
             <h3 className="flex items-center gap-2 text-sm font-black text-foreground"><ShieldCheck size={16} /> Change Password</h3>
             <form className="mt-3 space-y-3" onSubmit={submitPasswordChange}>
@@ -203,6 +242,34 @@ const Field = ({ label, children }: { label: string; children: React.ReactNode }
     {children}
   </label>
 );
+
+const resizeProfilePhoto = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Unable to read image."));
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = () => reject(new Error("Unable to load image."));
+      image.onload = () => {
+        const size = 256;
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+        if (!context) {
+          reject(new Error("Unable to prepare image."));
+          return;
+        }
+        canvas.width = size;
+        canvas.height = size;
+        const scale = Math.max(size / image.width, size / image.height);
+        const width = image.width * scale;
+        const height = image.height * scale;
+        context.drawImage(image, (size - width) / 2, (size - height) / 2, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      image.src = String(reader.result || "");
+    };
+    reader.readAsDataURL(file);
+  });
 
 const PasswordField = ({
   label,

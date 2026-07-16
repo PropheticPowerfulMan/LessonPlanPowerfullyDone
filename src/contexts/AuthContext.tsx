@@ -3,6 +3,7 @@ import { cloudAuthService } from "../services/cloudAuthService";
 import { mockAuthService } from "../services/mockAuthService";
 import { AuthMode, Permission, SignUpProfileInput, UserProfile } from "../types/user";
 import { hasPermission } from "../services/permissions";
+import { profilePhotoService } from "../services/profilePhotoService";
 
 interface AuthContextValue {
   currentUser: UserProfile | null;
@@ -24,13 +25,13 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [users, setUsers] = useState(() => mockAuthService.listUsers());
+  const [users, setUsers] = useState(() => profilePhotoService.applyAll(mockAuthService.listUsers()));
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(cloudAuthService.enabled);
   const authMode: AuthMode = cloudAuthService.enabled ? "cloud" : "local";
 
   const refreshUsers = async () => {
-    const nextUsers = cloudAuthService.enabled ? await cloudAuthService.listUsers().catch(() => []) : mockAuthService.listUsers();
+    const nextUsers = profilePhotoService.applyAll(cloudAuthService.enabled ? await cloudAuthService.listUsers().catch(() => []) : mockAuthService.listUsers());
     setUsers(nextUsers);
     return nextUsers;
   };
@@ -45,7 +46,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       cloudAuthService.clearSession();
       setLoading(true);
       try {
-        const nextUsers = await cloudAuthService.listUsers().catch(() => []);
+        const nextUsers = profilePhotoService.applyAll(await cloudAuthService.listUsers().catch(() => []));
         if (!mounted) return;
         setCurrentUser(null);
         setUsers(nextUsers);
@@ -61,7 +62,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     const user = cloudAuthService.enabled ? await cloudAuthService.signIn(email, password) : mockAuthService.signIn(email, password);
-    setCurrentUser(user);
+    setCurrentUser(profilePhotoService.apply(user));
     await refreshUsers();
   };
 
@@ -106,7 +107,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (cloudAuthService.enabled) {
       const user = users.find((item) => item.id === id);
       if (!user) throw new Error("User profile not found.");
-      return cloudAuthService.createRecoveryPassword(user.email);
+      try {
+        return await cloudAuthService.createRecoveryPassword(user.email);
+      } catch {
+        await cloudAuthService.resetPassword(user.email);
+        return;
+      }
     }
     return mockAuthService.setUserPassword(id, nextPassword);
   };
@@ -121,9 +127,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateProfile = async (profile: UserProfile) => {
-    const next = cloudAuthService.enabled ? await cloudAuthService.updateProfile(profile) : mockAuthService.updateProfile(profile);
+    if (profile.photoUrl) {
+      profilePhotoService.set(profile.id, profile.photoUrl);
+    } else {
+      profilePhotoService.remove(profile.id);
+    }
+    const profileForCloud = { ...profile, photoUrl: undefined };
+    const next = cloudAuthService.enabled ? await cloudAuthService.updateProfile(profileForCloud) : mockAuthService.updateProfile(profile);
+    const nextWithPhoto = profilePhotoService.apply(next);
     await refreshUsers();
-    setCurrentUser((current) => (current?.id === next.id ? next : current));
+    setCurrentUser((current) => (current?.id === next.id ? nextWithPhoto : current));
   };
 
   const deleteUser = async (id: string) => {

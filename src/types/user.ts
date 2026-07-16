@@ -13,6 +13,7 @@ export interface UserProfile {
   subjects: string[];
   gradeClasses: string[];
   status: UserStatus;
+  photoUrl?: string;
   createdAt: string;
   updatedAt: string;
 }

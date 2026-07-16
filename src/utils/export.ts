@@ -6,7 +6,14 @@ export const exportElementToPdf = (element: HTMLElement, filename: string) =>
       margin: 0,
       filename,
       image: { type: "jpeg", quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+      html2canvas: {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        onclone: (documentClone: Document) => {
+          documentClone.querySelectorAll(".lesson-print-document").forEach((node) => node.classList.add("pdf-export-capture"));
+        }
+      },
       pagebreak: { mode: ["css", "legacy"], avoid: [".print-header", "tr", ".signature-block"] },
       jsPDF: { unit: "mm", format: "a4", orientation: "landscape" }
     })

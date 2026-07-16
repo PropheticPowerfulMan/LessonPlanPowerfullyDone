@@ -65,10 +65,10 @@ const PrintPage = ({
           <h1 className="break-words text-[12.4px] font-black uppercase leading-tight tracking-wide text-slate-950">{safeText(lesson.topic, lesson.planType === "daily" ? "Daily Lesson Plan" : "Weekly Lesson Plan")}</h1>
           <p className="break-words text-[7.8px] font-black uppercase leading-tight tracking-wide text-slate-700">{pageTitle}</p>
         </div>
-        <div className="flex min-h-[44px] flex-col justify-start rounded-sm border border-slate-300 bg-white px-1 pb-0.5 pt-0.5 text-right text-[6.6px] font-black leading-[0.95] text-slate-900">
+        <div className="flex min-h-[44px] flex-col justify-center gap-[2px] rounded-sm border border-slate-300 bg-white px-1.5 py-1 text-right text-[6.6px] font-black leading-[1.08] text-slate-900">
           <p>Page 1/{hasOverflowPage ? "2" : "1"}</p>
           <p>{lesson.planType === "daily" ? safeText(lesson.date, "Daily") : formatWeek(lesson.week)}</p>
-          {lesson.planType === "weekly" && <p className="text-[6.7px]">{formatWeekRange(lesson)}</p>}
+          {lesson.planType === "weekly" && <p className="text-[6.5px] leading-[1.05]">{formatWeekRange(lesson)}</p>}
           <p>{safeText(lesson.schoolYear, "2026-2027")}</p>
         </div>
       </div>
@@ -161,10 +161,10 @@ const HeaderDetails = ({ lesson }: { lesson: LessonPlan }) => (
 );
 
 const Detail = ({ label, value, colSpan = 1 }: { label: string; value?: string; colSpan?: number }) => (
-  <td className="border border-slate-500 p-0 align-top" colSpan={colSpan}>
-    <div className="grid min-h-[4.2mm] grid-cols-[15mm_minmax(0,1fr)]">
-      <span className="border-r border-slate-500 bg-slate-200 px-1 py-0.5 font-black uppercase text-slate-950">{label}</span>
-      <span className="break-words bg-white px-1 py-0.5 font-black text-slate-950">{safeText(value, "-")}</span>
+  <td className="border border-slate-500 p-0 align-middle" colSpan={colSpan}>
+    <div className="grid h-[4.8mm] grid-cols-[15mm_minmax(0,1fr)]">
+      <span className="meta-cell meta-label border-r border-slate-500 bg-slate-200 font-black uppercase text-slate-950"><span>{label}</span></span>
+      <span className="meta-cell meta-value break-words bg-white font-black text-slate-950"><span>{safeText(value, "-")}</span></span>
     </div>
   </td>
 );

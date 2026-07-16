@@ -7,6 +7,7 @@ import { Editor } from "./pages/Editor";
 import { Login } from "./pages/Login";
 import { Plans } from "./pages/Plans";
 import { Curriculum } from "./pages/Curriculum";
+import { Messages } from "./pages/Messages";
 
 const RouteFallback = () => {
   const { currentUser, loading } = useAuth();
@@ -29,6 +30,7 @@ const router = createHashRouter([
     children: [
       { index: true, element: <Dashboard /> },
       { path: "plans", element: <Plans /> },
+      { path: "messages", element: <Messages /> },
       { path: "curriculum", element: <Curriculum /> },
       { path: "editor/:id", element: <Editor /> },
       { path: "*", element: <Navigate to="/" replace /> }

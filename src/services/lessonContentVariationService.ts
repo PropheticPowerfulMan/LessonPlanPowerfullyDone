@@ -10,8 +10,8 @@ export type WeeklyGenerationContext = Pick<Partial<LessonPlan>,
 export const createVariedWeeklyPlan = (context: WeeklyGenerationContext = {}): WeeklyPlanDay[] => {
   const subject = clean(context.subject, "the subject");
   const grade = clean(context.gradeClass, "the class");
-  const unit = clean(context.chapter || context.topic, "the selected unit");
-  const concepts = splitConcepts([context.subtopic, context.topic, context.chapter].filter(Boolean).join("; ")) || [unit];
+  const unit = clean(stripPlanTitle(context.chapter || context.topic), "the selected unit");
+  const concepts = splitConcepts([context.subtopic, context.chapter, stripPlanTitle(context.topic)].filter(Boolean).join("; ")) || [unit];
   const vocabulary = listValues(context.vocabulary).slice(0, 3).join(", ");
   const materials = listValues(context.materialsResources).slice(0, 2).join(", ") || "board and learner notebooks";
   const strategy = getSubjectStrategy(subject);
@@ -74,3 +74,13 @@ const splitConcepts = (value: string) => {
 };
 
 const clean = (value: unknown, fallback: string) => typeof value === "string" && value.trim() ? value.trim() : fallback;
+
+const stripPlanTitle = (value: unknown) => {
+  if (typeof value !== "string") return "";
+  const text = value.trim();
+  const parts = text.split(/\s+-\s+/).map((part) => part.trim()).filter(Boolean);
+  if (/^(daily|weekly)\s+lesson\s+plan$/i.test(parts[0] || "")) {
+    return parts[parts.length - 1] || "";
+  }
+  return /^(daily|weekly)\s+lesson\s+plan/i.test(text) ? "" : text;
+};

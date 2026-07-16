@@ -7,18 +7,20 @@ export const Dialog = ({
   open,
   title,
   children,
-  onClose
+  onClose,
+  size = "default"
 }: {
   open: boolean;
   title: string;
   children: ReactNode;
   onClose: () => void;
+  size?: "default" | "preview";
 }) => (
   <AnimatePresence>
     {open && (
       <motion.div className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-slate-950/80 p-2 sm:p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
         <motion.div
-          className="glass flex max-h-[96dvh] w-full max-w-[min(96vw,1180px)] flex-col overflow-hidden rounded-lg border-cyan-300/20 p-3 sm:p-4"
+          className={`glass flex w-full flex-col overflow-hidden rounded-lg border-cyan-300/20 p-3 sm:p-4 ${size === "preview" ? "h-[96dvh] max-h-[96dvh] max-w-[98vw] sm:w-[96vw] lg:h-[94dvh] lg:w-[92vw] xl:w-[88vw] 2xl:w-[82vw]" : "max-h-[96dvh] max-w-[min(96vw,1180px)]"}`}
           initial={{ y: 18, scale: 0.98 }}
           animate={{ y: 0, scale: 1 }}
           exit={{ y: 18, scale: 0.98 }}

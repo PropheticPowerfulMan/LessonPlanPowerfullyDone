@@ -29,7 +29,7 @@ import {
   Users,
   XCircle
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
@@ -530,34 +530,65 @@ const PasswordRecoveryCenter = ({ users, authMode, resetPassword, setUserPasswor
   const [selectedId, setSelectedId] = useState(users[0]?.id || "");
   const [customPassword, setCustomPassword] = useState("");
   const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
   const selected = users.find((user) => user.id === selectedId) || users[0];
+
+  useEffect(() => {
+    if (!selectedId && users[0]) setSelectedId(users[0].id);
+    if (selectedId && !users.some((user) => user.id === selectedId)) setSelectedId(users[0]?.id || "");
+  }, [selectedId, users]);
 
   const sendRecovery = async () => {
     if (!selected) return;
-    const temporary = await setUserPassword(selected.id);
-    setNotice(temporary ? `Recovery link sent to ${selected.email}. Temporary password: ${temporary}` : `Secure recovery link sent to ${selected.email}.`);
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      if (authMode === "cloud") {
+        await resetPassword(selected.email);
+        setNotice(`Secure recovery link sent to ${selected.email}. The user can open the link and set a new password.`);
+      } else {
+        const temporary = await setUserPassword(selected.id);
+        setNotice(`Local recovery ready for ${selected.email}. Temporary password: ${temporary}`);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to prepare password recovery.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const setTemporary = async () => {
     if (!selected) return;
-    const temporary = await setUserPassword(selected.id, customPassword || undefined);
-    setNotice(temporary ? `New temporary password for ${selected.email}: ${temporary}` : `Secure recovery link sent to ${selected.email}.`);
-    setCustomPassword("");
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const temporary = await setUserPassword(selected.id, customPassword || undefined);
+      setNotice(temporary ? `New temporary password for ${selected.email}: ${temporary}` : `Secure recovery link sent to ${selected.email}.`);
+      setCustomPassword("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to set the temporary password.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
     <Panel title="Password Recovery Center" icon={RotateCcw}>
       <div className="space-y-3">
-        <p className="text-sm text-slate-700 dark:text-muted-foreground">{authMode === "cloud" ? "Choose a user and send a secure password recovery email to the address on the profile." : "Choose a user and set a temporary password for local fallback mode."}</p>
+        <p className="text-sm text-slate-700 dark:text-muted-foreground">{authMode === "cloud" ? "Choose a user and generate the same temporary recovery flow used by account recovery emails." : "Choose a user and set a temporary password for local fallback mode."}</p>
         <Select value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
           {users.map((user) => <option key={user.id} value={user.id}>{user.name} - {user.email}</option>)}
         </Select>
         {authMode === "local" && <Input value={customPassword} onChange={(event) => setCustomPassword(event.target.value)} placeholder="Optional temporary password" />}
         <div className="flex flex-wrap gap-2">
-          <Button type="button" onClick={sendRecovery}><RotateCcw size={16} /> Send recovery</Button>
-          {authMode === "local" && <Button type="button" variant="outline" onClick={setTemporary}><RotateCcw size={16} /> Set temporary password</Button>}
+          <Button type="button" onClick={sendRecovery} disabled={busy || !selected}><RotateCcw size={16} /> {busy ? "Preparing..." : "Send recovery"}</Button>
+          {authMode === "local" && <Button type="button" variant="outline" onClick={setTemporary} disabled={busy || !selected}><RotateCcw size={16} /> Set temporary password</Button>}
         </div>
         {notice && <p className="rounded-md border border-cyan-300/20 bg-cyan-500/10 px-3 py-2 text-sm font-bold text-cyan-50">{notice}</p>}
+        {error && <p className="rounded-md border border-red-300/30 bg-red-500/10 px-3 py-2 text-sm font-bold text-red-100">{error}</p>}
       </div>
     </Panel>
   );
