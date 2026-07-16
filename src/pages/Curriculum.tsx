@@ -111,28 +111,28 @@ export const Curriculum = () => {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
+      <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0">
           <p className="text-xs font-black uppercase text-cyan-200">Version 1.3</p>
-          <h1 className="text-3xl font-black text-white">Curriculum Manager</h1>
-          <p className="text-sm text-muted-foreground">Academic Year - Term - Grade - Subject - Unit - Topic - Subtopic - Competencies - Objectives - Outcomes.</p>
+          <h1 className="break-words text-2xl font-black text-white sm:text-3xl">Curriculum Manager</h1>
+          <p className="max-w-3xl text-sm text-muted-foreground">Academic Year - Term - Grade - Subject - Unit - Topic - Subtopic - Competencies - Objectives - Outcomes.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={download}><Download size={17} /> Export JSON</Button>
+        <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+          <Button variant="outline" className="w-full sm:w-auto" onClick={download}><Download size={17} /> Export JSON</Button>
           {canManage && (
             <>
-              <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-md border border-cyan-300/25 bg-white/[0.06] px-4 text-sm font-bold text-foreground hover:bg-cyan-500/15">
+              <label className="inline-flex h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-cyan-300/25 bg-white/[0.06] px-4 text-sm font-bold text-foreground hover:bg-cyan-500/15 sm:w-auto">
                 <Upload size={17} /> Import JSON
                 <input type="file" accept="application/json" className="hidden" onChange={importJson} />
               </label>
-              <Button onClick={startNew}><Plus size={17} /> New Item</Button>
+              <Button className="w-full sm:w-auto" onClick={startNew}><Plus size={17} /> New Item</Button>
             </>
           )}
         </div>
       </div>
 
       <Card className="p-4">
-        <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           <Field label="Search"><Input value={filters.query} onChange={(event) => patchFilter("query", event.target.value)} placeholder="unit, topic, standard..." /></Field>
           <Field label="Academic Year"><Select value={filters.academicYear} onChange={(event) => patchFilter("academicYear", event.target.value)}><option value="">Any year</option>{academicYears.map((value) => <option key={value} value={value}>{value}</option>)}</Select></Field>
           <Field label="Term"><Select value={filters.term} onChange={(event) => patchFilter("term", event.target.value)}><option value="">Any term</option>{terms.map((value) => <option key={value} value={value}>{value}</option>)}</Select></Field>
@@ -141,22 +141,22 @@ export const Curriculum = () => {
         </div>
       </Card>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.8fr)]">
+      <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.8fr)]">
         <div className="grid gap-3">
           {filtered.map((item) => (
             <Card key={item.id} className="grid gap-3 p-4 lg:grid-cols-[minmax(0,1fr)_auto]">
               <div className="min-w-0">
                 <p className="text-xs font-black uppercase text-cyan-200">{item.academicYear} - {item.term} - {item.grade}</p>
-                <h2 className="text-xl font-black text-white">{item.subject}: {item.unit}</h2>
-                <p className="text-sm text-muted-foreground">{item.topic} - {item.subtopic}</p>
+                <h2 className="break-words text-lg font-black text-white sm:text-xl">{item.subject}: {item.unit}</h2>
+                <p className="break-words text-sm text-muted-foreground">{item.topic} - {item.subtopic}</p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   {item.curriculumStandards.slice(0, 4).map((standard) => <Badge key={standard}>{standard}</Badge>)}
                   {item.skills.slice(0, 4).map((skill) => <Badge key={skill}>{skill}</Badge>)}
                 </div>
               </div>
-              <div className="flex flex-wrap items-start gap-2 lg:justify-end">
-                <Button variant="outline" onClick={() => { setEditing(item); setEditingId(item.id); }}><Edit3 size={16} /> Open</Button>
-                {canManage && <Button variant="danger" onClick={() => remove(item.id)}><Trash2 size={16} /> Delete</Button>}
+              <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-start lg:justify-end">
+                <Button className="w-full sm:w-auto" variant="outline" onClick={() => { setEditing(item); setEditingId(item.id); }}><Edit3 size={16} /> Open</Button>
+                {canManage && <Button className="w-full sm:w-auto" variant="danger" onClick={() => remove(item.id)}><Trash2 size={16} /> Delete</Button>}
               </div>
             </Card>
           ))}
@@ -164,15 +164,15 @@ export const Curriculum = () => {
         </div>
 
         <Card className="p-4">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-black text-white">{editingId ? "Edit Curriculum Item" : "New Curriculum Item"}</h2>
+          <div className="mb-4 flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="break-words text-lg font-black text-white sm:text-xl">{editingId ? "Edit Curriculum Item" : "New Curriculum Item"}</h2>
               <p className="text-sm text-muted-foreground">{canManage ? "Manage the curriculum hierarchy used by lesson plans." : "Read-only curriculum view for lesson planning."}</p>
             </div>
             {editingId && <Button variant="ghost" onClick={startNew}><X size={16} /></Button>}
           </div>
           <fieldset disabled={!canManage} className="space-y-3 disabled:opacity-80">
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2">
               <Field label="Academic Year"><Input value={editing.academicYear} onChange={(event) => patchEditing("academicYear", event.target.value)} /></Field>
               <Field label="Term"><Input value={editing.term} onChange={(event) => patchEditing("term", event.target.value)} /></Field>
               <Field label="Grade"><Input list="curriculum-grade-options" value={editing.grade} onChange={(event) => patchEditing("grade", event.target.value)} /></Field>
@@ -205,7 +205,7 @@ const Field = ({ label, children }: { label: string; children: React.ReactNode }
 );
 
 const Badge = ({ children }: { children: React.ReactNode }) => (
-  <span className="rounded-full border border-cyan-300/25 bg-cyan-500/10 px-2 py-1 text-xs font-bold text-cyan-100">{children}</span>
+  <span className="max-w-full break-words rounded-sm border border-cyan-300/25 bg-cyan-500/10 px-2 py-1 text-xs font-bold text-cyan-100">{children}</span>
 );
 
 const unique = (values: string[]) => Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));

@@ -504,7 +504,14 @@ const AdminUserManager = ({
                     <p className="font-black text-white">{user.name}</p>
                     <p className="break-words text-sm text-slate-700 dark:text-muted-foreground">{user.email} - {roleLabels[user.role]} - {user.status}</p>
                     <p className="mt-1 text-xs font-semibold text-slate-700 dark:text-cyan-100/80">{user.department || "No department"} | {user.subjects.join(", ") || "No subjects"} | {user.gradeClasses.join(", ") || "No classes"}</p>
-                    <p className="mt-1 text-[11px] font-bold text-slate-800 dark:text-cyan-100/85">Plans: {stats.total} total | {stats.draft} draft | {stats.submitted} submitted | {stats.underReview} review | {stats.approved} approved | {stats.needsAttention} attention</p>
+                    <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-black">
+                      <span className="rounded-sm border border-slate-300 bg-white/80 px-2 py-1 text-slate-900 dark:border-cyan-300/15 dark:bg-cyan-500/10 dark:text-cyan-100">Plans: {stats.total} total</span>
+                      <span className="rounded-sm border border-slate-300 bg-white/80 px-2 py-1 text-slate-900 dark:border-cyan-300/15 dark:bg-cyan-500/10 dark:text-cyan-100">{stats.draft} draft</span>
+                      <span className="rounded-sm border border-slate-300 bg-white/80 px-2 py-1 text-slate-900 dark:border-cyan-300/15 dark:bg-cyan-500/10 dark:text-cyan-100">{stats.submitted} submitted</span>
+                      <span className="rounded-sm border border-slate-300 bg-white/80 px-2 py-1 text-slate-900 dark:border-cyan-300/15 dark:bg-cyan-500/10 dark:text-cyan-100">{stats.underReview} review</span>
+                      <span className="rounded-sm border border-slate-300 bg-white/80 px-2 py-1 text-slate-900 dark:border-cyan-300/15 dark:bg-cyan-500/10 dark:text-cyan-100">{stats.approved} approved</span>
+                      <span className="rounded-sm border border-amber-300 bg-amber-100 px-2 py-1 text-amber-950 dark:border-amber-300/25 dark:bg-amber-400/10 dark:text-amber-100">{stats.needsAttention} attention</span>
+                    </div>
                     <p className="mt-1 text-[11px] font-semibold text-slate-600 dark:text-muted-foreground">Created {formatDate(user.createdAt)} | Updated {formatDate(user.updatedAt)}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
