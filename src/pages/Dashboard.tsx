@@ -504,7 +504,7 @@ const AdminUserManager = ({
                     <p className="font-black text-white">{user.name}</p>
                     <p className="break-words text-sm text-slate-700 dark:text-muted-foreground">{user.email} - {roleLabels[user.role]} - {user.status}</p>
                     <p className="mt-1 text-xs font-semibold text-slate-700 dark:text-cyan-100/80">{user.department || "No department"} | {user.subjects.join(", ") || "No subjects"} | {user.gradeClasses.join(", ") || "No classes"}</p>
-                    <p className="mt-1 text-[11px] font-bold text-cyan-100/85">Plans: {stats.total} total | {stats.draft} draft | {stats.submitted} submitted | {stats.underReview} review | {stats.approved} approved | {stats.needsAttention} attention</p>
+                    <p className="mt-1 text-[11px] font-bold text-slate-800 dark:text-cyan-100/85">Plans: {stats.total} total | {stats.draft} draft | {stats.submitted} submitted | {stats.underReview} review | {stats.approved} approved | {stats.needsAttention} attention</p>
                     <p className="mt-1 text-[11px] font-semibold text-slate-600 dark:text-muted-foreground">Created {formatDate(user.createdAt)} | Updated {formatDate(user.updatedAt)}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
