@@ -6,10 +6,13 @@ create table if not exists public.profiles (
   department text not null default '',
   subjects text[] not null default '{}',
   grade_classes text[] not null default '{}',
+  photo_url text not null default '',
   status text not null default 'inactive' check (status in ('active', 'inactive')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.profiles add column if not exists photo_url text not null default '';
 
 alter table public.profiles enable row level security;
 
@@ -67,12 +70,25 @@ drop policy if exists "profiles_update_self_or_authority" on public.profiles;
 create policy "profiles_update_self_or_authority"
 on public.profiles for update
 using (
-  public.current_profile_status() = 'active'
-  and public.current_profile_role() in ('administrator', 'principal', 'vice-principal')
+  (
+    auth.uid() = id
+    and public.current_profile_status() = 'active'
+  )
+  or (
+    public.current_profile_status() = 'active'
+    and public.current_profile_role() in ('administrator', 'principal', 'vice-principal')
+  )
 )
 with check (
-  public.current_profile_status() = 'active'
-  and public.current_profile_role() in ('administrator', 'principal', 'vice-principal')
+  (
+    auth.uid() = id
+    and public.current_profile_status() = 'active'
+    and id = auth.uid()
+  )
+  or (
+    public.current_profile_status() = 'active'
+    and public.current_profile_role() in ('administrator', 'principal', 'vice-principal')
+  )
 );
 
 drop policy if exists "profiles_delete_by_authority" on public.profiles;
@@ -101,6 +117,7 @@ begin
     department,
     subjects,
     grade_classes,
+    photo_url,
     status
   )
   values (
@@ -117,6 +134,7 @@ begin
       array(select jsonb_array_elements_text(coalesce(new.raw_user_meta_data->'grade_classes', '[]'::jsonb))),
       '{}'
     ),
+    coalesce(nullif(new.raw_user_meta_data->>'photo_url', ''), ''),
     'inactive'
   )
   on conflict (id) do update set
@@ -126,6 +144,7 @@ begin
     department = excluded.department,
     subjects = excluded.subjects,
     grade_classes = excluded.grade_classes,
+    photo_url = excluded.photo_url,
     updated_at = now();
 
   return new;
@@ -314,6 +333,70 @@ with check (
 create index if not exists lesson_plans_owner_idx on public.lesson_plans(owner_id);
 create index if not exists lesson_plans_department_idx on public.lesson_plans(department);
 create index if not exists lesson_plans_status_idx on public.lesson_plans(status);
+
+create table if not exists public.app_messages (
+  id uuid primary key default gen_random_uuid(),
+  sender_id uuid not null references public.profiles(id) on delete cascade,
+  sender_name text not null default '',
+  audience text not null check (audience in ('all', 'role', 'department', 'user')),
+  target text not null default '',
+  subject text not null default '',
+  body text not null default '',
+  read_by uuid[] not null default '{}',
+  created_at timestamptz not null default now()
+);
+
+alter table public.app_messages enable row level security;
+
+drop policy if exists "app_messages_select_sender_or_recipient" on public.app_messages;
+create policy "app_messages_select_sender_or_recipient"
+on public.app_messages for select
+using (
+  public.current_profile_status() = 'active'
+  and (
+    sender_id = auth.uid()
+    or audience = 'all'
+    or (audience = 'user' and target = auth.uid()::text)
+    or (audience = 'role' and target = public.current_profile_role())
+    or (audience = 'department' and target = public.current_profile_department())
+  )
+);
+
+drop policy if exists "app_messages_insert_active_sender" on public.app_messages;
+create policy "app_messages_insert_active_sender"
+on public.app_messages for insert
+with check (
+  public.current_profile_status() = 'active'
+  and sender_id = auth.uid()
+);
+
+drop policy if exists "app_messages_update_read_by_recipients" on public.app_messages;
+create policy "app_messages_update_read_by_recipients"
+on public.app_messages for update
+using (
+  public.current_profile_status() = 'active'
+  and (
+    sender_id = auth.uid()
+    or audience = 'all'
+    or (audience = 'user' and target = auth.uid()::text)
+    or (audience = 'role' and target = public.current_profile_role())
+    or (audience = 'department' and target = public.current_profile_department())
+  )
+)
+with check (
+  public.current_profile_status() = 'active'
+  and (
+    sender_id = auth.uid()
+    or audience = 'all'
+    or (audience = 'user' and target = auth.uid()::text)
+    or (audience = 'role' and target = public.current_profile_role())
+    or (audience = 'department' and target = public.current_profile_department())
+  )
+);
+
+create index if not exists app_messages_sender_idx on public.app_messages(sender_id);
+create index if not exists app_messages_audience_idx on public.app_messages(audience, target);
+create index if not exists app_messages_created_at_idx on public.app_messages(created_at desc);
 
 create table if not exists public.curriculum_items (
   id text primary key,

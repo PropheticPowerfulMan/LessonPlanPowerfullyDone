@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Mail, Search, Send } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
@@ -24,11 +24,23 @@ export const Messages = () => {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [openMessage, setOpenMessage] = useState<AppMessage | null>(null);
+  const [messages, setMessages] = useState<AppMessage[]>([]);
+  const [sending, setSending] = useState(false);
   const [version, setVersion] = useState(0);
-  if (!currentUser) return null;
 
-  const messages = useMemo(() => messageRepository.listForUser(currentUser), [currentUser, version]);
+  useEffect(() => {
+    if (!currentUser) return;
+    let mounted = true;
+    messageRepository.listForUserAsync(currentUser).then((nextMessages) => {
+      if (mounted) setMessages(nextMessages);
+    }).catch((error) => notify(error instanceof Error ? error.message : "Unable to load messages."));
+    return () => {
+      mounted = false;
+    };
+  }, [currentUser, notify, version]);
+
   const filteredMessages = useMemo(() => {
+    if (!currentUser) return [];
     const terms = query.toLowerCase().split(/\s+/).map((term) => term.trim()).filter(Boolean);
     const fromTime = dateFrom ? new Date(`${dateFrom}T00:00:00`).getTime() : Number.NaN;
     const toTime = dateTo ? new Date(`${dateTo}T23:59:59`).getTime() : Number.NaN;
@@ -52,25 +64,35 @@ export const Messages = () => {
         (!dateTo || (!Number.isNaN(createdTime) && createdTime <= toTime))
       );
     });
-  }, [audienceFilter, currentUser.id, dateFrom, dateTo, messages, query, readFilter, senderFilter]);
+  }, [audienceFilter, currentUser, dateFrom, dateTo, messages, query, readFilter, senderFilter]);
   const departments = useMemo(() => Array.from(new Set(users.map((user) => user.department).filter(Boolean))).sort(), [users]);
-  const canBroadcast = can("users:manage") || ["administrator", "principal", "vice-principal", "head-of-department"].includes(currentUser.role);
+  const canBroadcast = Boolean(currentUser && (can("users:manage") || ["administrator", "principal", "vice-principal", "head-of-department"].includes(currentUser.role)));
 
-  const submit = (event: FormEvent) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!subject.trim() || !body.trim()) return;
-    messageRepository.send({
+    if (!currentUser) return;
+    if (!subject.trim() || !body.trim() || sending) return;
+    setSending(true);
+    try {
+      await messageRepository.sendAsync({
       sender: currentUser,
       audience: canBroadcast ? audience : "user",
-      target: canBroadcast ? target : "user-admin",
+      target: canBroadcast ? target : "administrator",
       subject,
       body
-    });
-    setSubject("");
-    setBody("");
-    setVersion((value) => value + 1);
-    notify("Message sent");
+      });
+      setSubject("");
+      setBody("");
+      setVersion((value) => value + 1);
+      notify("Message sent");
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Unable to send message.");
+    } finally {
+      setSending(false);
+    }
   };
+
+  if (!currentUser) return null;
 
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
@@ -99,7 +121,7 @@ export const Messages = () => {
           )}
           <Field label="Subject"><Input value={subject} onChange={(event) => setSubject(event.target.value)} /></Field>
           <Field label="Message"><Textarea className="min-h-36" value={body} onChange={(event) => setBody(event.target.value)} /></Field>
-          <Button type="submit" disabled={!subject.trim() || !body.trim() || (canBroadcast && audience !== "all" && !target)}>
+          <Button type="submit" disabled={sending || !subject.trim() || !body.trim() || (canBroadcast && audience !== "all" && !target)}>
             <Send size={16} /> Send
           </Button>
         </form>
@@ -146,8 +168,8 @@ export const Messages = () => {
           <Card
             key={message.id}
             className="cursor-pointer p-4 transition hover:border-cyan-300/35 hover:bg-cyan-500/10"
-            onClick={() => {
-              messageRepository.markRead(message.id, currentUser.id);
+            onClick={async () => {
+              await messageRepository.markReadAsync(message.id, currentUser.id).catch((error) => notify(error instanceof Error ? error.message : "Unable to mark message as read."));
               setOpenMessage(message);
               setVersion((value) => value + 1);
             }}

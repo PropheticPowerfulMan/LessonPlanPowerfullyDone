@@ -23,7 +23,7 @@ export const profilePhotoService = {
     write(photos);
   },
   apply<T extends { id: string; photoUrl?: string }>(profile: T): T {
-    return { ...profile, photoUrl: this.get(profile.id) || profile.photoUrl || "" };
+    return { ...profile, photoUrl: profile.photoUrl || this.get(profile.id) || "" };
   },
   applyAll<T extends { id: string; photoUrl?: string }>(profiles: T[]): T[] {
     return profiles.map((profile) => this.apply(profile));

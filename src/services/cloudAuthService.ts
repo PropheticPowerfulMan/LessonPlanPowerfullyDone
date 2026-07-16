@@ -116,6 +116,7 @@ const toProfile = (row: Record<string, unknown>): UserProfile => ({
   subjects: Array.isArray(row.subjects) ? row.subjects.map(String) : [],
   gradeClasses: Array.isArray(row.grade_classes) ? row.grade_classes.map(String) : [],
   status: row.status === "inactive" ? "inactive" : "active",
+  photoUrl: String(row.photo_url || ""),
   createdAt: String(row.created_at || new Date().toISOString()),
   updatedAt: String(row.updated_at || new Date().toISOString())
 });
@@ -128,6 +129,7 @@ const fromProfile = (profile: UserProfile) => ({
   department: profile.department,
   subjects: profile.subjects,
   grade_classes: profile.gradeClasses,
+  photo_url: profile.photoUrl || "",
   status: profile.status,
   updated_at: new Date().toISOString()
 });

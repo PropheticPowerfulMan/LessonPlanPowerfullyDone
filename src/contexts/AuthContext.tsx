@@ -127,13 +127,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateProfile = async (profile: UserProfile) => {
-    if (profile.photoUrl) {
-      profilePhotoService.set(profile.id, profile.photoUrl);
-    } else {
-      profilePhotoService.remove(profile.id);
+    if (!cloudAuthService.enabled) {
+      if (profile.photoUrl) {
+        profilePhotoService.set(profile.id, profile.photoUrl);
+      } else {
+        profilePhotoService.remove(profile.id);
+      }
     }
-    const profileForCloud = { ...profile, photoUrl: undefined };
-    const next = cloudAuthService.enabled ? await cloudAuthService.updateProfile(profileForCloud) : mockAuthService.updateProfile(profile);
+    const next = cloudAuthService.enabled ? await cloudAuthService.updateProfile(profile) : mockAuthService.updateProfile(profile);
     const nextWithPhoto = profilePhotoService.apply(next);
     await refreshUsers();
     setCurrentUser((current) => (current?.id === next.id ? nextWithPhoto : current));
