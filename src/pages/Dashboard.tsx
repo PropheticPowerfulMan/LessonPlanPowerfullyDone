@@ -381,17 +381,19 @@ const AdminUserManager = ({
       subjects: normalizeCsv(draft.subjects.join(",")),
       gradeClasses: normalizeCsv(draft.gradeClasses.join(","))
     });
-    if (previous?.status !== "active" && draft.status === "active") {
-      await resetPassword(draft.email);
-    }
+    const temporary = previous?.status !== "active" && draft.status === "active" ? await setUserPassword(draft.id) : undefined;
     setEditingId("");
     setDraft(null);
-    setNotice(previous?.status !== "active" && draft.status === "active" ? "User profile activated and notification email sent." : "User profile updated.");
+    setNotice(temporary ? `User profile activated. Temporary password for ${draft.email}: ${temporary}` : "User profile updated.");
   };
 
   const recover = async (user: UserProfile) => {
-    const temporary = await setUserPassword(user.id);
-    setNotice(temporary ? `New temporary password for ${user.email}: ${temporary}` : `Secure recovery link sent to ${user.email}.`);
+    try {
+      const temporary = await setUserPassword(user.id);
+      setNotice(temporary ? `New temporary password for ${user.email}: ${temporary}` : `Secure recovery link sent to ${user.email}.`);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Unable to prepare password recovery.");
+    }
   };
 
   const toggleStatus = async (user: UserProfile) => {
@@ -402,8 +404,8 @@ const AdminUserManager = ({
     }
     await updateProfile(next);
     if (next.status === "active") {
-      await resetPassword(next.email);
-      setNotice(`Account activated. Notification email sent to ${next.email}.`);
+      const temporary = await setUserPassword(next.id);
+      setNotice(temporary ? `Account activated. Temporary password for ${next.email}: ${temporary}` : `Account activated. Secure recovery link sent to ${next.email}.`);
     }
   };
 
@@ -552,13 +554,10 @@ const PasswordRecoveryCenter = ({ users, authMode, resetPassword, setUserPasswor
     setError("");
     setNotice("");
     try {
-      if (authMode === "cloud") {
-        await resetPassword(selected.email);
-        setNotice(`Secure recovery link sent to ${selected.email}. The user can open the link and set a new password.`);
-      } else {
-        const temporary = await setUserPassword(selected.id);
-        setNotice(`Local recovery ready for ${selected.email}. Temporary password: ${temporary}`);
-      }
+      const temporary = await setUserPassword(selected.id);
+      setNotice(authMode === "cloud"
+        ? `Recovery ready for ${selected.email}. Temporary password: ${temporary}`
+        : `Local recovery ready for ${selected.email}. Temporary password: ${temporary}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to prepare password recovery.");
     } finally {
@@ -585,14 +584,14 @@ const PasswordRecoveryCenter = ({ users, authMode, resetPassword, setUserPasswor
   return (
     <Panel title="Password Recovery Center" icon={RotateCcw}>
       <div className="space-y-3">
-        <p className="text-sm text-slate-700 dark:text-muted-foreground">{authMode === "cloud" ? "Choose a user and generate the same temporary recovery flow used by account recovery emails." : "Choose a user and set a temporary password for local fallback mode."}</p>
+        <p className="text-sm text-slate-700 dark:text-muted-foreground">{authMode === "cloud" ? "Choose a user and generate a temporary password directly. This avoids blocked recovery emails." : "Choose a user and set a temporary password for local fallback mode."}</p>
         <Select value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>
           {users.map((user) => <option key={user.id} value={user.id}>{user.name} - {user.email}</option>)}
         </Select>
         {authMode === "local" && <Input value={customPassword} onChange={(event) => setCustomPassword(event.target.value)} placeholder="Optional temporary password" />}
         <div className="flex flex-wrap gap-2">
           <Button type="button" onClick={sendRecovery} disabled={busy || !selected}><RotateCcw size={16} /> {busy ? "Preparing..." : "Send recovery"}</Button>
-          {authMode === "local" && <Button type="button" variant="outline" onClick={setTemporary} disabled={busy || !selected}><RotateCcw size={16} /> Set temporary password</Button>}
+          <Button type="button" variant="outline" onClick={setTemporary} disabled={busy || !selected}><RotateCcw size={16} /> Set temporary password</Button>
         </div>
         {notice && <p className="rounded-md border border-cyan-300/20 bg-cyan-500/10 px-3 py-2 text-sm font-bold text-cyan-50">{notice}</p>}
         {error && <p className="rounded-md border border-red-300/30 bg-red-500/10 px-3 py-2 text-sm font-bold text-red-100">{error}</p>}

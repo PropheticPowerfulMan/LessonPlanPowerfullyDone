@@ -65,7 +65,10 @@ const request = async <T>(url: string, options: RequestInit = {}) => {
     if (response.status === 429) {
       throw new Error("Too many account requests were sent in a short time. Please wait a few minutes before trying again, or ask a school authority to create or activate the account.");
     }
-    const message = data?.msg || data?.message || data?.error_description || "Cloud request failed";
+    const rawMessage = data?.msg || data?.message || data?.error_description || "Cloud request failed";
+    const message = rawMessage === "Unable to process request"
+      ? "Supabase could not send the recovery email. Ask an administrator to generate a temporary password from Dashboard > Security."
+      : rawMessage;
     throw new Error(message);
   }
   return data as T;
@@ -236,10 +239,9 @@ export const cloudAuthService = {
     });
     return temporaryPassword;
   },
-  async createRecoveryPassword(email: string) {
-    const temporaryPassword = createTemporaryPassword();
+  async createRecoveryPassword(email: string, nextPassword?: string) {
+    const temporaryPassword = nextPassword?.trim() || createTemporaryPassword();
     await this.setUserPasswordByEmail(email, temporaryPassword);
-    await this.resetPassword(email, temporaryPassword);
     return temporaryPassword;
   },
   async setUserPasswordByEmail(email: string, password: string) {

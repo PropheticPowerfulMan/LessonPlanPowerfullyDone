@@ -107,12 +107,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     if (cloudAuthService.enabled) {
       const user = users.find((item) => item.id === id);
       if (!user) throw new Error("User profile not found.");
-      try {
-        return await cloudAuthService.createRecoveryPassword(user.email);
-      } catch {
-        await cloudAuthService.resetPassword(user.email);
-        return;
-      }
+      return cloudAuthService.createRecoveryPassword(user.email, nextPassword);
     }
     return mockAuthService.setUserPassword(id, nextPassword);
   };
