@@ -68,6 +68,8 @@ const request = async <T>(url: string, options: RequestInit = {}) => {
     const rawMessage = data?.msg || data?.message || data?.error_description || "Cloud request failed";
     const message = rawMessage === "Unable to process request"
       ? "Supabase could not send the recovery email. Ask an administrator to generate a temporary password from Dashboard > Security."
+      : rawMessage === "Database error querying schema"
+        ? "Supabase rejected the temporary password because the recovery SQL is outdated. Run the updated supabase.schema.sql, then generate a new temporary password."
       : rawMessage;
     throw new Error(message);
   }

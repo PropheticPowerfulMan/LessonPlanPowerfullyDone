@@ -259,10 +259,15 @@ begin
 
   update auth.users
   set
-    encrypted_password = crypt(new_password, gen_salt('bf')),
+    encrypted_password = crypt(new_password, gen_salt('bf', 10)),
     email_confirmed_at = coalesce(email_confirmed_at, now()),
-    recovery_token = null,
-    recovery_sent_at = now(),
+    confirmation_token = '',
+    recovery_token = '',
+    email_change_token_new = '',
+    email_change_token_current = '',
+    reauthentication_token = '',
+    recovery_sent_at = null,
+    last_sign_in_at = null,
     updated_at = now()
   where lower(email) = lower(target_email);
 
