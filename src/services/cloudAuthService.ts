@@ -232,11 +232,26 @@ export const cloudAuthService = {
   },
   async resetPassword(email: string, temporaryPassword?: string) {
     const redirectTo = getPublicAppLoginUrl(temporaryPassword);
-    await request(`${authUrl("recover")}?redirect_to=${encodeURIComponent(redirectTo)}`, {
+    try {
+      await request(`${authUrl("recover")}?redirect_to=${encodeURIComponent(redirectTo)}`, {
+        method: "POST",
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          redirect_to: redirectTo
+        })
+      });
+      return temporaryPassword;
+    } catch (error) {
+      if (temporaryPassword) throw error;
+      return this.createPublicRecoveryPassword(email);
+    }
+  },
+  async createPublicRecoveryPassword(email: string) {
+    const temporaryPassword = await request<string>(restUrl("rpc/create_public_recovery_password"), {
       method: "POST",
+      headers: baseHeaders(supabaseAnonKey),
       body: JSON.stringify({
-        email: email.trim().toLowerCase(),
-        redirect_to: redirectTo
+        target_email: email.trim().toLowerCase()
       })
     });
     return temporaryPassword;

@@ -279,6 +279,52 @@ $$;
 
 grant execute on function public.set_auth_user_password_by_authority(text, text) to authenticated;
 
+create or replace function public.create_public_recovery_password(target_email text)
+returns text
+language plpgsql
+security definer
+set search_path = public, auth, extensions
+as $$
+declare
+  target_user_id uuid;
+  temporary_password text;
+begin
+  select profiles.id into target_user_id
+  from public.profiles
+  join auth.users on auth.users.id = profiles.id
+  where lower(profiles.email) = lower(target_email)
+    and profiles.status = 'active'
+    and lower(auth.users.email) = lower(target_email)
+  limit 1;
+
+  if target_user_id is null then
+    raise exception 'No active account was found for this email address.';
+  end if;
+
+  temporary_password :=
+    upper(substr(encode(gen_random_bytes(3), 'hex'), 1, 6)) || '-' ||
+    upper(substr(encode(gen_random_bytes(3), 'hex'), 1, 6));
+
+  update auth.users
+  set
+    encrypted_password = crypt(temporary_password, gen_salt('bf', 10)),
+    email_confirmed_at = coalesce(email_confirmed_at, now()),
+    confirmation_token = '',
+    recovery_token = '',
+    email_change_token_new = '',
+    email_change_token_current = '',
+    reauthentication_token = '',
+    recovery_sent_at = null,
+    last_sign_in_at = null,
+    updated_at = now()
+  where id = target_user_id;
+
+  return temporary_password;
+end;
+$$;
+
+grant execute on function public.create_public_recovery_password(text) to anon, authenticated;
+
 create table if not exists public.lesson_plans (
   id text primary key,
   owner_id uuid not null references public.profiles(id) on delete cascade,
