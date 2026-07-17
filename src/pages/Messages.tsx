@@ -324,19 +324,19 @@ export const Messages = () => {
         ))}
         {filteredMessages.length === 0 && <Card className="p-8 text-center text-muted-foreground">No messages match this search.</Card>}
       </div>
-      <Dialog open={Boolean(openMessage)} title={openMessage?.subject || "Message"} onClose={() => setOpenMessage(null)}>
+      <Dialog open={Boolean(openMessage)} title={openMessage?.subject || "Message"} onClose={() => setOpenMessage(null)} size="message">
         {openMessage && (
-          <div className="space-y-4">
-            <div className="rounded-md border border-cyan-300/15 bg-white/[0.04] p-3">
+          <div className="flex h-full min-h-0 flex-col gap-4">
+            <div className="shrink-0 rounded-md border border-cyan-300/15 bg-white/[0.04] p-3">
               <p className="text-sm font-black text-white">{openMessage.subject}</p>
               <p className="mt-1 text-xs font-bold text-cyan-100">From {openMessage.senderName} - {new Date(openMessage.createdAt).toLocaleString()}{openMessage.updatedAt && openMessage.updatedAt !== openMessage.createdAt ? " - edited" : ""}</p>
               <p className="mt-1 text-xs text-muted-foreground">Audience: {audienceLabel(openMessage.audience)}{openMessage.target ? ` - ${resolveTargetLabel(openMessage, users)}` : ""}</p>
             </div>
-            <div className="max-h-[58dvh] overflow-auto rounded-md border border-cyan-300/15 bg-card/80 p-4">
+            <div className="min-h-0 flex-1 overflow-auto rounded-md border border-cyan-300/15 bg-card/80 p-4">
               <p className="whitespace-pre-line text-sm leading-6 text-foreground">{openMessage.body}</p>
             </div>
             {openMessage.senderId === currentUser.id && (
-              <div className="flex flex-wrap gap-2">
+              <div className="flex shrink-0 flex-wrap gap-2">
                 <Button variant="outline" onClick={() => startEdit(openMessage)}><Edit3 size={16} /> Edit</Button>
                 <Button variant="outline" onClick={() => deleteMessage(openMessage)}><Trash2 size={16} /> Delete</Button>
               </div>
@@ -344,11 +344,15 @@ export const Messages = () => {
           </div>
         )}
       </Dialog>
-      <Dialog open={Boolean(editingMessage)} title="Edit message" onClose={() => setEditingMessage(null)}>
-        <form className="space-y-3" onSubmit={saveEdit}>
-          <Field label="Subject"><Input value={editSubject} onChange={(event) => setEditSubject(event.target.value)} /></Field>
-          <Field label="Message"><Textarea className="min-h-40" value={editBody} onChange={(event) => setEditBody(event.target.value)} /></Field>
-          <div className="flex flex-wrap gap-2">
+      <Dialog open={Boolean(editingMessage)} title="Edit message" onClose={() => setEditingMessage(null)} size="message">
+        <form className="flex h-full min-h-0 flex-col gap-3" onSubmit={saveEdit}>
+          <div className="shrink-0">
+            <Field label="Subject"><Input value={editSubject} onChange={(event) => setEditSubject(event.target.value)} /></Field>
+          </div>
+          <div className="min-h-0 flex-1">
+            <Field label="Message"><Textarea className="h-full min-h-[45dvh] resize-none" value={editBody} onChange={(event) => setEditBody(event.target.value)} /></Field>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2">
             <Button type="submit" disabled={savingEdit || !editSubject.trim() || !editBody.trim()}><Edit3 size={16} /> Save</Button>
             <Button type="button" variant="outline" onClick={() => setEditingMessage(null)}>Cancel</Button>
           </div>
