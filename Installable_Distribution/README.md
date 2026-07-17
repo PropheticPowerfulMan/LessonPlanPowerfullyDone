@@ -10,6 +10,12 @@ https://propheticpowerfulman.github.io/LessonPlanPowerfullyDone/
 
 The app already includes the KCS school logo in its web app manifest, so the installed app icon on desktop, phone, or tablet will use the school logo when installed from a supported browser.
 
+The fastest option for most users is:
+
+- Windows desktop: use `Install-KCS-EduPlanner-Windows.cmd`, then choose `Install app` in Edge or Chrome if prompted.
+- Android phone/tablet: open the hosted link in Chrome and choose `Install app` or `Add to Home screen`.
+- iPhone/iPad: open the hosted link in Safari and choose `Add to Home Screen`.
+
 ## Desktop installation
 
 Windows, macOS, Linux, and ChromeOS:
@@ -36,6 +42,8 @@ Windows, macOS, Linux, and ChromeOS:
 ## Offline web build
 
 The `KCS-EduPlanner-WebBuild` folder contains the latest production web build. It is useful for archiving or hosting on a web server. For full installation behavior, service workers, routing, and the app icon work best from the hosted HTTPS link above.
+
+The zip file `KCS-EduPlanner-Installable-Distribution.zip` packages these same installation materials together, including the Windows launcher, icons, README, and latest web build.
 
 ## Icons
 
