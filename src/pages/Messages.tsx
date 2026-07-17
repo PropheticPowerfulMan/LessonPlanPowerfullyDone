@@ -349,10 +349,11 @@ export const Messages = () => {
           <div className="shrink-0">
             <Field label="Subject"><Input value={editSubject} onChange={(event) => setEditSubject(event.target.value)} /></Field>
           </div>
-          <div className="min-h-0 flex-1">
-            <Field label="Message"><Textarea className="h-full min-h-[45dvh] resize-none" value={editBody} onChange={(event) => setEditBody(event.target.value)} /></Field>
+          <div className="flex min-h-0 flex-1 flex-col gap-1">
+            <Label>Message</Label>
+            <Textarea className="min-h-0 flex-1 resize-none overflow-auto" value={editBody} onChange={(event) => setEditBody(event.target.value)} />
           </div>
-          <div className="flex shrink-0 flex-wrap gap-2">
+          <div className="relative z-10 flex shrink-0 flex-wrap gap-2 border-t border-cyan-300/15 pt-3">
             <Button type="submit" disabled={savingEdit || !editSubject.trim() || !editBody.trim()}><Edit3 size={16} /> Save</Button>
             <Button type="button" variant="outline" onClick={() => setEditingMessage(null)}>Cancel</Button>
           </div>
