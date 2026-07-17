@@ -14,7 +14,7 @@ export const Dialog = ({
   title: string;
   children: ReactNode;
   onClose: () => void;
-  size?: "default" | "preview" | "message";
+  size?: "default" | "preview" | "message" | "compact";
 }) => (
   <AnimatePresence>
     {open && (
@@ -25,7 +25,9 @@ export const Dialog = ({
               ? "h-[96dvh] max-h-[96dvh] max-w-[98vw] sm:w-[96vw] lg:h-[94dvh] lg:w-[92vw] xl:w-[88vw] 2xl:w-[82vw]"
               : size === "message"
                 ? "h-[77dvh] w-[77vw] max-h-[calc(100dvh-1rem)] max-w-[calc(100vw-1rem)]"
-                : "max-h-[96dvh] max-w-[min(96vw,1180px)]"
+                : size === "compact"
+                  ? "max-h-[min(88dvh,420px)] max-w-[min(92vw,520px)]"
+                  : "max-h-[96dvh] max-w-[min(96vw,1180px)]"
           }`}
           initial={{ y: 18, scale: 0.98 }}
           animate={{ y: 0, scale: 1 }}

@@ -6,6 +6,7 @@ import {
   BookOpen,
   CalendarDays,
   CheckCircle2,
+  Clipboard,
   ClipboardCheck,
   Clock3,
   Database,
@@ -34,6 +35,7 @@ import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
+import { Dialog } from "../components/ui/dialog";
 import { Input, Select } from "../components/ui/input";
 import { useApp } from "../contexts/AppContext";
 import { useAuth } from "../contexts/AuthContext";
@@ -44,6 +46,8 @@ import { AuthMode, roleLabels, UserProfile } from "../types/user";
 
 type MetricTone = "cyan" | "emerald" | "amber" | "rose" | "violet" | "slate";
 type ActivityItem = { id: string; title: string; detail: string; timestamp: string };
+type TemporaryPasswordDialogState = { email: string; password: string } | null;
+type AccountStatusDialogState = { email: string; status: "active" | "inactive" } | null;
 type DashboardContext = {
   lessons: LessonPlan[];
   users: UserProfile[];
@@ -293,6 +297,67 @@ const AdministratorDashboard = ({ context }: { context: DashboardContext }) => {
   );
 };
 
+const TemporaryPasswordDialog = ({
+  value,
+  onClose
+}: {
+  value: TemporaryPasswordDialogState;
+  onClose: () => void;
+}) => {
+  const [copied, setCopied] = useState(false);
+  if (!value) return null;
+
+  const copyPassword = async () => {
+    await navigator.clipboard.writeText(value.password);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1800);
+  };
+
+  return (
+    <Dialog open={Boolean(value)} title="Temporary password" onClose={onClose} size="compact">
+      <div className="space-y-4 text-center">
+        <p className="text-sm font-semibold text-slate-700 dark:text-cyan-100">
+          Temporary password generated for <span className="text-white">{value.email}</span>.
+        </p>
+        <div className="rounded-md border border-cyan-300/20 bg-slate-950/70 p-3">
+          <p className="break-all font-mono text-lg font-black text-cyan-100">{value.password}</p>
+        </div>
+        <div className="flex flex-wrap justify-center gap-2">
+          <Button type="button" onClick={copyPassword}><Clipboard size={16} /> {copied ? "Copied" : "Copy password"}</Button>
+          <Button type="button" variant="outline" onClick={onClose}>Close</Button>
+        </div>
+      </div>
+    </Dialog>
+  );
+};
+
+const AccountStatusDialog = ({
+  value,
+  onClose
+}: {
+  value: AccountStatusDialogState;
+  onClose: () => void;
+}) => {
+  if (!value) return null;
+  const activated = value.status === "active";
+
+  return (
+    <Dialog open={Boolean(value)} title={activated ? "Account activated" : "Account disabled"} onClose={onClose} size="compact">
+      <div className="space-y-4 text-center">
+        <p className="text-sm font-semibold text-slate-700 dark:text-cyan-100">
+          Account {activated ? "activated" : "disabled"} for <span className="text-white">{value.email}</span>.
+        </p>
+        <div className={`rounded-md border px-3 py-2 ${activated ? "border-emerald-300/20 bg-emerald-500/10" : "border-amber-300/25 bg-amber-500/10"}`}>
+          <p className={`text-sm font-bold ${activated ? "text-emerald-100" : "text-amber-100"}`}>
+            {activated ? "The user's existing account password was kept." : "The account is now inactive and cannot sign in until it is activated again."}
+          </p>
+        </div>
+        <Button type="button" onClick={onClose}>OK</Button>
+      </div>
+    </Dialog>
+  );
+};
+
 const AdminUserManager = ({
   users,
   lessons,
@@ -322,6 +387,8 @@ const AdminUserManager = ({
   const [editingId, setEditingId] = useState("");
   const [draft, setDraft] = useState<UserProfile | null>(null);
   const [notice, setNotice] = useState("");
+  const [temporaryDialog, setTemporaryDialog] = useState<TemporaryPasswordDialogState>(null);
+  const [accountStatusDialog, setAccountStatusDialog] = useState<AccountStatusDialogState>(null);
   const userLessons = useMemo(() => new Map(users.map((user) => [user.id, lessons.filter((lesson) => isUserLesson(user, lesson))])), [lessons, users]);
   const departmentOptions = useMemo(() => unique(users.map((user) => user.department).filter(Boolean)), [users]);
   const subjectOptions = useMemo(() => unique([...users.flatMap((user) => user.subjects), ...lessons.map((lesson) => lesson.subject)].filter(Boolean)), [lessons, users]);
@@ -381,16 +448,19 @@ const AdminUserManager = ({
       subjects: normalizeCsv(draft.subjects.join(",")),
       gradeClasses: normalizeCsv(draft.gradeClasses.join(","))
     });
-    const temporary = previous?.status !== "active" && draft.status === "active" ? await setUserPassword(draft.id) : undefined;
+    const activated = previous?.status !== "active" && draft.status === "active";
+    const disabled = previous?.status === "active" && draft.status === "inactive";
     setEditingId("");
     setDraft(null);
-    setNotice(temporary ? `User profile activated. Temporary password for ${draft.email}: ${temporary}` : "User profile updated.");
+    if (activated || disabled) setAccountStatusDialog({ email: draft.email, status: draft.status });
+    setNotice(activated ? "User profile activated. The user's existing account password was kept." : disabled ? "User profile disabled." : "User profile updated.");
   };
 
   const recover = async (user: UserProfile) => {
     try {
       const temporary = await setUserPassword(user.id);
-      setNotice(temporary ? `New temporary password for ${user.email}: ${temporary}` : `Secure recovery link sent to ${user.email}.`);
+      if (temporary) setTemporaryDialog({ email: user.email, password: temporary });
+      setNotice(temporary ? `New temporary password ready for ${user.email}.` : `Secure recovery link sent to ${user.email}.`);
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "Unable to prepare password recovery.");
     }
@@ -404,8 +474,11 @@ const AdminUserManager = ({
     }
     await updateProfile(next);
     if (next.status === "active") {
-      const temporary = await setUserPassword(next.id);
-      setNotice(temporary ? `Account activated. Temporary password for ${next.email}: ${temporary}` : `Account activated. Secure recovery link sent to ${next.email}.`);
+      setAccountStatusDialog({ email: next.email, status: "active" });
+      setNotice(`Account activated for ${next.email}. The user's existing account password was kept.`);
+    } else {
+      setAccountStatusDialog({ email: next.email, status: "inactive" });
+      setNotice(`Account disabled for ${next.email}.`);
     }
   };
 
@@ -425,6 +498,8 @@ const AdminUserManager = ({
 
   return (
     <Card className="p-4 sm:p-5">
+      <TemporaryPasswordDialog value={temporaryDialog} onClose={() => setTemporaryDialog(null)} />
+      <AccountStatusDialog value={accountStatusDialog} onClose={() => setAccountStatusDialog(null)} />
       <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h2 className="flex items-center gap-2 text-xl font-black text-white"><Users className="text-cyan-300" size={20} /> User Administration</h2>
@@ -541,6 +616,7 @@ const PasswordRecoveryCenter = ({ users, authMode, resetPassword, setUserPasswor
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [temporaryDialog, setTemporaryDialog] = useState<TemporaryPasswordDialogState>(null);
   const selected = users.find((user) => user.id === selectedId) || users[0];
 
   useEffect(() => {
@@ -555,9 +631,10 @@ const PasswordRecoveryCenter = ({ users, authMode, resetPassword, setUserPasswor
     setNotice("");
     try {
       const temporary = await setUserPassword(selected.id);
+      if (temporary) setTemporaryDialog({ email: selected.email, password: temporary });
       setNotice(authMode === "cloud"
-        ? `Recovery ready for ${selected.email}. Temporary password: ${temporary}`
-        : `Local recovery ready for ${selected.email}. Temporary password: ${temporary}`);
+        ? `Recovery ready for ${selected.email}. Temporary password is available in the copy window.`
+        : `Local recovery ready for ${selected.email}. Temporary password is available in the copy window.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to prepare password recovery.");
     } finally {
@@ -572,7 +649,8 @@ const PasswordRecoveryCenter = ({ users, authMode, resetPassword, setUserPasswor
     setNotice("");
     try {
       const temporary = await setUserPassword(selected.id, customPassword || undefined);
-      setNotice(temporary ? `New temporary password for ${selected.email}: ${temporary}` : `Secure recovery link sent to ${selected.email}.`);
+      if (temporary) setTemporaryDialog({ email: selected.email, password: temporary });
+      setNotice(temporary ? `New temporary password ready for ${selected.email}.` : `Secure recovery link sent to ${selected.email}.`);
       setCustomPassword("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to set the temporary password.");
@@ -583,6 +661,7 @@ const PasswordRecoveryCenter = ({ users, authMode, resetPassword, setUserPasswor
 
   return (
     <Panel title="Password Recovery Center" icon={RotateCcw}>
+      <TemporaryPasswordDialog value={temporaryDialog} onClose={() => setTemporaryDialog(null)} />
       <div className="space-y-3">
         <p className="text-sm text-slate-700 dark:text-muted-foreground">{authMode === "cloud" ? "Choose a user and generate a temporary password directly. This avoids blocked recovery emails." : "Choose a user and set a temporary password for local fallback mode."}</p>
         <Select value={selectedId} onChange={(event) => setSelectedId(event.target.value)}>

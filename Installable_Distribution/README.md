@@ -14,9 +14,10 @@ The app already includes the KCS school logo in its web app manifest, so the ins
 
 Windows, macOS, Linux, and ChromeOS:
 
-1. Open the hosted link in Chrome, Edge, or another PWA-capable browser.
-2. Use the browser install button in the address bar, or open the browser menu and choose `Install app`.
-3. The app will appear like a normal desktop application with the KCS logo.
+1. On Windows, double-click `Install-KCS-EduPlanner-Windows.cmd` to open the app directly in an installable app window when Edge or Chrome is available.
+2. Or open the hosted link in Chrome, Edge, or another PWA-capable browser.
+3. Use the browser install button in the address bar, or open the browser menu and choose `Install app`.
+4. The app will appear like a normal desktop application with the KCS logo.
 
 ## Android installation
 

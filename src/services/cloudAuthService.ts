@@ -149,11 +149,7 @@ const fetchCurrentProfile = async (userId: string, accessToken: string) => {
 const getPublicAppLoginUrl = (temporaryPassword?: string) => {
   const normalizedProductionUrl = productionAppUrl.endsWith("/") ? productionAppUrl : `${productionAppUrl}/`;
   const temporaryQuery = temporaryPassword ? `?temporary_password=${encodeURIComponent(temporaryPassword)}` : "";
-  if (typeof window === "undefined") return `${normalizedProductionUrl}${temporaryQuery}#/login`;
-  const isLocalHost = ["localhost", "127.0.0.1", "0.0.0.0", "::1"].includes(window.location.hostname);
-  const currentAppUrl = `${window.location.origin}${import.meta.env.BASE_URL}`;
-  const appUrl = isLocalHost ? currentAppUrl : normalizedProductionUrl;
-  return `${appUrl}${temporaryQuery}#/login`;
+  return `${normalizedProductionUrl}${temporaryQuery}#/login`;
 };
 
 export const cloudAuthService = {
