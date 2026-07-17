@@ -11,7 +11,8 @@ export const createVariedWeeklyPlan = (context: WeeklyGenerationContext = {}): W
   const subject = clean(context.subject, "the subject");
   const grade = clean(context.gradeClass, "the class");
   const unit = clean(stripPlanTitle(context.chapter || context.topic), "the selected unit");
-  const concepts = splitConcepts([context.subtopic, context.chapter, stripPlanTitle(context.topic)].filter(Boolean).join("; ")) || [unit];
+  const conceptSource = [context.subtopic, context.chapter].filter(Boolean).join("; ") || stripPlanTitle(context.topic);
+  const concepts = splitConcepts(conceptSource) || [unit];
   const vocabulary = listValues(context.vocabulary).slice(0, 3).join(", ");
   const materials = listValues(context.materialsResources).slice(0, 2).join(", ") || "board and learner notebooks";
   const strategy = getSubjectStrategy(subject);

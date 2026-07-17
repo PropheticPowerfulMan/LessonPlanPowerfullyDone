@@ -65,11 +65,17 @@ const PrintPage = ({
           <h1 className="break-words text-[12.4px] font-black uppercase leading-tight tracking-wide text-slate-950">{safeText(lesson.topic, lesson.planType === "daily" ? "Daily Lesson Plan" : "Weekly Lesson Plan")}</h1>
           <p className="break-words text-[7.8px] font-black uppercase leading-tight tracking-wide text-slate-700">{pageTitle}</p>
         </div>
-        <div className="flex min-h-[44px] flex-col justify-center gap-[2px] rounded-sm border border-slate-300 bg-white px-1.5 py-1 text-right text-[6.6px] font-black leading-[1.08] text-slate-900">
-          <p>Page 1/{hasOverflowPage ? "2" : "1"}</p>
-          <p>{lesson.planType === "daily" ? safeText(lesson.date, "Daily") : formatWeek(lesson.week)}</p>
-          {lesson.planType === "weekly" && <p className="text-[6.5px] leading-[1.05]">{formatWeekRange(lesson)}</p>}
-          <p>{safeText(lesson.schoolYear, "2026-2027")}</p>
+        <div className="flex h-[44px] flex-col justify-center rounded-sm border border-slate-300 bg-white px-1.5 py-1 text-right font-black text-slate-900">
+          <div
+            className={`flex w-full flex-col items-end ${
+              lesson.planType === "daily" ? "-translate-y-[2px] gap-[2.5px] text-[6.4px] leading-[1.1]" : "gap-[2px] text-[6.6px] leading-[1.08]"
+            }`}
+          >
+            <p>Page 1/{hasOverflowPage ? "2" : "1"}</p>
+            <p>{lesson.planType === "daily" ? safeText(lesson.date, "Daily") : formatWeek(lesson.week)}</p>
+            {lesson.planType === "weekly" && <p className="text-[6.5px] leading-[1.05]">{formatWeekRange(lesson)}</p>}
+            <p>{safeText(lesson.schoolYear, "2026-2027")}</p>
+          </div>
         </div>
       </div>
       <HeaderDetails lesson={lesson} />

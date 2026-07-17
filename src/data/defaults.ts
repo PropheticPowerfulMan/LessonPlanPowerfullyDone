@@ -184,7 +184,7 @@ export const createBlankLesson = (lessonNumber: string): LessonPlan => {
     subject: "",
     gradeClass: "",
     date: new Date().toISOString().slice(0, 10),
-    week: "1",
+    week: "",
     weekStartDate,
     weekEndDate,
     term: "1st Quarter",

@@ -65,6 +65,6 @@ export const prepareNewLessonForUser = <T extends LessonPlan>(lesson: T, user: U
   ownerName: user.name,
   teachers: lesson.teachers || user.name,
   department: lesson.department || user.department,
-  subject: lesson.subject || user.subjects[0] || "",
-  gradeClass: lesson.gradeClass || user.gradeClasses[0] || ""
+  subject: lesson.subject || "",
+  gradeClass: lesson.gradeClass || ""
 });

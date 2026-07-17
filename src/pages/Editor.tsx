@@ -342,16 +342,16 @@ export const Editor = () => {
   const exportDocument = async (type: "pdf" | "docx") => {
     if (!printRef.current || exporting) return;
     setExporting(type);
-    notify(type === "pdf" ? "Téléchargement PDF en cours..." : "Téléchargement DOCX en cours...");
+    notify(type === "pdf" ? "PDF download in progress..." : "DOCX download in progress...");
     try {
       if (type === "pdf") {
         await exportElementToPdf(printRef.current, `${printTitle}.pdf`);
       } else {
         await exportElementToDocx(printRef.current, `${printTitle}.docx`);
       }
-      notify(type === "pdf" ? "PDF téléchargé" : "DOCX téléchargé");
+      notify(type === "pdf" ? "PDF downloaded" : "DOCX downloaded");
     } catch {
-      notify("Le téléchargement a échoué");
+      notify("Download failed");
     } finally {
       setExporting(null);
     }
@@ -731,7 +731,8 @@ export const Editor = () => {
               <Field label="Chapter / Unit"><Input list="unit-suggestions" value={values.chapter || ""} onChange={(event) => updateSetupField("chapter", event.target.value)} /></Field>
               <Field label="Date"><Input type="date" value={values.date || ""} onChange={(event) => updateSetupField("date", event.target.value)} /></Field>
               {planType === "weekly" && <Field label="Week">
-                <Select value={values.week || "1"} onChange={(event) => updateSetupField("week", event.target.value)}>
+                <Select value={values.week || ""} onChange={(event) => updateSetupField("week", event.target.value)}>
+                  <option value="">Select week</option>
                   {weekOptions.map((week) => <option key={week} value={week}>Week {week}</option>)}
                 </Select>
               </Field>}
