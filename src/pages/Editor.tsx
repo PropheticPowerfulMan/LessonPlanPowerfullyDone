@@ -115,6 +115,7 @@ export const Editor = () => {
     chapter: sanitizeChapter((lesson || fallback).chapter)
   });
   const previousAutoObjectivesRef = useRef<string[]>([]);
+  const previousLessonSupportRef = useRef<Record<number, Partial<Record<WeeklyEditableKey, string>>>>({});
   const values = form.watch();
   const currentChapter = sanitizeChapter(values.chapter);
   const planType = values.planType || "weekly";
@@ -130,6 +131,27 @@ export const Editor = () => {
   const subtopicOptions = useMemo(() => unique(curriculumSuggestions.map((item) => item.subtopic).filter(Boolean)), [curriculumSuggestions]);
   const qualityWarnings = useMemo(() => analyzeWeeklyPlanQuality(printableLesson), [printableLesson]);
   const durationWarnings = useMemo(() => analyzeDurationAllocation(printableLesson), [printableLesson]);
+
+  useEffect(() => {
+    if (!canEditCurrent) return;
+    const current = form.getValues();
+    const totalMinutes = parseMinutes(current.duration);
+    if (!totalMinutes) return;
+
+    const currentPlan = normalizeEditableWeeklyPlan(current.weeklyPlan, current.subject, current.gradeClass, sanitizeChapter(current.chapter));
+    const needsInitialDurations = currentPlan.some((day) => !hasActivityDurations(day));
+    if (!needsInitialDurations) return;
+
+    form.setValue("weeklyPlan", currentPlan.map((day, index) => hasActivityDurations(day)
+      ? day
+      : {
+        ...day,
+        activityDurations: distributeActivityDurations(totalMinutes, { ...day, activityDurations: undefined }, index)
+      }), {
+      shouldDirty: true,
+      shouldValidate: false
+    });
+  }, [canEditCurrent, form, values.duration, values.planType, values.subject, values.gradeClass, values.chapter]);
 
   useEffect(() => {
     const current = form.getValues();
@@ -265,26 +287,58 @@ export const Editor = () => {
     let changed = false;
 
     const nextPlan = currentPlan.map((day, index) => {
-      const autoObjective = createDailyObjective(day.lesson, current.subject, current.gradeClass, index);
+      const generatedFromLesson = createLessonBasedSuggestion(current, day, index);
+      const autoObjective = generatedFromLesson.objectives || createDailyObjective(day.lesson, current.subject, current.gradeClass, index);
       const previousAutoObjective = previousAutoObjectivesRef.current[index];
+      const previousLessonObjective = previousLessonSupportRef.current[index]?.objectives || "";
       const currentObjective = day.objectives || "";
+      const objectiveLocked = Boolean(day.lockedFields?.objectives);
+      const objectiveManuallyEdited = Boolean(day.editedFields?.objectives);
       const objectiveCanSync =
-        !currentObjective.trim() ||
-        currentObjective === previousAutoObjective ||
-        isGenericObjective(currentObjective, current.gradeClass, sanitizeChapter(current.chapter));
+        (!objectiveLocked && !currentObjective.trim()) ||
+        (!objectiveLocked && !objectiveManuallyEdited && currentObjective === previousAutoObjective) ||
+        (!objectiveLocked && !objectiveManuallyEdited && currentObjective === previousLessonObjective) ||
+        (!objectiveLocked && isGenericObjective(currentObjective, current.gradeClass, sanitizeChapter(current.chapter)));
+      const nextDay = { ...day };
 
       previousAutoObjectivesRef.current[index] = autoObjective;
 
-      if (!day.day || objectiveCanSync) {
-        changed = changed || day.day !== weeklyPlan[index]?.day || currentObjective !== autoObjective;
-        return {
-          ...day,
-          day: day.day || weeklyPlan[index]?.day || day.day,
-          objectives: objectiveCanSync ? autoObjective : currentObjective
-        };
+      if (!day.day) {
+        nextDay.day = weeklyPlan[index]?.day || day.day;
+        changed = changed || nextDay.day !== day.day;
       }
 
-      return day;
+      if (objectiveCanSync && currentObjective !== autoObjective) {
+        nextDay.objectives = autoObjective;
+        changed = true;
+      }
+
+      (["introduction", "presentation", "guidedPractice", "exitTicket", "assessment", "homework"] as WeeklyEditableKey[]).forEach((key) => {
+        const locked = Boolean(day.lockedFields?.[key]);
+        const manuallyEdited = Boolean(day.editedFields?.[key]);
+        const currentValue = String(day[key] || "");
+        const previousGenerated = previousLessonSupportRef.current[index]?.[key] || "";
+        const nextGenerated = String(generatedFromLesson[key] || "");
+        const canSync = !locked && !manuallyEdited && (!currentValue.trim() || currentValue === previousGenerated);
+
+        if (canSync && nextGenerated && currentValue !== nextGenerated) {
+          nextDay[key] = nextGenerated;
+          changed = true;
+        }
+      });
+
+      previousLessonSupportRef.current[index] = {
+        ...(previousLessonSupportRef.current[index] || {}),
+        objectives: generatedFromLesson.objectives,
+        introduction: generatedFromLesson.introduction,
+        presentation: generatedFromLesson.presentation,
+        guidedPractice: generatedFromLesson.guidedPractice,
+        exitTicket: generatedFromLesson.exitTicket,
+        assessment: generatedFromLesson.assessment,
+        homework: generatedFromLesson.homework
+      };
+
+      return nextDay;
     });
 
     if (changed) {
@@ -468,19 +522,26 @@ export const Editor = () => {
     const chapter = sanitizeChapter(current.chapter);
     const grade = current.gradeClass || "";
     const generated: WeeklyPlanDay[] = createVariedWeeklyPlan({ ...current, subject, gradeClass: grade, chapter });
+    const totalMinutes = parseMinutes(current.duration);
+    const generatedWithDurations = totalMinutes
+      ? generated.map((day, index) => ({
+        ...day,
+        activityDurations: distributeActivityDurations(totalMinutes, { ...day, activityDurations: undefined }, index)
+      }))
+      : generated;
     if (planType === "daily") {
       const dayIndex = getBusinessDayIndex(current.date);
       const currentPlan = normalizeEditableWeeklyPlan(current.weeklyPlan, subject, grade, chapter);
       const daily = {
-        ...generated[dayIndex],
+        ...generatedWithDurations[dayIndex],
         day: currentPlan[0]?.day || generated[dayIndex].day,
         lockedFields: currentPlan[0]?.lockedFields,
-        activityDurations: currentPlan[0]?.activityDurations,
+        activityDurations: currentPlan[0]?.activityDurations || generatedWithDurations[dayIndex].activityDurations,
         editedFields: {}
       };
       form.setValue("weeklyPlan", [daily, ...currentPlan.slice(1)], { shouldDirty: true, shouldValidate: false });
     } else {
-      form.setValue("weeklyPlan", generated, { shouldDirty: true, shouldValidate: false });
+      form.setValue("weeklyPlan", generatedWithDurations, { shouldDirty: true, shouldValidate: false });
     }
     const generatedTitle = buildAutomaticTitle({ ...current, subject, gradeClass: grade, chapter, planType });
     form.setValue("topic", generatedTitle, { shouldDirty: true });
@@ -508,7 +569,7 @@ export const Editor = () => {
     if (!canEditCurrent) return;
     const current = form.getValues();
     const next = normalizeEditableWeeklyPlan(current.weeklyPlan, current.subject, current.gradeClass, sanitizeChapter(current.chapter));
-    const suggestion = createSuggestedWeeklyDay(current, index);
+    const suggestion = createLessonBasedSuggestion(current, next[index], index);
     next[index] = {
       ...next[index],
       ...Object.fromEntries(Object.entries(suggestion).filter(([key]) => key === "day" || !next[index].lockedFields?.[key as WeeklyEditableKey]))
@@ -525,7 +586,7 @@ export const Editor = () => {
       notify("Unlock this cell before regenerating it");
       return;
     }
-    const suggestion = createSuggestedWeeklyDay(current, index);
+    const suggestion = createLessonBasedSuggestion(current, next[index], index);
     next[index] = { ...next[index], [key]: suggestion[key] };
     form.setValue("weeklyPlan", next, { shouldDirty: true, shouldValidate: false });
     notify(`${next[index].day} ${rowLabel(key)} restored`);
@@ -535,8 +596,10 @@ export const Editor = () => {
     if (!canEditCurrent) return;
     const current = form.getValues();
     const next = normalizeEditableWeeklyPlan(current.weeklyPlan, current.subject, current.gradeClass, sanitizeChapter(current.chapter));
-    const suggestions = createVariedWeeklyPlan(current);
-    form.setValue("weeklyPlan", next.map((day, index) => day.lockedFields?.[key] ? day : { ...day, [key]: suggestions[index][key] }), {
+    form.setValue("weeklyPlan", next.map((day, index) => {
+      const suggestion = createLessonBasedSuggestion(current, day, index);
+      return day.lockedFields?.[key] ? day : { ...day, [key]: suggestion[key] };
+    }), {
       shouldDirty: true,
       shouldValidate: false
     });
@@ -1045,6 +1108,22 @@ const normalizeEditableWeeklyPlan = (weeklyPlan: Partial<WeeklyPlanDay>[] | unde
   }));
 };
 
+const createLessonBasedSuggestion = (lesson: Partial<LessonPlan>, day: Partial<WeeklyPlanDay> | undefined, index: number) => {
+  const lessonTitle = day?.lesson?.trim() || lesson.subtopic?.trim() || sanitizeChapter(lesson.chapter) || lesson.topic || "";
+  const generated = createSuggestedWeeklyDay({
+    ...lesson,
+    chapter: lessonTitle,
+    topic: lessonTitle,
+    subtopic: lessonTitle
+  }, index);
+
+  return {
+    ...generated,
+    day: day?.day || generated.day,
+    lesson: day?.lesson?.trim() || generated.lesson
+  };
+};
+
 const buildAutomaticTitle = (lesson: Partial<LessonPlan>) => {
   const subject = sanitizeTitlePart(lesson.subject);
   const gradeClass = sanitizeTitlePart(lesson.gradeClass);
@@ -1156,6 +1235,9 @@ const hasOldSetupText = (value: string, setup: { subject: string; gradeClass: st
     .some((item) => text.includes(item));
 };
 
+const hasActivityDurations = (day: WeeklyPlanDay) =>
+  Boolean(day.activityDurations && Object.values(day.activityDurations).some((value) => typeof value === "number"));
+
 const hasFilledItems = (items?: { value?: string }[]) => Boolean(items?.some((item) => item.value?.trim()));
 const unique = (values: string[]) => Array.from(new Set(values.map((value) => value.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b));
 
@@ -1244,23 +1326,42 @@ const getTeacherFeedback = (lesson: LessonPlan) => {
 };
 
 const PrintPreview = ({ lesson, zoom, fitWindow = false }: { lesson: LessonPlan; zoom: number; fitWindow?: boolean }) => {
-  const viewportZoom = typeof window === "undefined"
-    ? zoom
-    : fitWindow ? Math.max(
-      0.22,
-      Math.min(
-        Math.max(zoom, 0.78),
-        (window.innerWidth * 0.8) / 1123,
-        (window.innerHeight * 0.8) / 794
-      )
-    ) : Math.min(zoom, Math.max(0.22, (window.innerWidth - 48) / 1123));
+  const shellRef = useRef<HTMLDivElement>(null);
+  const [shellSize, setShellSize] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const shell = shellRef.current;
+    if (!shell) return;
+
+    const updateSize = () => {
+      const rect = shell.getBoundingClientRect();
+      setShellSize({ width: rect.width, height: rect.height });
+    };
+    updateSize();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", updateSize);
+      return () => window.removeEventListener("resize", updateSize);
+    }
+
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(shell);
+    return () => observer.disconnect();
+  }, []);
+
+  const availableWidth = Math.max(0, shellSize.width - (fitWindow ? 24 : 20));
+  const availableHeight = Math.max(0, shellSize.height - (fitWindow ? 24 : 20));
+  const widthScale = availableWidth ? availableWidth / 1123 : zoom;
+  const heightScale = availableHeight ? availableHeight / 794 : zoom;
+  const responsiveScale = fitWindow ? Math.min(widthScale, heightScale) : widthScale;
+  const viewportZoom = Math.max(0.18, Math.min(fitWindow ? 1 : zoom, responsiveScale || zoom));
   const width = `${297 * viewportZoom}mm`;
   const height = `${210 * viewportZoom}mm`;
   const style = { "--preview-scale": viewportZoom } as CSSProperties;
 
   return (
-    <div className={fitWindow ? "print-preview-shell flex h-[80dvh] max-h-[80dvh] min-h-[420px] max-w-full items-center justify-center overflow-auto rounded-lg border border-cyan-300/15 bg-slate-950/70 p-2 sm:p-3" : "print-preview-shell max-h-[72dvh] max-w-full overflow-auto rounded-lg border border-cyan-300/15 bg-slate-950/70 p-2 sm:p-3 lg:max-h-[62dvh]"}>
-      <div style={{ width, height }} className="shrink-0 overflow-hidden">
+    <div ref={shellRef} className={fitWindow ? "print-preview-shell flex h-[80dvh] max-h-[80dvh] min-h-[420px] max-w-full items-center justify-center overflow-auto rounded-lg border border-cyan-300/15 bg-slate-950/70 p-2 sm:p-3" : "print-preview-shell flex max-h-[72dvh] max-w-full items-start justify-center overflow-auto rounded-lg border border-cyan-300/15 bg-slate-950/70 p-2 sm:p-3 lg:max-h-[62dvh]"}>
+      <div style={{ width, height }} className="max-w-full shrink-0 overflow-hidden">
         <div className="origin-top-left scale-[var(--preview-scale)]" style={{ ...style, width: "297mm", height: "210mm" }}>
           <LessonPrint lesson={lesson} />
         </div>

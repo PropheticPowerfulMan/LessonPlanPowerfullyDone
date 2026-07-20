@@ -18,6 +18,10 @@ export const getActivityDurations = (day: WeeklyPlanDay, index: number) => {
 };
 
 export const distributeActivityDurations = (totalMinutes: number, day: WeeklyPlanDay, index: number) => {
+  if (!hasCustomActivityDurations(day)) {
+    return createDefaultActivityDurations(totalMinutes, index);
+  }
+
   const current = getActivityDurations(day, index);
   const currentTotal = current.introduction + current.presentation + current.guidedPractice + current.exitTicket;
   const source = currentTotal > 0 ? current : getActivityDurations({ ...day, activityDurations: undefined }, index);
@@ -26,6 +30,33 @@ export const distributeActivityDurations = (totalMinutes: number, day: WeeklyPla
   const presentation = Math.max(0, Math.round((totalMinutes * source.presentation) / sourceTotal));
   const guidedPractice = Math.max(0, Math.round((totalMinutes * source.guidedPractice) / sourceTotal));
   const exitTicket = Math.max(0, totalMinutes - introduction - presentation - guidedPractice);
+
+  return {
+    introduction,
+    presentation,
+    guidedPractice,
+    exitTicket
+  };
+};
+
+export const createDefaultActivityDurations = (totalMinutes: number, index: number) => {
+  const minutes = Math.max(1, Math.round(totalMinutes));
+  const isReviewOrAssessmentDay = index >= 4;
+  const ratios = isReviewOrAssessmentDay
+    ? { introduction: 0.1, presentation: 0.22, guidedPractice: 0.48, exitTicket: 0.2 }
+    : { introduction: 0.1, presentation: 0.3, guidedPractice: 0.5, exitTicket: 0.1 };
+
+  const minimums = {
+    introduction: minutes >= 30 ? 4 : 2,
+    presentation: minutes >= 30 ? 8 : 4,
+    guidedPractice: minutes >= 30 ? 10 : 5,
+    exitTicket: minutes >= 30 ? 4 : 2
+  };
+
+  const introduction = clampRounded(minutes * ratios.introduction, minimums.introduction, minutes);
+  const presentation = clampRounded(minutes * ratios.presentation, minimums.presentation, minutes - introduction);
+  const guidedPractice = clampRounded(minutes * ratios.guidedPractice, minimums.guidedPractice, minutes - introduction - presentation);
+  const exitTicket = Math.max(0, minutes - introduction - presentation - guidedPractice);
 
   return {
     introduction,
@@ -48,6 +79,14 @@ export const analyzeDurationAllocation = (lesson: LessonPlan): DurationWarning[]
       message: diff > 0 ? `${day.day}: ${diff} minutes unallocated.` : `${day.day}: activities exceed lesson duration by ${Math.abs(diff)} minutes.`
     };
   }).filter(Boolean) as DurationWarning[];
+};
+
+const hasCustomActivityDurations = (day: WeeklyPlanDay) =>
+  Boolean(day.activityDurations && Object.values(day.activityDurations).some((value) => typeof value === "number"));
+
+const clampRounded = (value: number, minimum: number, maximum: number) => {
+  if (maximum <= 0) return 0;
+  return Math.min(maximum, Math.max(Math.min(minimum, maximum), Math.round(value)));
 };
 
 export const parseMinutes = (value?: string) => {
