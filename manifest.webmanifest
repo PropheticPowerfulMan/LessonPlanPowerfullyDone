@@ -8,7 +8,10 @@
   "orientation": "any",
   "background_color": "#030d14",
   "theme_color": "#071824",
-  "categories": ["education", "productivity"],
+  "categories": [
+    "education",
+    "productivity"
+  ],
   "icons": [
     {
       "src": "/LessonPlanPowerfullyDone/kcs-icon-192.png",
@@ -28,5 +31,13 @@
       "type": "image/png",
       "purpose": "maskable"
     }
-  ]
+  ],
+  "id": "/LessonPlanPowerfullyDone/",
+  "display_override": [
+    "window-controls-overlay",
+    "standalone"
+  ],
+  "lang": "en",
+  "dir": "ltr",
+  "prefer_related_applications": false
 }
