@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useContext, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { createContext, ReactNode, useContext, useLayoutEffect, useMemo, useState } from "react";
 import { schoolImage } from "../data/defaults";
 import { Language } from "../types/lesson";
 
@@ -14,7 +14,7 @@ const AppContext = createContext<AppContextValue | null>(null);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [dark, setDark] = useState(() => localStorage.getItem("plp:theme") ? localStorage.getItem("plp:theme") === "dark" : true);
-  const [language, setLanguageState] = useState<Language>(() => (localStorage.getItem("plp:language") as Language) || "en");
+  const [language, setLanguageState] = useState<Language>("en");
   const imageUrl = schoolImage;
 
   useLayoutEffect(() => {
@@ -23,9 +23,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     localStorage.setItem("plp:theme", dark ? "dark" : "light");
   }, [dark]);
 
-  useEffect(() => {
-    localStorage.setItem("plp:language", language);
-  }, [language]);
 
 
   const value = useMemo<AppContextValue>(

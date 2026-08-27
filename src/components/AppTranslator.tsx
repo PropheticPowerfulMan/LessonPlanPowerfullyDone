@@ -70,7 +70,11 @@ export const AppTranslator = () => {
     const french = language === "fr";
     document.documentElement.lang = language;
     document.title = french ? "Planificateur de leçons KCS" : "KCS Lesson Planner";
-    if (!root) return;
+    const nativeConfirm = window.confirm.bind(window);
+    const nativePrompt = window.prompt.bind(window);
+    window.confirm = (message?: string) => nativeConfirm(french ? translateToFrench(message ?? "") : message);
+    window.prompt = (message?: string, defaultValue?: string) => nativePrompt(french ? translateToFrench(message ?? "") : message, defaultValue);
+    if (!root) return () => { window.confirm = nativeConfirm; window.prompt = nativePrompt; };
     translateTree(root, french);
     const observer = new MutationObserver(mutations => {
       for (const mutation of mutations) {
@@ -82,7 +86,11 @@ export const AppTranslator = () => {
       }
     });
     observer.observe(root, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: [...attributes] });
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      window.confirm = nativeConfirm;
+      window.prompt = nativePrompt;
+    };
   }, [language]);
   return null;
 };
