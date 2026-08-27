@@ -10,12 +10,16 @@ let deferredPrompt: BeforeInstallPromptEvent | null = null;
 let initialized = false;
 let snapshot: InstallSnapshot = { canInstall: false, showInstall: false, installed: false };
 const listeners = new Set<Listener>();
+const pwaInstalledKey = "kcs-eduplanner:pwa-installed";
 
 const isStandalone = () =>
   window.matchMedia("(display-mode: standalone)").matches ||
   Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
 
-const updateSnapshot = (installed = isStandalone()) => {
+const wasInstalled = () => localStorage.getItem(pwaInstalledKey) === "true";
+const rememberInstallation = () => localStorage.setItem(pwaInstalledKey, "true");
+
+const updateSnapshot = (installed = isStandalone() || wasInstalled()) => {
   const desktop = window.matchMedia("(min-width: 768px)").matches;
   snapshot = {
     canInstall: Boolean(deferredPrompt) && !installed,
@@ -38,6 +42,7 @@ export const initializePwaInstall = () => {
 
   window.addEventListener("appinstalled", () => {
     deferredPrompt = null;
+    rememberInstallation();
     updateSnapshot(true);
   });
 
@@ -65,6 +70,7 @@ export const pwaInstallStore = {
     const choice = await prompt.userChoice;
     if (choice.outcome === "accepted") {
       deferredPrompt = null;
+      rememberInstallation();
       updateSnapshot(true);
       return true;
     }
