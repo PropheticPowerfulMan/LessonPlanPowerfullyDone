@@ -1,10 +1,12 @@
-const CACHE_NAME = "kcs-eduplanner-v1";
-const BASE_PATH = "/LessonPlanPowerfullyDone/";
+const BASE_PATH = new URL(self.registration.scope).pathname.replace(/\/?$/, "/");
+const CACHE_NAME = "kcs-eduplanner-v2";
 const APP_SHELL = [
   BASE_PATH,
-  `${BASE_PATH}index.html`,
-  `${BASE_PATH}manifest.webmanifest`,
-  `${BASE_PATH}kcs.jpg`
+  BASE_PATH + "index.html",
+  BASE_PATH + "manifest.webmanifest",
+  BASE_PATH + "kcs.jpg",
+  BASE_PATH + "kcs-icon-192.png",
+  BASE_PATH + "kcs-icon-512.png"
 ];
 
 self.addEventListener("install", (event) => {
@@ -26,9 +28,7 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   const url = new URL(request.url);
-
-  if (request.method !== "GET") return;
-  if (url.origin !== self.location.origin) return;
+  if (request.method !== "GET" || url.origin !== self.location.origin) return;
 
   if (request.mode === "navigate") {
     event.respondWith(
@@ -38,7 +38,7 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(BASE_PATH, copy));
           return response;
         })
-        .catch(() => caches.match(BASE_PATH).then((response) => response || caches.match(`${BASE_PATH}index.html`)))
+        .catch(() => caches.match(BASE_PATH).then((response) => response || caches.match(BASE_PATH + "index.html")))
     );
     return;
   }

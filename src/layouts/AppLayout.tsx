@@ -1,9 +1,10 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { FormEvent, useState } from "react";
-import { CalendarDays, Eye, EyeOff, FileText, Languages, LogOut, Mail, MessageSquare, Moon, Plus, Search, ShieldCheck, Sun, UserRound } from "lucide-react";
+import { CalendarDays, Download, Eye, EyeOff, FileText, Languages, LogOut, Mail, MessageSquare, Moon, Plus, Search, ShieldCheck, Sun, UserRound } from "lucide-react";
 import { useApp } from "../contexts/AppContext";
 import { useAuth } from "../contexts/AuthContext";
 import { useLessons } from "../hooks/useLessons";
+import { usePwaInstall } from "../hooks/usePwaInstall";
 import { Button } from "../components/ui/button";
 import { Dialog } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
@@ -16,6 +17,7 @@ export const AppLayout = () => {
   const { dark, toggleDark, language, setLanguage, imageUrl } = useApp();
   const { currentUser, signOut, can, changePassword, changeEmail, updateProfile } = useAuth();
   const { createLesson } = useLessons();
+  const { showInstall, install } = usePwaInstall();
   const { notify } = useToast();
   const navigate = useNavigate();
   const [accountOpen, setAccountOpen] = useState(false);
@@ -132,6 +134,17 @@ export const AppLayout = () => {
             <Button variant="outline" className="hidden sm:inline-flex" onClick={() => navigate("/plans?focus=search")}>
               <Search size={17} /> Search
             </Button>
+            {showInstall && (
+              <Button
+                variant="outline"
+                className="hidden md:inline-flex"
+                onClick={() => install().then((accepted) => {
+                  notify(accepted ? "KCS EduPlanner installed" : "Use the browser installation icon or menu if the prompt is not available yet.");
+                })}
+              >
+                <Download size={17} /> Install App
+              </Button>
+            )}
             {canCreateLessons && (
               <Button
                 className="px-3 sm:px-4"

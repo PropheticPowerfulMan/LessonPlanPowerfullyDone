@@ -1,5 +1,6 @@
 import { SignUpProfileInput, UserProfile, UserRole } from "../types/user";
 import { createTemporaryPassword } from "./passwordService";
+import { recoveryApiService } from "./recoveryApiService";
 
 const configuredSupabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -227,6 +228,10 @@ export const cloudAuthService = {
     return profile;
   },
   async resetPassword(email: string, temporaryPassword?: string) {
+    if (!temporaryPassword && recoveryApiService.enabled) {
+      await recoveryApiService.send(email);
+      return;
+    }
     const redirectTo = getPublicAppLoginUrl(temporaryPassword);
     try {
       await request(`${authUrl("recover")}?redirect_to=${encodeURIComponent(redirectTo)}`, {
@@ -239,7 +244,7 @@ export const cloudAuthService = {
       return temporaryPassword;
     } catch (error) {
       if (temporaryPassword) throw error;
-      return this.createPublicRecoveryPassword(email);
+      throw error;
     }
   },
   async createPublicRecoveryPassword(email: string) {

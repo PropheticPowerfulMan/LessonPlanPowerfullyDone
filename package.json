@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build && node scripts/postbuild.mjs",
+    "build:github": "tsc -b && vite build --mode github && node scripts/postbuild.mjs",
+    "build:vps": "tsc -b && vite build --mode vps && node scripts/postbuild.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

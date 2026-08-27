@@ -6,10 +6,11 @@ import { AuthProvider } from "./contexts/AuthContext";
 import "./index.css";
 import { App } from "./App";
 import { applyFinalProductionReset } from "./services/finalResetService";
-import { registerPwaServiceWorker } from "./services/pwaService";
+import { initializePwaInstall, registerPwaServiceWorker } from "./services/pwaService";
 import { normalizeRecoveryUrlBeforeRouter } from "./services/urlRecoveryService";
 
 normalizeRecoveryUrlBeforeRouter();
+initializePwaInstall();
 applyFinalProductionReset();
 registerPwaServiceWorker();
 

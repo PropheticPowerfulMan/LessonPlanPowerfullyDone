@@ -1,0 +1,18 @@
+[Unit]
+Description=KCS EduPlanner recovery mail service
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/kcs-eduplanner/server
+EnvironmentFile=/var/www/kcs-eduplanner/server/.env
+ExecStart=/usr/bin/node index.mjs
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

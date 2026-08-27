@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { Eye, EyeOff, LockKeyhole, Mail, RotateCcw, ShieldCheck, UserPlus, UserRoundCheck } from "lucide-react";
+import { Download, Eye, EyeOff, LockKeyhole, Mail, RotateCcw, ShieldCheck, UserPlus, UserRoundCheck } from "lucide-react";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Input, Select } from "../components/ui/input";
@@ -11,6 +11,7 @@ import { cloudAuthService } from "../services/cloudAuthService";
 import { mockAuthService } from "../services/mockAuthService";
 import { getRecoveryParam } from "../services/urlRecoveryService";
 import { roleLabels, SignUpProfileInput, UserRole } from "../types/user";
+import { usePwaInstall } from "../hooks/usePwaInstall";
 
 type AuthPanel = "signin" | "signup" | "reset" | "new-password";
 
@@ -31,6 +32,7 @@ const emptySignup: SignUpProfileInput = {
 export const Login = () => {
   const { currentUser, users, authMode, loading, signIn, signUp, resetPassword } = useAuth();
   const navigate = useNavigate();
+  const { showInstall, install } = usePwaInstall();
   const activeUsers = useMemo(() => users.filter((user) => user.status === "active"), [users]);
   const pendingUsers = useMemo(() => users.filter((user) => user.status === "inactive"), [users]);
   const recoveryToken = getRecoveryAccessToken();
@@ -109,10 +111,8 @@ export const Login = () => {
     setMessage("");
     setBusy(true);
     try {
-      const temporary = await resetPassword(resetEmail);
-      setMessage(temporary
-        ? `Recovery ready. Temporary password: ${temporary}`
-        : "Password recovery email sent. Open the email link, then set your new password here.");
+      await resetPassword(resetEmail);
+      setMessage("If this account exists, a branded KCS recovery email has been sent. Check the inbox and spam folder.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to start password recovery.");
     } finally {
@@ -185,6 +185,20 @@ export const Login = () => {
             <Tab active={panel === "signup"} onClick={() => setPanel("signup")}>Create account</Tab>
             <Tab active={panel === "reset"} onClick={() => setPanel("reset")}>Password</Tab>
           </div>
+          {showInstall && (
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-3 hidden w-full border-cyan-300/25 bg-white/[0.05] text-cyan-50 md:inline-flex"
+              onClick={() => install().then((accepted) => {
+                setMessage(accepted
+                  ? "KCS EduPlanner is now installed."
+                  : "Use the installation icon in your browser address bar if the prompt is not available yet.");
+              })}
+            >
+              <Download size={17} /> Install App
+            </Button>
+          )}
         </div>
 
         <div className="p-6 sm:p-7">
