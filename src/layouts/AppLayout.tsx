@@ -91,7 +91,7 @@ export const AppLayout = () => {
   const toggleLanguage = () => {
     const next = language === "en" ? "fr" : "en";
     setLanguage(next);
-    notify(next === "fr" ? "Langue changée : Français" : "Language changed: English");
+    notify(next === "fr" ? "Langue changée : français" : "Language changed: English");
   };
 
   return (
@@ -160,7 +160,7 @@ export const AppLayout = () => {
               <Languages size={18} />
               <span className="text-xs font-black uppercase">{language === "en" ? "FR" : "EN"}</span>
             </Button>
-            <Button variant="ghost" onClick={toggleDark} aria-label="Toggle theme">
+            <Button variant="ghost" onClick={toggleDark} aria-label="Toggle theme" title={dark ? "Switch to light theme" : "Switch to dark theme"}>
               {dark ? <Sun size={18} /> : <Moon size={18} />}
             </Button>
             <Button variant="ghost" onClick={openAccount} aria-label="Account security" title="Account security">
