@@ -5,6 +5,7 @@ import { recoveryApiService } from "./recoveryApiService";
 const configuredSupabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 const configuredPublicAppUrl = import.meta.env.VITE_PUBLIC_APP_URL as string | undefined;
+const configuredFederatedAuthUrl = import.meta.env.VITE_FEDERATED_AUTH_URL as string | undefined;
 const sessionKey = "powerful-lesson-planner:supabase-session";
 
 interface SupabaseSession {
@@ -184,11 +185,35 @@ export const cloudAuthService = {
       return null;
     }
   },
-  async signIn(email: string, password: string) {
-    const session = await request<SupabaseSession>(authUrl("token?grant_type=password"), {
-      method: "POST",
-      body: JSON.stringify({ email: email.trim().toLowerCase(), password })
-    });
+  async signIn(identifier: string, password: string) {
+    const normalizedIdentifier = identifier.trim();
+    let session: SupabaseSession | null = null;
+    let federationError: Error | null = null;
+    if (configuredFederatedAuthUrl) {
+      try {
+        const response = await fetch(configuredFederatedAuthUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ identifier: normalizedIdentifier, password })
+        });
+        const payload = await response.json().catch(() => null);
+        if (!response.ok) throw new Error(payload?.error || "Institutional authentication failed.");
+        session = payload as SupabaseSession;
+      } catch (error) {
+        federationError = error instanceof Error ? error : new Error("Institutional authentication failed.");
+      }
+    }
+    if (!session && normalizedIdentifier.includes("@")) {
+      try {
+        session = await request<SupabaseSession>(authUrl("token?grant_type=password"), {
+          method: "POST",
+          body: JSON.stringify({ email: normalizedIdentifier.toLowerCase(), password })
+        });
+      } catch (legacyError) {
+        throw federationError || legacyError;
+      }
+    }
+    if (!session) throw federationError || new Error("Enter a valid KCS email or institutional access code.");
     writeSession(session);
     let profile: UserProfile | null = null;
     try {

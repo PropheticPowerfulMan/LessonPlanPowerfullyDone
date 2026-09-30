@@ -206,7 +206,7 @@ export const Login = () => {
           {cloudAuthService.configurationError && <p className="mb-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm font-bold text-destructive">{cloudAuthService.configurationError}</p>}
           {authMode === "cloud" && panel === "signin" && (
             <p className="mb-4 rounded-md border border-cyan-300/20 bg-cyan-500/10 px-3 py-2 text-sm font-bold text-cyan-50">
-              Cloud mode active. Enter your account email and password to load your profile and lesson plans from Supabase.
+              KCS institutional access is active. Teachers may use their ecosystem email or access code. Existing Supabase accounts remain available and keep all previous lesson plans.
             </p>
           )}
           {message && <p className="mb-4 rounded-md border border-emerald-300/30 bg-emerald-500/10 px-3 py-2 text-sm font-bold text-emerald-100">{message}</p>}
@@ -214,7 +214,7 @@ export const Login = () => {
 
           {panel === "signin" && (
             <form className="space-y-4" onSubmit={submitSignin}>
-              <AuthField label="Email" icon={<Mail size={16} strokeWidth={2.5} />}>
+              <AuthField label="KCS email or institutional code" icon={<Mail size={16} strokeWidth={2.5} />}>
                 {authMode === "local" ? (
                   <Select className="border-cyan-300/20 bg-[#030d14]/85 pl-10 text-cyan-50" value={email} onChange={(event) => setEmail(event.target.value)}>
                     {activeUsers.map((user) => (
@@ -222,7 +222,7 @@ export const Login = () => {
                     ))}
                   </Select>
                 ) : (
-                  <Input required autoComplete="username" className="border-cyan-300/20 bg-[#030d14]/85 pl-10 text-cyan-50" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
+                  <Input required autoComplete="username" className="border-cyan-300/20 bg-[#030d14]/85 pl-10 text-cyan-50" type="text" value={email} onChange={(event) => setEmail(event.target.value)} />
                 )}
               </AuthField>
 
