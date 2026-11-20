@@ -1,3 +1,14 @@
+const legacyKcsScope=new URL(self.registration.scope)
+if(legacyKcsScope.hostname==='propheticpowerfulman.github.io'&&legacyKcsScope.pathname.startsWith('/LessonPlanPowerfullyDone/')){
+ self.addEventListener('install',event=>event.waitUntil(self.skipWaiting()))
+ self.addEventListener('activate',event=>event.waitUntil(self.clients.claim()))
+ self.addEventListener('fetch',event=>{
+  const url=new URL(event.request.url)
+  if(event.request.method==='GET'&&event.request.mode==='navigate'&&url.origin===legacyKcsScope.origin&&url.pathname.startsWith(legacyKcsScope.pathname)){
+   event.respondWith(Promise.resolve(Response.redirect('https://kinshasachristianschool.org/lesson-plan/#/',302)))
+  }
+ })
+}else{
 const BASE_PATH = new URL(self.registration.scope).pathname.replace(/\/?$/, "/");
 const CACHE_NAME = "kcs-eduplanner-v2";
 const APP_SHELL = [
@@ -56,3 +67,4 @@ self.addEventListener("fetch", (event) => {
     })
   );
 });
+}
